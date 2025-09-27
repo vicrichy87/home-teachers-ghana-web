@@ -41,7 +41,11 @@ export default function TeacherPage() {
         router.push("/login");
         return;
       }
-      const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
       if (error) throw error;
       setTeacher(data);
     } catch (err) {
@@ -72,7 +76,11 @@ export default function TeacherPage() {
 
   async function fetchRates() {
     try {
-      const { data, error } = await supabase.from("teacher_rates").select("id, subject, level, rate").eq("teacher_id", teacher.id).order("id", {ascending:false});
+      const { data, error } = await supabase
+        .from("teacher_rates")
+        .select("id, subject, level, rate")
+        .eq("teacher_id", teacher.id)
+        .order("id", { ascending: false });
       if (error) throw error;
       setRates(data || []);
     } catch (err) {
@@ -80,25 +88,27 @@ export default function TeacherPage() {
     }
   }
 
-  async function handleAddRate(){
-    if(!subject || !level) return alert("Provide subject and level");
+  async function handleAddRate() {
+    if (!subject || !level) return alert("Provide subject and level");
     setSavingRate(true);
     try {
       const { error } = await supabase.from("teacher_rates").insert([{
         teacher_id: teacher.id,
         subject,
         level,
-        rate: parseFloat(rate)
+        rate: parseFloat(rate),
       }]);
       if (error) throw error;
       setSubject(""); setLevel(""); setRate("200");
       fetchRates();
-    } catch (err){
+    } catch (err) {
       alert(err.message || String(err));
-    } finally { setSavingRate(false); }
+    } finally {
+      setSavingRate(false);
+    }
   }
 
-  async function handleDeleteRate(id){
+  async function handleDeleteRate(id) {
     try {
       const { error } = await supabase.from("teacher_rates").delete().eq("id", id);
       if (error) throw error;
@@ -108,44 +118,72 @@ export default function TeacherPage() {
     }
   }
 
-  function startEditRate(item){
+  function startEditRate(item) {
     setEditingRate(item.id);
     setEditSubject(item.subject);
     setEditLevel(item.level);
     setEditRate(String(item.rate));
   }
 
-  async function handleSaveEditRate(){
-    if(!editSubject || !editLevel) return alert("Fill fields");
+  async function handleSaveEditRate() {
+    if (!editSubject || !editLevel) return alert("Fill fields");
     try {
       const { error } = await supabase.from("teacher_rates").update({
         subject: editSubject,
         level: editLevel,
-        rate: parseFloat(editRate)
+        rate: parseFloat(editRate),
       }).eq("id", editingRate);
       if (error) throw error;
-      setRates(prev => prev.map(r => r.id === editingRate ? {...r, subject:editSubject, level:editLevel, rate:parseFloat(editRate)} : r));
+      setRates(prev =>
+        prev.map(r =>
+          r.id === editingRate
+            ? { ...r, subject: editSubject, level: editLevel, rate: parseFloat(editRate) }
+            : r
+        )
+      );
       setEditingRate(null);
-    } catch (err) { alert(err.message || String(err)) }
+    } catch (err) {
+      alert(err.message || String(err));
+    }
   }
 
+  // ✅ Updated: Upload profile image to "profile-pics" bucket
   async function handlePickImage(file) {
     try {
       setUploading(true);
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not logged in");
+
       const ext = file.name.split(".").pop();
-      const filePath = `profile_images/${user.id}_${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("profile_images").upload(filePath, file, { upsert: true, contentType: file.type });
+      const filePath = `${user.id}_${Date.now()}.${ext}`;
+
+      // Ensure bucket name matches what you created in Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("profile-pics")  // 👈 use your bucket name here
+        .upload(filePath, file, { upsert: true, contentType: file.type });
+
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = await supabase.storage.from("profile_images").getPublicUrl(filePath);
+
+      const { data: publicUrlData } = supabase.storage
+        .from("profile-pics")  // 👈 same bucket name
+        .getPublicUrl(filePath);
+
       const publicUrl = publicUrlData.publicUrl;
-      const { error: updateError } = await supabase.from("users").update({ profile_image: publicUrl }).eq("id", user.id);
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ profile_image: publicUrl })
+        .eq("id", user.id);
+
       if (updateError) throw updateError;
-      setTeacher(prev => ({...prev, profile_image: publicUrl}));
+
+      setTeacher(prev => ({ ...prev, profile_image: publicUrl }));
       alert("Profile image updated");
     } catch (err) {
       alert(err.message || String(err));
-    } finally { setUploading(false) }
+    } finally {
+      setUploading(false);
+    }
   }
 
   if (loading) return <div className="text-center py-20">Loading...</div>;
@@ -154,21 +192,41 @@ export default function TeacherPage() {
     <div className="max-w-4xl mx-auto bg-white p-6 rounded shadow">
       <Banner />
       <div className="mt-4 flex gap-3">
-        {["profile","students","rates","myRates"].map(t => (
-          <button key={t} onClick={()=>setTab(t)} className={`px-3 py-1 rounded ${tab===t? "bg-sky-600 text-white":"bg-sky-50"}`}>
-            {t==="profile"? "Profile" : t==="students"? "View Students" : t==="rates"? "Add Rates":"My Rates"}
+        {["profile", "students", "rates", "myRates"].map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-3 py-1 rounded ${
+              tab === t ? "bg-sky-600 text-white" : "bg-sky-50"
+            }`}
+          >
+            {t === "profile"
+              ? "Profile"
+              : t === "students"
+              ? "View Students"
+              : t === "rates"
+              ? "Add Rates"
+              : "My Rates"}
           </button>
         ))}
       </div>
 
-      {tab==="profile" && (
+      {tab === "profile" && (
         <div className="mt-4 flex gap-6">
           <div>
-            <img src={teacher?.profile_image || "/placeholder.png"} className="w-28 h-28 rounded-full border" />
+            <img
+              src={teacher?.profile_image || "/placeholder.png"}
+              className="w-28 h-28 rounded-full border"
+            />
             <div className="mt-2">
               <label className="bg-sky-600 text-white px-3 py-1 rounded cursor-pointer">
                 {uploading ? "Uploading..." : "Change Photo"}
-                <input type="file" className="hidden" onChange={(e)=> handlePickImage(e.target.files[0])} />
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => handlePickImage(e.target.files[0])}
+                />
               </label>
             </div>
           </div>
@@ -184,11 +242,11 @@ export default function TeacherPage() {
         </div>
       )}
 
-      {tab==="students" && (
+      {tab === "students" && (
         <div className="mt-4">
           <h3 className="font-semibold">Students</h3>
           <div className="space-y-3 mt-3">
-            {students.length===0 && <div>No students yet.</div>}
+            {students.length === 0 && <div>No students yet.</div>}
             {students.map(s => (
               <div key={s.id} className="border p-3 rounded">
                 <div className="font-semibold">{s.student.full_name}</div>
@@ -200,55 +258,109 @@ export default function TeacherPage() {
         </div>
       )}
 
-      {tab==="rates" && (
+      {tab === "rates" && (
         <div className="mt-4">
-          <input placeholder="Subject" value={subject} onChange={(e)=>setSubject(e.target.value)} className="w-full p-2 border rounded" />
+          <input
+            placeholder="Subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
           <div className="flex gap-2 mt-2">
-            <select value={level} onChange={(e)=>setLevel(e.target.value)} className="p-2 border rounded">
+            <select
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+              className="p-2 border rounded"
+            >
               <option value="">Select level</option>
               <option value="JHS">JHS</option>
               <option value="SHS">SHS</option>
               <option value="Remedial">Remedial</option>
             </select>
-            <input value={rate} onChange={(e)=>setRate(e.target.value)} className="p-2 border rounded" placeholder="Rate GHC" />
-            <button onClick={handleAddRate} className="bg-emerald-600 text-white px-4 py-2 rounded">{savingRate? "Saving...": "Add Rate"}</button>
+            <input
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              className="p-2 border rounded"
+              placeholder="Rate GHC"
+            />
+            <button
+              onClick={handleAddRate}
+              className="bg-emerald-600 text-white px-4 py-2 rounded"
+            >
+              {savingRate ? "Saving..." : "Add Rate"}
+            </button>
           </div>
         </div>
       )}
 
-      {tab==="myRates" && (
+      {tab === "myRates" && (
         <div className="mt-4 space-y-3">
-          {rates.length===0 && <div>No rates</div>}
-          {rates.map(item => editingRate === item.id ? (
-            <div className="p-3 border rounded" key={item.id}>
-              <input value={editSubject} onChange={(e)=>setEditSubject(e.target.value)} className="w-full p-2 border rounded" />
-              <div className="flex gap-2 mt-2">
-                <select value={editLevel} onChange={(e)=>setEditLevel(e.target.value)} className="p-2 border rounded">
-                  <option value="">Select</option>
-                  <option value="JHS">JHS</option>
-                  <option value="SHS">SHS</option>
-                  <option value="Remedial">Remedial</option>
-                </select>
-                <input value={editRate} onChange={(e)=>setEditRate(e.target.value)} className="p-2 border rounded" />
+          {rates.length === 0 && <div>No rates</div>}
+          {rates.map(item =>
+            editingRate === item.id ? (
+              <div className="p-3 border rounded" key={item.id}>
+                <input
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  className="w-full p-2 border rounded"
+                />
+                <div className="flex gap-2 mt-2">
+                  <select
+                    value={editLevel}
+                    onChange={(e) => setEditLevel(e.target.value)}
+                    className="p-2 border rounded"
+                  >
+                    <option value="">Select</option>
+                    <option value="JHS">JHS</option>
+                    <option value="SHS">SHS</option>
+                    <option value="Remedial">Remedial</option>
+                  </select>
+                  <input
+                    value={editRate}
+                    onChange={(e) => setEditRate(e.target.value)}
+                    className="p-2 border rounded"
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleSaveEditRate}
+                    className="bg-sky-600 text-white px-3 py-1 rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingRate(null)}
+                    className="bg-gray-300 px-3 py-1 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 mt-2">
-                <button onClick={handleSaveEditRate} className="bg-sky-600 text-white px-3 py-1 rounded">Save</button>
-                <button onClick={()=>setEditingRate(null)} className="bg-gray-300 px-3 py-1 rounded">Cancel</button>
+            ) : (
+              <div className="p-3 border rounded" key={item.id}>
+                <div className="font-semibold">{item.subject}</div>
+                <div>
+                  {item.level} — GHC {item.rate}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => startEditRate(item)}
+                    className="bg-sky-600 text-white px-3 py-1 rounded"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRate(item.id)}
+                    className="bg-red-500 text-white px-3 py-1 rounded"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="p-3 border rounded" key={item.id}>
-              <div className="font-semibold">{item.subject}</div>
-              <div>{item.level} — GHC {item.rate}</div>
-              <div className="flex gap-2 mt-2">
-                <button onClick={()=>startEditRate(item)} className="bg-sky-600 text-white px-3 py-1 rounded">Edit</button>
-                <button onClick={()=>handleDeleteRate(item.id)} className="bg-red-500 text-white px-3 py-1 rounded">Delete</button>
-              </div>
-            </div>
-          ))}
+            )
+          )}
         </div>
       )}
-
     </div>
   );
 }
