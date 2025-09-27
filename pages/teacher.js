@@ -159,13 +159,13 @@ export default function TeacherPage() {
 
       // Ensure bucket name matches what you created in Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from("profile-pics")  // 👈 use your bucket name here
+        .from("profile-pics")  // 👈 
         .upload(filePath, file, { upsert: true, contentType: file.type });
 
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage
-        .from("profile-pics")  // 👈 same bucket name
+        .from("profile-pics")  // 👈 
         .getPublicUrl(filePath);
 
       const publicUrl = publicUrlData.publicUrl;
@@ -364,3 +364,4 @@ export default function TeacherPage() {
     </div>
   );
 }
+
