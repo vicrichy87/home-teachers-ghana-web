@@ -11,11 +11,9 @@ export default function StudentPage() {
   const [tab, setTab] = useState("profile");
   const [teachers, setTeachers] = useState([]);
   const [myTeachers, setMyTeachers] = useState([]);
-
   const [searchLocation, setSearchLocation] = useState("");
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
-
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -34,7 +32,11 @@ export default function StudentPage() {
         router.push("/login");
         return;
       }
-      const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
       if (error) throw error;
       setStudent(data);
     } catch (err) {
@@ -109,6 +111,7 @@ export default function StudentPage() {
       const dateAdded = new Date();
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + 1);
+
       const { error } = await supabase.from("teacher_students").insert([
         {
           student_id: student.id,
@@ -126,23 +129,36 @@ export default function StudentPage() {
     }
   }
 
+  // ✅ Upload profile image for students
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
       const ext = file.name.split(".").pop();
       const filePath = `student_images/${user.id}_${Date.now()}.${ext}`;
+
       const { error: uploadError } = await supabase.storage
-        .from("student_images")
+        .from("student_images") // ✅ student bucket
         .upload(filePath, file, { contentType: file.type, upsert: true });
       if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from("student_images").getPublicUrl(filePath);
+
+      const { data: publicUrlData } = supabase
+        .storage
+        .from("student_images")
+        .getPublicUrl(filePath);
+
       const publicUrl = publicUrlData.publicUrl;
-      const { error: updateError } = await supabase.from("users").update({ profile_image: publicUrl }).eq("id", user.id);
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ profile_image: publicUrl })
+        .eq("id", user.id);
       if (updateError) throw updateError;
+
       setStudent(prev => ({ ...prev, profile_image: publicUrl }));
-      alert("Profile image updated");
+      alert("Profile image updated!");
     } catch (err) {
       alert(err.message || String(err));
     } finally {
@@ -159,21 +175,35 @@ export default function StudentPage() {
         <div className="mt-4">
           <div className="flex gap-3">
             {["profile", "searchTeacher", "myTeachers"].map(t => (
-              <button key={t} onClick={() => setTab(t)} className={`px-3 py-1 rounded ${tab===t? "bg-sky-600 text-white":"bg-sky-50"}`}>
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-3 py-1 rounded ${tab===t? "bg-sky-600 text-white":"bg-sky-50"}`}
+              >
                 {t==="profile" ? "Profile" : t==="searchTeacher"? "Search Teacher" : "My Teachers"}
               </button>
             ))}
           </div>
 
+          {/* Profile Tab */}
           {tab==="profile" && (
             <div className="mt-4">
               <div className="flex gap-4">
                 <div>
-                  <img className="w-28 h-28 rounded-full border" src={student?.profile_image || "/placeholder.png"} alt="profile" />
+                  <img
+                    className="w-28 h-28 rounded-full border"
+                    src={student?.profile_image || "/placeholder.png"}
+                    alt="profile"
+                  />
                   <div className="mt-2">
                     <label className="cursor-pointer bg-sky-600 text-white px-3 py-1 rounded">
                       {uploading ? "Uploading..." : "Change Photo"}
-                      <input type="file" accept="image/*" className="hidden" onChange={(e)=> uploadProfileImage(e.target.files[0])} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e)=> uploadProfileImage(e.target.files[0])}
+                      />
                     </label>
                   </div>
                 </div>
@@ -187,26 +217,56 @@ export default function StudentPage() {
             </div>
           )}
 
+          {/* Search Teacher Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4">
               <div className="space-y-3">
                 <div>
-                  <input value={searchLocation} onChange={(e)=>setSearchLocation(e.target.value)} placeholder="Location (city)" className="w-full p-2 border rounded" />
+                  <input
+                    value={searchLocation}
+                    onChange={(e)=>setSearchLocation(e.target.value)}
+                    placeholder="Location (city)"
+                    className="w-full p-2 border rounded"
+                  />
                   <div className="mt-2">
-                    <button onClick={handleSearchByLocation} className="bg-emerald-600 text-white px-4 py-2 rounded">Search by Location</button>
+                    <button
+                      onClick={handleSearchByLocation}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded"
+                    >
+                      Search by Location
+                    </button>
                   </div>
                 </div>
                 <div>
-                  <input value={searchSubject} onChange={(e)=>setSearchSubject(e.target.value)} placeholder="Subject" className="w-full p-2 border rounded" />
+                  <input
+                    value={searchSubject}
+                    onChange={(e)=>setSearchSubject(e.target.value)}
+                    placeholder="Subject"
+                    className="w-full p-2 border rounded"
+                  />
                   <div className="flex gap-2 mt-2">
-                    <select value={searchLevel} onChange={(e)=>setSearchLevel(e.target.value)} className="p-2 border rounded">
+                    <select
+                      value={searchLevel}
+                      onChange={(e)=>setSearchLevel(e.target.value)}
+                      className="p-2 border rounded"
+                    >
                       <option value="">Select level</option>
                       <option value="JHS">JHS</option>
                       <option value="SHS">SHS</option>
                       <option value="Remedial">Remedial</option>
                     </select>
-                    <button onClick={handleSearchBySubjectAndLevel} className="bg-emerald-600 text-white px-4 py-2 rounded">Search by Subject & Level</button>
-                    <button onClick={handleSearchBySubjectOnly} className="bg-sky-600 text-white px-4 py-2 rounded">Search Subject Only</button>
+                    <button
+                      onClick={handleSearchBySubjectAndLevel}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded"
+                    >
+                      Search by Subject & Level
+                    </button>
+                    <button
+                      onClick={handleSearchBySubjectOnly}
+                      className="bg-sky-600 text-white px-4 py-2 rounded"
+                    >
+                      Search Subject Only
+                    </button>
                   </div>
                 </div>
 
@@ -221,12 +281,23 @@ export default function StudentPage() {
                           <div className="flex justify-between">
                             <div>
                               <div className="font-semibold">{teacherObj.full_name}</div>
-                              <div className="text-sm text-slate-600">{teacherObj.email} | {teacherObj.phone}</div>
+                              <div className="text-sm text-slate-600">
+                                {teacherObj.email} | {teacherObj.phone}
+                              </div>
                               <div className="text-sm">{teacherObj.city}</div>
-                              {it.subject && <div className="text-sm">Subject: {it.subject} ({it.level}) — GHC {it.rate}</div>}
+                              {it.subject && (
+                                <div className="text-sm">
+                                  Subject: {it.subject} ({it.level}) — GHC {it.rate}
+                                </div>
+                              )}
                             </div>
                             <div>
-                              <button className="bg-green-600 text-white px-3 py-1 rounded" onClick={() => handlePayToRegister(teacherObj.id)}>Pay to Register</button>
+                              <button
+                                className="bg-green-600 text-white px-3 py-1 rounded"
+                                onClick={() => handlePayToRegister(teacherObj.id)}
+                              >
+                                Pay to Register
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -238,6 +309,7 @@ export default function StudentPage() {
             </div>
           )}
 
+          {/* My Teachers Tab */}
           {tab==="myTeachers" && (
             <div className="mt-4">
               <h4 className="font-semibold">My Teachers</h4>
