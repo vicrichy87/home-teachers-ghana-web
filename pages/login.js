@@ -20,8 +20,8 @@ export default function LoginPage() {
         password,
       });
       if (error) throw error;
-      // redirect: decide based on role
-      // fetch profile to find user_type
+
+      // fetch profile to decide redirect
       const { data: profile } = await supabase
         .from("users")
         .select("user_type")
@@ -37,18 +37,74 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/complete-registration`,
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto bg-white p-6 rounded shadow">
       <Banner />
       <h2 className="text-xl font-semibold mt-4">Login</h2>
 
       <form onSubmit={handleLogin} className="mt-4 space-y-3">
-        <input className="w-full p-2 border rounded" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
-        <input className="w-full p-2 border rounded" type="password" placeholder="Password" value={password} onChange={(e)=>setPassword(e.target.value)} />
-        <button type="submit" disabled={loading} className="w-full bg-sky-600 text-white py-2 rounded">{loading ? "Logging in..." : "Login"}</button>
+        <input
+          className="w-full p-2 border rounded"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          className="w-full p-2 border rounded"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-sky-600 text-white py-2 rounded"
+        >
+          {loading ? "Logging in..." : "Login"}
+        </button>
       </form>
 
-      <p className="mt-3 text-sm">Don't have account? <Link href="/register"><a className="text-sky-600">Register</a></Link></p>
+      {/* Divider */}
+      <div className="my-4 flex items-center">
+        <hr className="flex-grow border-gray-300" />
+        <span className="px-2 text-gray-500 text-sm">OR</span>
+        <hr className="flex-grow border-gray-300" />
+      </div>
+
+      {/* Google Login */}
+      <button
+        onClick={handleGoogleLogin}
+        className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded flex items-center justify-center gap-2"
+      >
+        <img
+          src="/google-icon.png"
+          alt="Google"
+          className="w-5 h-5 bg-white rounded"
+        />
+        Continue with Google
+      </button>
+
+      <p className="mt-3 text-sm">
+        Don't have account?{" "}
+        <Link href="/register">
+          <a className="text-sky-600">Register</a>
+        </Link>
+      </p>
     </div>
   );
 }
