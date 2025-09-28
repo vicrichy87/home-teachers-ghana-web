@@ -64,7 +64,7 @@ export default function CompleteRegistration() {
         const { error } = await supabase
           .from("users")
           .update({
-            name,
+            full_name,
             email,
             user_type: userType,
           })
@@ -74,7 +74,7 @@ export default function CompleteRegistration() {
         // Insert new row
         const { error } = await supabase.from("users").insert({
           id: user.id,
-          name,
+          full_name,
           email,
           user_type: userType,
         });
