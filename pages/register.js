@@ -25,7 +25,8 @@ export default function RegisterPage() {
           const res = await fetch("https://ipapi.co/json/");
           const data = await res.json();
           if (data?.city) {
-            setCity(data.city);
+            // Normalize: if Accra → Greater Accra
+            setCity(data.city === "Accra" ? "Greater Accra" : data.city);
           }
         } catch (err) {
           console.error("Failed to auto-detect city:", err);
