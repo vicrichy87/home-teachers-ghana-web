@@ -1,5 +1,5 @@
 // pages/login.js
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/router";
 import Banner from "../components/Banner";
@@ -11,6 +11,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // ✅ Check if a user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        handlePostLogin(session.user.id);
+      }
+    };
+
+    checkSession();
+  }, []);
+
+  const handlePostLogin = async (userId) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from("users")
+        .select("user_type")
+        .eq("id", userId)
+        .single();
+
+      if (error || !profile) {
+        // no profile yet → go complete registration
+        router.push("/complete-registration");
+      } else if (profile.user_type === "teacher") {
+        router.push("/teacher");
+      } else {
+        router.push("/student");
+      }
+    } catch (err) {
+      console.error("Error fetching profile:", err.message);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -20,16 +56,7 @@ export default function LoginPage() {
         password,
       });
       if (error) throw error;
-
-      // fetch profile to decide redirect
-      const { data: profile } = await supabase
-        .from("users")
-        .select("user_type")
-        .eq("id", data.user.id)
-        .single();
-
-      if (profile?.user_type === "teacher") router.push("/teacher");
-      else router.push("/student");
+      if (data.user) handlePostLogin(data.user.id);
     } catch (err) {
       alert(err.message || String(err));
     } finally {
@@ -42,7 +69,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/complete-registration`,
+          redirectTo: `${window.location.origin}/login`, // come back to login after OAuth
         },
       });
       if (error) throw error;
