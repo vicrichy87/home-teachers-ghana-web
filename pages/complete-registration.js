@@ -2,21 +2,20 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
-import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
 
 export default function CompleteRegistration() {
   const router = useRouter();
   const [user, setUser] = useState(null);
 
-  const [name, setName] = useState(""); // local form state
+  const [name, setName] = useState(""); // local form state (maps to full_name in DB)
   const [email, setEmail] = useState("");
-  const [userType, setUserType] = useState(""); // "teacher" or "student"
+  const [userType, setUserType] = useState(""); // teacher or student
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
 
-  // Fetch user client-side just for display and guard the page
+  // ✅ Fetch user on mount
   useEffect(() => {
     const getUser = async () => {
       const {
@@ -29,7 +28,7 @@ export default function CompleteRegistration() {
       }
 
       setUser(user);
-      setName(user.user_metadata?.full_name || "");
+      setName(user.user_metadata?.full_name || ""); // pull from metadata if present
       setEmail(user.email || "");
     };
 
@@ -40,12 +39,10 @@ export default function CompleteRegistration() {
     e.preventDefault();
     if (!user) return;
 
-    // If it's an email/password account, require matching passwords
-    const isEmailProvider = user?.app_metadata?.provider === "email";
-
-    if (isEmailProvider) {
-      if (!password || password !== confirmPassword) {
-        alert("Passwords do not match or are empty!");
+    // Password validation only if the user signed up with email/password
+    if (user.app_metadata?.provider === "email") {
+      if (password !== confirmPassword) {
+        alert("Passwords do not match!");
         return;
       }
     }
@@ -53,19 +50,19 @@ export default function CompleteRegistration() {
     setLoading(true);
 
     try {
-      // Use maybeSingle to avoid throwing when no row exists
-      const { data: existingUser, error: existingError } = await supabase
+      // --- Check if record exists ---
+      const { data: existingUser, error: fetchError } = await supabase
         .from("users")
         .select("id")
         .eq("id", user.id)
         .maybeSingle();
 
-      if (existingError) throw existingError;
+      if (fetchError) throw fetchError;
 
       let dbError = null;
 
       if (existingUser) {
-        // Update existing row - map local `name` -> `full_name` column
+        // Update existing row → map name → full_name
         const { error } = await supabase
           .from("users")
           .update({
@@ -88,11 +85,9 @@ export default function CompleteRegistration() {
 
       if (dbError) throw dbError;
 
-      // Update password only for email/password accounts
-      if (isEmailProvider && password) {
-        const { error: pwError } = await supabase.auth.updateUser({
-          password,
-        });
+      // ✅ Only update password if email/password account
+      if (user.app_metadata?.provider === "email" && password) {
+        const { error: pwError } = await supabase.auth.updateUser({ password });
         if (pwError) throw pwError;
       }
 
@@ -100,8 +95,7 @@ export default function CompleteRegistration() {
       if (userType === "teacher") router.push("/teacher");
       else router.push("/student");
     } catch (err) {
-      // Show helpful error
-      alert("Error saving profile: " + (err?.message || String(err)));
+      alert("Error saving profile: " + (err.message || String(err)));
     } finally {
       setLoading(false);
     }
@@ -142,7 +136,7 @@ export default function CompleteRegistration() {
           <option value="student">Student</option>
         </select>
 
-        {/* Password fields only for email/password users */}
+        {/* ✅ Only show password fields for email/password users */}
         {user?.app_metadata?.provider === "email" && (
           <>
             <input
@@ -175,37 +169,4 @@ export default function CompleteRegistration() {
       </form>
     </div>
   );
-}
-
-// Server-side protection using auth-helpers so OAuth redirects work
-export async function getServerSideProps(ctx) {
-  const supabaseServer = createServerSupabaseClient(ctx);
-
-  const {
-    data: { session },
-  } = await supabaseServer.auth.getSession();
-
-  if (!session) {
-    return {
-      redirect: { destination: "/login", permanent: false },
-    };
-  }
-
-  // Check if user already registered
-  const { data: profile } = await supabaseServer
-    .from("users")
-    .select("user_type")
-    .eq("id", session.user.id)
-    .maybeSingle();
-
-  if (profile?.user_type) {
-    return {
-      redirect: {
-        destination: profile.user_type === "teacher" ? "/teacher" : "/student",
-        permanent: false,
-      },
-    };
-  }
-
-  return { props: {} };
 }
