@@ -111,7 +111,7 @@ export default function CompleteRegistration() {
           type="text"
           placeholder="Full Name"
           className="w-full border p-2 rounded"
-          value={name}
+          value={full_name}
           onChange={(e) => setName(e.target.value)}
           required
         />
@@ -129,7 +129,7 @@ export default function CompleteRegistration() {
           onChange={(e) => setUserType(e.target.value)}
           required
         >
-          <option value="">Select Role</option>
+          <option value="">Select User Type</option>
           <option value="teacher">Teacher</option>
           <option value="student">Student</option>
         </select>
