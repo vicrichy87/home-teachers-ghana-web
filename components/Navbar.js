@@ -22,9 +22,9 @@ export default function Navbar() {
     router.push("/login");
   };
 
+  // ✅ Detect if current route is student or teacher page
   const isStudentOrTeacherPage =
     router.pathname.startsWith("/student") || router.pathname.startsWith("/teacher");
-  const isHomePage = router.pathname === "/";
 
   return (
     <div className="bg-white shadow">
@@ -36,36 +36,34 @@ export default function Navbar() {
         </Link>
 
         <nav className="flex items-center space-x-3">
-          <Link href="/">
-            <a className="text-slate-700 hover:text-sky-600">Home</a>
-          </Link>
-          <Link href="/search">
-            <a className="text-slate-700 hover:text-sky-600">Search</a>
-          </Link>
+          <Link href="/"><a className="text-slate-700 hover:text-sky-600">Home</a></Link>
+          <Link href="/search"><a className="text-slate-700 hover:text-sky-600">Search</a></Link>
 
           {isStudentOrTeacherPage ? (
-            // ✅ On student/teacher pages → Logout
+            // ✅ Teacher/Student pages → only Logout
             <button
               onClick={handleLogout}
               className="ml-3 bg-red-500 text-white px-3 py-1 rounded"
             >
               Logout
             </button>
-          ) : isHomePage ? (
-            // ✅ On index page
-            !session && (
-              <>
-                <Link href="/login">
-                  <a className="text-sky-600 font-semibold">Login</a>
-                </Link>
-                <Link href="/register">
-                  <a className="ml-2 border px-3 py-1 rounded bg-sky-50 text-sky-700">
-                    Register
-                  </a>
-                </Link>
-              </>
-            )
-          ) : null}
+          ) : (
+            // ✅ Index page (and others) → Login + Register if not logged in
+            <>
+              {!session && (
+                <>
+                  <Link href="/login">
+                    <a className="text-sky-600 font-semibold">Login</a>
+                  </Link>
+                  <Link href="/register">
+                    <a className="ml-2 border px-3 py-1 rounded bg-sky-50 text-sky-700">
+                      Register
+                    </a>
+                  </Link>
+                </>
+              )}
+            </>
+          )}
         </nav>
       </div>
     </div>
