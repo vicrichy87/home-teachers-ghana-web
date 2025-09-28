@@ -17,9 +17,12 @@ export default function MyApp({ Component, pageProps }) {
         data: { user },
       } = await supabase.auth.getUser();
 
+      // ✅ Public routes that don’t need login
+      const publicRoutes = ["/", "/about", "/contact"]; // add any other public pages
+
       if (!user) {
-        // Not logged in → only allow login/register
-        if (!["/login", "/register"].includes(router.pathname)) {
+        // Not logged in → only allow public + login/register
+        if (![...publicRoutes, "/login", "/register"].includes(router.pathname)) {
           router.push("/login");
         }
         setChecking(false);
@@ -43,7 +46,11 @@ export default function MyApp({ Component, pageProps }) {
       }
 
       // ✅ User has profile
-      if (["/login", "/register", "/complete-registration"].includes(router.pathname)) {
+      if (
+        ["/login", "/register", "/complete-registration"].includes(
+          router.pathname
+        )
+      ) {
         if (profile.user_type === "teacher") router.push("/teacher");
         else router.push("/student");
       }
@@ -65,10 +72,9 @@ export default function MyApp({ Component, pageProps }) {
 
   if (checking) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-sky-50">
-        {/* Spinner */}
-        <div className="w-12 h-12 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-gray-600 text-lg">Checking session...</p>
+      <div className="flex items-center justify-center min-h-screen bg-sky-50">
+        <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="ml-3 text-gray-600 text-lg">Checking session...</p>
       </div>
     );
   }
