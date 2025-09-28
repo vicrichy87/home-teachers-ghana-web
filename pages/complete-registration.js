@@ -1,7 +1,8 @@
 // pages/complete-registration.js
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
+import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
 
 export default function CompleteRegistration({ alreadyRegistered }) {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function CompleteRegistration({ alreadyRegistered }) {
   const [loading, setLoading] = useState(false);
 
   // Fetch user client-side just for display
-  useState(() => {
+  useEffect(() => {
     const getUser = async () => {
       const {
         data: { user },
@@ -135,7 +136,7 @@ export default function CompleteRegistration({ alreadyRegistered }) {
           onChange={(e) => setUserType(e.target.value)}
           required
         >
-          <option value="">Select User Type</option>
+          <option value="">Select Role</option>
           <option value="teacher">Teacher</option>
           <option value="student">Student</option>
         </select>
@@ -170,11 +171,15 @@ export default function CompleteRegistration({ alreadyRegistered }) {
   );
 }
 
-// ✅ Server-side protection
-export async function getServerSideProps({ req }) {
-  const { data: { user } } = await supabase.auth.getUser(req);
+// ✅ Server-side protection using auth-helpers
+export async function getServerSideProps(ctx) {
+  const supabase = createServerSupabaseClient(ctx);
 
-  if (!user) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
     return {
       redirect: { destination: "/login", permanent: false },
     };
@@ -184,7 +189,7 @@ export async function getServerSideProps({ req }) {
   const { data: profile } = await supabase
     .from("users")
     .select("user_type")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .single();
 
   if (profile?.user_type) {
