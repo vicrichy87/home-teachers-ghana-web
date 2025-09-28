@@ -2,9 +2,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
-import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
 
-export default function CompleteRegistration({ alreadyRegistered }) {
+export default function CompleteRegistration() {
   const router = useRouter();
   const [user, setUser] = useState(null);
 
@@ -16,7 +15,7 @@ export default function CompleteRegistration({ alreadyRegistered }) {
 
   const [loading, setLoading] = useState(false);
 
-  // Fetch user client-side just for display
+  // ✅ Fetch user on mount
   useEffect(() => {
     const getUser = async () => {
       const {
@@ -40,71 +39,65 @@ export default function CompleteRegistration({ alreadyRegistered }) {
     e.preventDefault();
     if (!user) return;
 
-    // ✅ Check passwords match
-    if (password !== confirmPassword) {
-      alert("Passwords do not match!");
-      return;
+    // Password validation only if the user signed up with email/password
+    if (user.app_metadata?.provider === "email") {
+      if (password !== confirmPassword) {
+        alert("Passwords do not match!");
+        return;
+      }
     }
 
     setLoading(true);
 
-    // --- Check if record exists ---
-    const { data: existingUser } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", user.id)
-      .single();
-
-    let dbError = null;
-
-    if (existingUser) {
-      // Update existing row
-      const { error } = await supabase
+    try {
+      // --- Check if record exists ---
+      const { data: existingUser } = await supabase
         .from("users")
-        .update({
+        .select("id")
+        .eq("id", user.id)
+        .single();
+
+      let dbError = null;
+
+      if (existingUser) {
+        // Update existing row
+        const { error } = await supabase
+          .from("users")
+          .update({
+            name,
+            email,
+            user_type: userType,
+          })
+          .eq("id", user.id);
+        dbError = error;
+      } else {
+        // Insert new row
+        const { error } = await supabase.from("users").insert({
+          id: user.id,
           name,
           email,
           user_type: userType,
-        })
-        .eq("id", user.id);
-      dbError = error;
-    } else {
-      // Insert new row
-      const { error } = await supabase.from("users").insert({
-        id: user.id,
-        name,
-        email,
-        user_type: userType,
-      });
-      dbError = error;
-    }
+        });
+        dbError = error;
+      }
 
-    if (dbError) {
-      alert("Error saving user: " + dbError.message);
+      if (dbError) throw dbError;
+
+      // ✅ Only update password if email/password account
+      if (user.app_metadata?.provider === "email" && password) {
+        const { error: pwError } = await supabase.auth.updateUser({ password });
+        if (pwError) throw pwError;
+      }
+
+      // Redirect based on role
+      if (userType === "teacher") router.push("/teacher");
+      else router.push("/student");
+    } catch (err) {
+      alert("Error saving profile: " + (err.message || String(err)));
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Update password in Supabase Auth
-    const { error: pwError } = await supabase.auth.updateUser({ password });
-    if (pwError) {
-      alert("Error setting password: " + pwError.message);
-      setLoading(false);
-      return;
-    }
-
-    // Redirect based on role
-    if (userType === "teacher") router.push("/teacher");
-    else router.push("/student");
   };
-
-  if (alreadyRegistered) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Redirecting...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-sky-50">
@@ -141,23 +134,28 @@ export default function CompleteRegistration({ alreadyRegistered }) {
           <option value="student">Student</option>
         </select>
 
-        <input
-          type="password"
-          placeholder="Set a password"
-          className="w-full border p-2 rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        {/* ✅ Only show password fields for email/password users */}
+        {user?.app_metadata?.provider === "email" && (
+          <>
+            <input
+              type="password"
+              placeholder="Set a password"
+              className="w-full border p-2 rounded"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
 
-        <input
-          type="password"
-          placeholder="Confirm password"
-          className="w-full border p-2 rounded"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-        />
+            <input
+              type="password"
+              placeholder="Confirm password"
+              className="w-full border p-2 rounded"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </>
+        )}
 
         <button
           type="submit"
@@ -169,37 +167,4 @@ export default function CompleteRegistration({ alreadyRegistered }) {
       </form>
     </div>
   );
-}
-
-// ✅ Server-side protection using auth-helpers
-export async function getServerSideProps(ctx) {
-  const supabase = createServerSupabaseClient(ctx);
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    return {
-      redirect: { destination: "/login", permanent: false },
-    };
-  }
-
-  // Check if user already registered
-  const { data: profile } = await supabase
-    .from("users")
-    .select("user_type")
-    .eq("id", session.user.id)
-    .single();
-
-  if (profile?.user_type) {
-    return {
-      redirect: {
-        destination: profile.user_type === "teacher" ? "/teacher" : "/student",
-        permanent: false,
-      },
-    };
-  }
-
-  return { props: { alreadyRegistered: false } };
 }
