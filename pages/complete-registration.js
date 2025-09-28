@@ -42,6 +42,24 @@ export default function CompleteRegistration() {
     getUser();
   }, [router]);
 
+  // ✅ Auto-detect city from IP if empty
+  useEffect(() => {
+    const fetchCity = async () => {
+      if (!city) {
+        try {
+          const res = await fetch("https://ipapi.co/json/");
+          const data = await res.json();
+          if (data?.city) {
+            setCity(data.city);
+          }
+        } catch (err) {
+          console.error("Failed to fetch city:", err);
+        }
+      }
+    };
+    fetchCity();
+  }, [city]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -171,6 +189,7 @@ export default function CompleteRegistration() {
           <option value="other">Other</option>
         </select>
 
+        {/* ✅ Auto-detected city but editable */}
         <input
           type="text"
           placeholder="City"
