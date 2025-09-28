@@ -162,7 +162,7 @@ export default function CompleteRegistration() {
           onChange={(e) => setUserType(e.target.value)}
           required
         >
-          <option value="">Select Role</option>
+          <option value="">Select User Type</option>
           <option value="teacher">Teacher</option>
           <option value="student">Student</option>
         </select>
