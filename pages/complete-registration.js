@@ -2,25 +2,24 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
-import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
 
-export default function CompleteRegistration({ initialCity = "" }) {
+export default function CompleteRegistration() {
   const router = useRouter();
   const [user, setUser] = useState(null);
 
-  const [name, setName] = useState("");
+  const [name, setName] = useState(""); // maps to full_name in DB
   const [email, setEmail] = useState("");
-  const [userType, setUserType] = useState("");
-  const [dob, setDob] = useState("");
-  const [sex, setSex] = useState("");
-  const [city, setCity] = useState(initialCity || "");
+  const [userType, setUserType] = useState(""); // teacher or student
+  const [dob, setDob] = useState(""); // date of birth
+  const [sex, setSex] = useState(""); // male/female/other
+  const [city, setCity] = useState("");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
 
-  // Prefill user info
+  // ✅ Fetch user on mount
   useEffect(() => {
     const getUser = async () => {
       const {
@@ -35,22 +34,22 @@ export default function CompleteRegistration({ initialCity = "" }) {
       setUser(user);
       setName(user.user_metadata?.full_name || "");
       setEmail(user.email || "");
-      setDob(user.user_metadata?.dob || "");
-      setSex(user.user_metadata?.sex || "");
-      setCity(user.user_metadata?.city || initialCity || "");
+      setDob(user.user_metadata?.dob || ""); // if provided by Google
+      setSex(user.user_metadata?.sex || ""); // if provided by Google
+      setCity(user.user_metadata?.city || "");
     };
 
     getUser();
-  }, [router, initialCity]);
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) return;
 
-    const isEmailProvider = user?.app_metadata?.provider === "email";
-    if (isEmailProvider) {
-      if (!password || password !== confirmPassword) {
-        alert("Passwords do not match or are empty!");
+    // ✅ Password validation
+    if (user.app_metadata?.provider === "email") {
+      if (password !== confirmPassword) {
+        alert("Passwords do not match!");
         return;
       }
     }
@@ -58,7 +57,7 @@ export default function CompleteRegistration({ initialCity = "" }) {
     setLoading(true);
 
     try {
-      // Check if user exists in DB
+      // --- Check if record exists ---
       const { data: existingUser, error: fetchError } = await supabase
         .from("users")
         .select("id")
@@ -70,6 +69,7 @@ export default function CompleteRegistration({ initialCity = "" }) {
       let dbError = null;
 
       if (existingUser) {
+        // Update existing row
         const { error } = await supabase
           .from("users")
           .update({
@@ -83,6 +83,7 @@ export default function CompleteRegistration({ initialCity = "" }) {
           .eq("id", user.id);
         dbError = error;
       } else {
+        // Insert new row
         const { error } = await supabase.from("users").insert({
           id: user.id,
           full_name: name,
@@ -97,13 +98,13 @@ export default function CompleteRegistration({ initialCity = "" }) {
 
       if (dbError) throw dbError;
 
-      if (isEmailProvider && password) {
-        const { error: pwError } = await supabase.auth.updateUser({
-          password,
-        });
+      // ✅ Only update password if email/password account
+      if (user.app_metadata?.provider === "email" && password) {
+        const { error: pwError } = await supabase.auth.updateUser({ password });
         if (pwError) throw pwError;
       }
 
+      // Redirect based on role
       if (userType === "teacher") router.push("/teacher");
       else router.push("/student");
     } catch (err) {
@@ -148,19 +149,15 @@ export default function CompleteRegistration({ initialCity = "" }) {
           <option value="student">Student</option>
         </select>
 
-        {/* ✅ Date of Birth field with visible label */}
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">
-            Date of Birth
-          </label>
-          <input
-            type="date"
-            className="w-full border p-2 rounded"
-            value={dob}
-            onChange={(e) => setDob(e.target.value)}
-            required
-          />
-        </div>
+        {/* ✅ Added label for DOB */}
+        <label className="block text-gray-700 font-medium">Date of Birth</label>
+        <input
+          type="date"
+          className="w-full border p-2 rounded"
+          value={dob}
+          onChange={(e) => setDob(e.target.value)}
+          required
+        />
 
         <select
           className="w-full border p-2 rounded"
@@ -174,21 +171,16 @@ export default function CompleteRegistration({ initialCity = "" }) {
           <option value="other">Other</option>
         </select>
 
-        {/* ✅ City field with hint when auto-detected */}
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">
-            City {initialCity && "(auto-detected, edit if wrong)"}
-          </label>
-          <input
-            type="text"
-            placeholder="Enter your city"
-            className="w-full border p-2 rounded"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            required
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="City"
+          className="w-full border p-2 rounded"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          required
+        />
 
+        {/* ✅ Only show password fields for email/password users */}
         {user?.app_metadata?.provider === "email" && (
           <>
             <input
@@ -202,93 +194,4 @@ export default function CompleteRegistration({ initialCity = "" }) {
 
             <input
               type="password"
-              placeholder="Confirm password"
-              className="w-full border p-2 rounded"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg"
-        >
-          {loading ? "Saving..." : "Save & Continue"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-// Server-side props: check session and detect city via IP
-export async function getServerSideProps(ctx) {
-  const supabaseServer = createServerSupabaseClient(ctx);
-
-  const {
-    data: { session },
-  } = await supabaseServer.auth.getSession();
-
-  if (!session) {
-    return {
-      redirect: { destination: "/login", permanent: false },
-    };
-  }
-
-  const { data: profile } = await supabaseServer
-    .from("users")
-    .select("user_type")
-    .eq("id", session.user.id)
-    .maybeSingle();
-
-  if (profile?.user_type) {
-    return {
-      redirect: {
-        destination: profile.user_type === "teacher" ? "/teacher" : "/student",
-        permanent: false,
-      },
-    };
-  }
-
-  const req = ctx.req;
-  let ip =
-    req.headers["x-forwarded-for"] ||
-    req.headers["x-real-ip"] ||
-    req.socket?.remoteAddress ||
-    "";
-
-  if (typeof ip === "string" && ip.includes(",")) {
-    ip = ip.split(",")[0].trim();
-  }
-
-  const localIps = ["127.0.0.1", "::1", "localhost"];
-  let initialCity = "";
-
-  try {
-    const useGeneric =
-      !ip ||
-      localIps.includes(ip) ||
-      ip.startsWith("10.") ||
-      ip.startsWith("192.168.") ||
-      ip.startsWith("172.");
-    const geoUrl = useGeneric
-      ? `https://ipapi.co/json/`
-      : `https://ipapi.co/${ip}/json/`;
-
-    const res = await fetch(geoUrl, { method: "GET" });
-    if (res.ok) {
-      const geo = await res.json();
-      if (geo && geo.city) initialCity = geo.city;
-    }
-  } catch (err) {
-    console.warn("IP geolocation failed:", err?.message || err);
-  }
-
-  return {
-    props: {
-      initialCity: initialCity || "",
-    },
-  };
-}
+              placeholder="Confirm pa
