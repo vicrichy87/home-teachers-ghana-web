@@ -29,10 +29,8 @@ export default function TeacherPage() {
   }, []);
 
   useEffect(() => {
-    if (teacher) {
-      if (tab === "students") fetchStudents();
-      if (tab === "myRates") fetchRates();
-    }
+    if (tab === "students") fetchStudents();
+    if (tab === "myRates") fetchRates();
   }, [tab, teacher]);
 
   async function fetchTeacherProfile() {
@@ -101,14 +99,8 @@ export default function TeacherPage() {
         rate: parseFloat(rate),
       }]);
       if (error) throw error;
-
-      setSubject("");
-      setLevel("");
-      setRate("200");
-
-      // ✅ Refresh list after insert
-      await fetchRates();
-      setTab("myRates");
+      setSubject(""); setLevel(""); setRate("200");
+      fetchRates();
     } catch (err) {
       alert(err.message || String(err));
     } finally {
@@ -120,9 +112,7 @@ export default function TeacherPage() {
     try {
       const { error } = await supabase.from("teacher_rates").delete().eq("id", id);
       if (error) throw error;
-
-      // ✅ Refresh list after delete
-      await fetchRates();
+      setRates(prev => prev.filter(r => r.id !== id));
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -144,17 +134,20 @@ export default function TeacherPage() {
         rate: parseFloat(editRate),
       }).eq("id", editingRate);
       if (error) throw error;
-
+      setRates(prev =>
+        prev.map(r =>
+          r.id === editingRate
+            ? { ...r, subject: editSubject, level: editLevel, rate: parseFloat(editRate) }
+            : r
+        )
+      );
       setEditingRate(null);
-
-      // ✅ Refresh list after update
-      await fetchRates();
     } catch (err) {
       alert(err.message || String(err));
     }
   }
 
-  // ✅ Upload profile image
+  // ✅ Updated: Upload profile image to "profile-pics" bucket
   async function handlePickImage(file) {
     try {
       setUploading(true);
@@ -162,16 +155,17 @@ export default function TeacherPage() {
       if (!user) throw new Error("User not logged in");
 
       const ext = file.name.split(".").pop();
-      const filePath = `${user.id}/${Date.now()}.${ext}`;
+      const filePath = `${user.id}_${Date.now()}.${ext}`;
 
+      // Ensure bucket name matches what you created in Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from("profile-pictures")
+        .from("profile-pictures")  // 👈 
         .upload(filePath, file, { upsert: true, contentType: file.type });
 
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage
-        .from("profile-pictures")
+        .from("profile-pictures")  // 👈 
         .getPublicUrl(filePath);
 
       const publicUrl = publicUrlData.publicUrl;
@@ -217,7 +211,6 @@ export default function TeacherPage() {
         ))}
       </div>
 
-      {/* Profile */}
       {tab === "profile" && (
         <div className="mt-4 flex gap-6">
           <div>
@@ -237,6 +230,7 @@ export default function TeacherPage() {
               </label>
             </div>
           </div>
+
           <div>
             <div><strong>{teacher.full_name}</strong></div>
             <div>{teacher.email}</div>
@@ -248,127 +242,126 @@ export default function TeacherPage() {
         </div>
       )}
 
-      {/* Students */}
       {tab === "students" && (
         <div className="mt-4">
-          <h2 className="text-lg font-semibold mb-2">My Students</h2>
-          {students.length === 0 ? (
-            <p className="text-gray-500">No students yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {students.map(s => (
-                <li key={s.id} className="border p-3 rounded">
-                  <div><strong>{s.student.full_name}</strong> ({s.student.email})</div>
-                  <div>Joined: {new Date(s.date_added).toLocaleDateString()}</div>
-                  <div>Expiry: {new Date(s.expiry_date).toLocaleDateString()}</div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <h3 className="font-semibold">Students</h3>
+          <div className="space-y-3 mt-3">
+            {students.length === 0 && <div>No students yet.</div>}
+            {students.map(s => (
+              <div key={s.id} className="border p-3 rounded">
+                <div className="font-semibold">{s.student.full_name}</div>
+                <div>{s.student.email}</div>
+                <div>Date added: {s.date_added} — Expiry: {s.expiry_date}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Add Rates */}
       {tab === "rates" && (
         <div className="mt-4">
-          <h2 className="text-lg font-semibold mb-2">Add a New Rate</h2>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Subject"
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              className="border p-2 rounded flex-1"
-            />
-            <input
-              type="text"
-              placeholder="Level"
+          <input
+            placeholder="Subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+          <div className="flex gap-2 mt-2">
+            <select
               value={level}
-              onChange={e => setLevel(e.target.value)}
-              className="border p-2 rounded flex-1"
-            />
+              onChange={(e) => setLevel(e.target.value)}
+              className="p-2 border rounded"
+            >
+              <option value="">Select level</option>
+              <option value="JHS">JHS</option>
+              <option value="SHS">SHS</option>
+              <option value="Remedial">Remedial</option>
+            </select>
             <input
-              type="number"
-              placeholder="Rate"
               value={rate}
-              onChange={e => setRate(e.target.value)}
-              className="border p-2 rounded w-24"
+              onChange={(e) => setRate(e.target.value)}
+              className="p-2 border rounded"
+              placeholder="Rate GHC"
             />
             <button
               onClick={handleAddRate}
-              disabled={savingRate}
-              className="bg-sky-600 text-white px-3 py-1 rounded"
+              className="bg-emerald-600 text-white px-4 py-2 rounded"
             >
-              {savingRate ? "Saving..." : "Add"}
+              {savingRate ? "Saving..." : "Add Rate"}
             </button>
           </div>
         </div>
       )}
 
-      {/* My Rates */}
       {tab === "myRates" && (
-        <div className="mt-4">
-          <h2 className="text-lg font-semibold mb-2">My Rates</h2>
-          {rates.length === 0 ? (
-            <p className="text-gray-500">No rates yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {rates.map(r => (
-                <li key={r.id} className="border p-3 rounded flex justify-between items-center">
-                  {editingRate === r.id ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editSubject}
-                        onChange={e => setEditSubject(e.target.value)}
-                        className="border p-1 rounded"
-                      />
-                      <input
-                        type="text"
-                        value={editLevel}
-                        onChange={e => setEditLevel(e.target.value)}
-                        className="border p-1 rounded"
-                      />
-                      <input
-                        type="number"
-                        value={editRate}
-                        onChange={e => setEditRate(e.target.value)}
-                        className="border p-1 rounded w-20"
-                      />
-                      <button
-                        onClick={handleSaveEditRate}
-                        className="bg-green-500 text-white px-2 rounded"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <strong>{r.subject}</strong> – {r.level} – GHS {r.rate}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    {editingRate !== r.id && (
-                      <button
-                        onClick={() => startEditRate(r)}
-                        className="bg-yellow-500 text-white px-2 rounded"
-                      >
-                        Edit
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteRate(r.id)}
-                      className="bg-red-500 text-white px-2 rounded"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+        <div className="mt-4 space-y-3">
+          {rates.length === 0 && <div>No rates</div>}
+          {rates.map(item =>
+            editingRate === item.id ? (
+              <div className="p-3 border rounded" key={item.id}>
+                <input
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  className="w-full p-2 border rounded"
+                />
+                <div className="flex gap-2 mt-2">
+                  <select
+                    value={editLevel}
+                    onChange={(e) => setEditLevel(e.target.value)}
+                    className="p-2 border rounded"
+                  >
+                    <option value="">Select</option>
+                    <option value="JHS">JHS</option>
+                    <option value="SHS">SHS</option>
+                    <option value="Remedial">Remedial</option>
+                  </select>
+                  <input
+                    value={editRate}
+                    onChange={(e) => setEditRate(e.target.value)}
+                    className="p-2 border rounded"
+                  />
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleSaveEditRate}
+                    className="bg-sky-600 text-white px-3 py-1 rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => setEditingRate(null)}
+                    className="bg-gray-300 px-3 py-1 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 border rounded" key={item.id}>
+                <div className="font-semibold">{item.subject}</div>
+                <div>
+                  {item.level} — GHC {item.rate}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => startEditRate(item)}
+                    className="bg-sky-600 text-white px-3 py-1 rounded"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRate(item.id)}
+                    className="bg-red-500 text-white px-3 py-1 rounded"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )
           )}
         </div>
       )}
     </div>
   );
 }
+
