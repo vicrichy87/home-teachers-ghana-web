@@ -13,6 +13,7 @@ export default function CompleteRegistration() {
   const [dob, setDob] = useState(""); // date of birth
   const [sex, setSex] = useState(""); // male/female/other
   const [city, setCity] = useState("");
+  const [phone, setPhone] = useState(""); // ✅ new phone field
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,6 +38,7 @@ export default function CompleteRegistration() {
       setDob(user.user_metadata?.dob || ""); // if provided by Google
       setSex(user.user_metadata?.sex || ""); // if provided by Google
       setCity(user.user_metadata?.city || "");
+      setPhone(user.user_metadata?.phone || ""); // ✅ if available
     };
 
     getUser();
@@ -97,6 +99,7 @@ export default function CompleteRegistration() {
             dob,
             sex,
             city,
+            phone, // ✅ save phone
           })
           .eq("id", user.id);
         dbError = error;
@@ -110,6 +113,7 @@ export default function CompleteRegistration() {
           dob,
           sex,
           city,
+          phone, // ✅ insert phone
         });
         dbError = error;
       }
@@ -188,6 +192,16 @@ export default function CompleteRegistration() {
           <option value="female">Female</option>
           <option value="other">Other</option>
         </select>
+
+        {/* ✅ Phone number field */}
+        <input
+          type="tel"
+          placeholder="Phone Number"
+          className="w-full border p-2 rounded"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+        />
 
         {/* ✅ Auto-detected city but editable */}
         <input
