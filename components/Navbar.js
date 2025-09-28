@@ -22,6 +22,10 @@ export default function Navbar() {
     router.push("/login");
   };
 
+  const isStudentOrTeacherPage =
+    router.pathname.startsWith("/student") || router.pathname.startsWith("/teacher");
+  const isHomePage = router.pathname === "/";
+
   return (
     <div className="bg-white shadow">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -32,21 +36,36 @@ export default function Navbar() {
         </Link>
 
         <nav className="flex items-center space-x-3">
-          <Link href="/"><a className="text-slate-700 hover:text-sky-600">Home</a></Link>
-          <Link href="/search"><a className="text-slate-700 hover:text-sky-600">Search</a></Link>
-          <Link href="/rates"><a className="text-slate-700 hover:text-sky-600">Rates</a></Link>
-          {!session ? (
-            <>
-              <Link href="/login"><a className="text-sky-600 font-semibold">Login</a></Link>
-              <Link href="/register"><a className="ml-2 border px-3 py-1 rounded bg-sky-50 text-sky-700">Register</a></Link>
-            </>
-          ) : (
-            <>
-              <Link href="/student"><a className="text-slate-700">Student</a></Link>
-              <Link href="/teacher"><a className="text-slate-700">Teacher</a></Link>
-              <button onClick={handleLogout} className="ml-3 bg-red-500 text-white px-3 py-1 rounded">Logout</button>
-            </>
-          )}
+          <Link href="/">
+            <a className="text-slate-700 hover:text-sky-600">Home</a>
+          </Link>
+          <Link href="/search">
+            <a className="text-slate-700 hover:text-sky-600">Search</a>
+          </Link>
+
+          {isStudentOrTeacherPage ? (
+            // ✅ On student/teacher pages → Logout
+            <button
+              onClick={handleLogout}
+              className="ml-3 bg-red-500 text-white px-3 py-1 rounded"
+            >
+              Logout
+            </button>
+          ) : isHomePage ? (
+            // ✅ On index page
+            !session && (
+              <>
+                <Link href="/login">
+                  <a className="text-sky-600 font-semibold">Login</a>
+                </Link>
+                <Link href="/register">
+                  <a className="ml-2 border px-3 py-1 rounded bg-sky-50 text-sky-700">
+                    Register
+                  </a>
+                </Link>
+              </>
+            )
+          ) : null}
         </nav>
       </div>
     </div>
