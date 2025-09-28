@@ -1,21 +1,22 @@
 // pages/complete-registration.js
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 
-export default function CompleteRegistration() {
+export default function CompleteRegistration({ alreadyRegistered }) {
   const router = useRouter();
-  const [role, setRole] = useState("");
-  const [password, setPassword] = useState("");
-  const [avatar, setAvatar] = useState(null);
   const [user, setUser] = useState(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [userType, setUserType] = useState(""); // teacher or student
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  // Fetch user client-side just for display
+  useState(() => {
     const getUser = async () => {
       const {
         data: { user },
@@ -29,20 +30,6 @@ export default function CompleteRegistration() {
       setUser(user);
       setName(user.user_metadata?.full_name || "");
       setEmail(user.email || "");
-
-      // Check if profile already exists
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("role, avatar_url")
-        .eq("id", user.id)
-        .single();
-
-      if (!error && profile && profile.role) {
-        // Already completed registration
-        router.push("/");
-      } else {
-        setLoading(false);
-      }
     };
 
     getUser();
@@ -52,31 +39,48 @@ export default function CompleteRegistration() {
     e.preventDefault();
     if (!user) return;
 
-    // Upload profile picture
-    let avatarUrl = null;
-    if (avatar) {
-      const { data, error } = await supabase.storage
-        .from("avatars")
-        .upload(`public/${user.id}.png`, avatar, { upsert: true });
-
-      if (error) {
-        alert("Error uploading avatar: " + error.message);
-      } else {
-        avatarUrl = data.path;
-      }
+    // ✅ Check passwords match
+    if (password !== confirmPassword) {
+      alert("Passwords do not match!");
+      return;
     }
 
-    // Save profile
-    const { error: profileError } = await supabase.from("profiles").upsert({
-      id: user.id,
-      name,
-      email,
-      role,
-      avatar_url: avatarUrl,
-    });
+    setLoading(true);
 
-    if (profileError) {
-      alert("Error saving profile: " + profileError.message);
+    // --- Check if record exists ---
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", user.id)
+      .single();
+
+    let dbError = null;
+
+    if (existingUser) {
+      // Update existing row
+      const { error } = await supabase
+        .from("users")
+        .update({
+          name,
+          email,
+          user_type: userType,
+        })
+        .eq("id", user.id);
+      dbError = error;
+    } else {
+      // Insert new row
+      const { error } = await supabase.from("users").insert({
+        id: user.id,
+        name,
+        email,
+        user_type: userType,
+      });
+      dbError = error;
+    }
+
+    if (dbError) {
+      alert("Error saving user: " + dbError.message);
+      setLoading(false);
       return;
     }
 
@@ -84,17 +88,19 @@ export default function CompleteRegistration() {
     const { error: pwError } = await supabase.auth.updateUser({ password });
     if (pwError) {
       alert("Error setting password: " + pwError.message);
+      setLoading(false);
       return;
     }
 
-    alert("Registration complete!");
-    router.push("/");
+    // Redirect based on role
+    if (userType === "teacher") router.push("/teacher");
+    else router.push("/student");
   };
 
-  if (loading) {
+  if (alreadyRegistered) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Checking profile...</p>
+        <p>Redirecting...</p>
       </div>
     );
   }
@@ -107,7 +113,6 @@ export default function CompleteRegistration() {
       >
         <h1 className="text-2xl font-bold">Complete Your Registration</h1>
 
-        {/* Prefilled Name */}
         <input
           type="text"
           placeholder="Full Name"
@@ -117,7 +122,6 @@ export default function CompleteRegistration() {
           required
         />
 
-        {/* Prefilled Email (readonly) */}
         <input
           type="email"
           className="w-full border p-2 rounded bg-gray-100"
@@ -125,19 +129,17 @@ export default function CompleteRegistration() {
           readOnly
         />
 
-        {/* Role Selection */}
         <select
           className="w-full border p-2 rounded"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
+          value={userType}
+          onChange={(e) => setUserType(e.target.value)}
           required
         >
           <option value="">Select Role</option>
-          <option value="Teacher">Teacher</option>
-          <option value="Student">Student</option>
+          <option value="teacher">Teacher</option>
+          <option value="student">Student</option>
         </select>
 
-        {/* Password */}
         <input
           type="password"
           placeholder="Set a password"
@@ -147,20 +149,52 @@ export default function CompleteRegistration() {
           required
         />
 
-        {/* Avatar Upload */}
         <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setAvatar(e.target.files[0])}
+          type="password"
+          placeholder="Confirm password"
+          className="w-full border p-2 rounded"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
         />
 
         <button
           type="submit"
+          disabled={loading}
           className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg"
         >
-          Save & Continue
+          {loading ? "Saving..." : "Save & Continue"}
         </button>
       </form>
     </div>
   );
+}
+
+// ✅ Server-side protection
+export async function getServerSideProps({ req }) {
+  const { data: { user } } = await supabase.auth.getUser(req);
+
+  if (!user) {
+    return {
+      redirect: { destination: "/login", permanent: false },
+    };
+  }
+
+  // Check if user already registered
+  const { data: profile } = await supabase
+    .from("users")
+    .select("user_type")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.user_type) {
+    return {
+      redirect: {
+        destination: profile.user_type === "teacher" ? "/teacher" : "/student",
+        permanent: false,
+      },
+    };
+  }
+
+  return { props: { alreadyRegistered: false } };
 }
