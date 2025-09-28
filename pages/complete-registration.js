@@ -52,7 +52,14 @@ export default function CompleteRegistration() {
           const res = await fetch("https://ipapi.co/json/");
           const data = await res.json();
           if (data?.city) {
-            setCity(data.city);
+            let detectedCity = data.city;
+
+            // 🔄 Normalize Accra → Greater Accra
+            if (detectedCity.toLowerCase() === "accra") {
+              detectedCity = "Greater Accra";
+            }
+
+            setCity(detectedCity);
           }
         } catch (err) {
           console.error("Failed to fetch city:", err);
