@@ -14,6 +14,7 @@ export default function TeacherPage() {
 
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("");
+  const [rate, setRate] = useState("200");
   const [savingRate, setSavingRate] = useState(false);
 
   const [editingRate, setEditingRate] = useState(null);
@@ -28,8 +29,10 @@ export default function TeacherPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === "students") fetchStudents();
-    if (tab === "myRates") fetchRates();
+    if (teacher) {
+      if (tab === "students") fetchStudents();
+      if (tab === "myRates") fetchRates();
+    }
   }, [tab, teacher]);
 
   async function fetchTeacherProfile() {
@@ -95,12 +98,17 @@ export default function TeacherPage() {
         teacher_id: teacher.id,
         subject,
         level,
-        rate: 200, // 👈 fixed amount
+        rate: parseFloat(rate),
       }]);
       if (error) throw error;
-      setSubject(""); 
-      setLevel(""); 
-      fetchRates();
+
+      setSubject("");
+      setLevel("");
+      setRate("200");
+
+      // ✅ Refresh list after insert
+      await fetchRates();
+      setTab("myRates");
     } catch (err) {
       alert(err.message || String(err));
     } finally {
@@ -112,7 +120,9 @@ export default function TeacherPage() {
     try {
       const { error } = await supabase.from("teacher_rates").delete().eq("id", id);
       if (error) throw error;
-      setRates(prev => prev.filter(r => r.id !== id));
+
+      // ✅ Refresh list after delete
+      await fetchRates();
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -134,19 +144,17 @@ export default function TeacherPage() {
         rate: parseFloat(editRate),
       }).eq("id", editingRate);
       if (error) throw error;
-      setRates(prev =>
-        prev.map(r =>
-          r.id === editingRate
-            ? { ...r, subject: editSubject, level: editLevel, rate: parseFloat(editRate) }
-            : r
-        )
-      );
+
       setEditingRate(null);
+
+      // ✅ Refresh list after update
+      await fetchRates();
     } catch (err) {
       alert(err.message || String(err));
     }
   }
 
+  // ✅ Upload profile image
   async function handlePickImage(file) {
     try {
       setUploading(true);
@@ -209,42 +217,158 @@ export default function TeacherPage() {
         ))}
       </div>
 
-      {tab === "rates" && (
-        <div className="mt-4 space-y-3">
-          <input
-            type="text"
-            placeholder="Subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="border px-3 py-2 rounded w-full"
-          />
-
-          <select
-            value={level}
-            onChange={(e) => setLevel(e.target.value)}
-            className="border px-3 py-2 rounded w-full"
-          >
-            <option value="">Select Level</option>
-            <option value="JHS">JHS</option>
-            <option value="SHS">SHS</option>
-            <option value="Remedial">Remedial</option>
-          </select>
-
-          <div className="border px-3 py-2 rounded bg-gray-100">
-            Fixed Rate: <strong>200</strong>
+      {/* Profile */}
+      {tab === "profile" && (
+        <div className="mt-4 flex gap-6">
+          <div>
+            <img
+              src={teacher?.profile_image || "/placeholder.png"}
+              className="w-28 h-28 rounded-full border"
+            />
+            <div className="mt-2">
+              <label className="bg-sky-600 text-white px-3 py-1 rounded cursor-pointer">
+                {uploading ? "Uploading..." : "Change Photo"}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => handlePickImage(e.target.files[0])}
+                />
+              </label>
+            </div>
           </div>
-
-          <button
-            onClick={handleAddRate}
-            disabled={savingRate}
-            className="bg-sky-600 text-white px-4 py-2 rounded"
-          >
-            {savingRate ? "Saving..." : "Add Rate"}
-          </button>
+          <div>
+            <div><strong>{teacher.full_name}</strong></div>
+            <div>{teacher.email}</div>
+            <div>{teacher.phone}</div>
+            <div>{teacher.city}</div>
+            <div>{teacher.sex}</div>
+            <div>{teacher.dob}</div>
+          </div>
         </div>
       )}
 
-      {/* ✅ Rest of profile, students, myRates remain unchanged */}
+      {/* Students */}
+      {tab === "students" && (
+        <div className="mt-4">
+          <h2 className="text-lg font-semibold mb-2">My Students</h2>
+          {students.length === 0 ? (
+            <p className="text-gray-500">No students yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {students.map(s => (
+                <li key={s.id} className="border p-3 rounded">
+                  <div><strong>{s.student.full_name}</strong> ({s.student.email})</div>
+                  <div>Joined: {new Date(s.date_added).toLocaleDateString()}</div>
+                  <div>Expiry: {new Date(s.expiry_date).toLocaleDateString()}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Add Rates */}
+      {tab === "rates" && (
+        <div className="mt-4">
+          <h2 className="text-lg font-semibold mb-2">Add a New Rate</h2>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Subject"
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              className="border p-2 rounded flex-1"
+            />
+            <input
+              type="text"
+              placeholder="Level"
+              value={level}
+              onChange={e => setLevel(e.target.value)}
+              className="border p-2 rounded flex-1"
+            />
+            <input
+              type="number"
+              placeholder="Rate"
+              value={rate}
+              onChange={e => setRate(e.target.value)}
+              className="border p-2 rounded w-24"
+            />
+            <button
+              onClick={handleAddRate}
+              disabled={savingRate}
+              className="bg-sky-600 text-white px-3 py-1 rounded"
+            >
+              {savingRate ? "Saving..." : "Add"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* My Rates */}
+      {tab === "myRates" && (
+        <div className="mt-4">
+          <h2 className="text-lg font-semibold mb-2">My Rates</h2>
+          {rates.length === 0 ? (
+            <p className="text-gray-500">No rates yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {rates.map(r => (
+                <li key={r.id} className="border p-3 rounded flex justify-between items-center">
+                  {editingRate === r.id ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={editSubject}
+                        onChange={e => setEditSubject(e.target.value)}
+                        className="border p-1 rounded"
+                      />
+                      <input
+                        type="text"
+                        value={editLevel}
+                        onChange={e => setEditLevel(e.target.value)}
+                        className="border p-1 rounded"
+                      />
+                      <input
+                        type="number"
+                        value={editRate}
+                        onChange={e => setEditRate(e.target.value)}
+                        className="border p-1 rounded w-20"
+                      />
+                      <button
+                        onClick={handleSaveEditRate}
+                        className="bg-green-500 text-white px-2 rounded"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <strong>{r.subject}</strong> – {r.level} – GHS {r.rate}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    {editingRate !== r.id && (
+                      <button
+                        onClick={() => startEditRate(r)}
+                        className="bg-yellow-500 text-white px-2 rounded"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteRate(r.id)}
+                      className="bg-red-500 text-white px-2 rounded"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
