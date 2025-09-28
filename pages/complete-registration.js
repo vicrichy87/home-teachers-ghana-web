@@ -7,9 +7,13 @@ export default function CompleteRegistration() {
   const router = useRouter();
   const [user, setUser] = useState(null);
 
-  const [name, setName] = useState(""); // local form state (maps to full_name in DB)
+  const [name, setName] = useState(""); // maps to full_name in DB
   const [email, setEmail] = useState("");
   const [userType, setUserType] = useState(""); // teacher or student
+  const [dob, setDob] = useState(""); // date of birth
+  const [sex, setSex] = useState(""); // male/female/other
+  const [city, setCity] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -28,8 +32,11 @@ export default function CompleteRegistration() {
       }
 
       setUser(user);
-      setName(user.user_metadata?.full_name || ""); // pull from metadata if present
+      setName(user.user_metadata?.full_name || "");
       setEmail(user.email || "");
+      setDob(user.user_metadata?.dob || ""); // if provided by Google
+      setSex(user.user_metadata?.sex || ""); // if provided by Google
+      setCity(user.user_metadata?.city || "");
     };
 
     getUser();
@@ -39,7 +46,7 @@ export default function CompleteRegistration() {
     e.preventDefault();
     if (!user) return;
 
-    // Password validation only if the user signed up with email/password
+    // ✅ Password validation
     if (user.app_metadata?.provider === "email") {
       if (password !== confirmPassword) {
         alert("Passwords do not match!");
@@ -62,13 +69,16 @@ export default function CompleteRegistration() {
       let dbError = null;
 
       if (existingUser) {
-        // Update existing row → map name → full_name
+        // Update existing row
         const { error } = await supabase
           .from("users")
           .update({
             full_name: name,
             email,
             user_type: userType,
+            dob,
+            sex,
+            city,
           })
           .eq("id", user.id);
         dbError = error;
@@ -79,6 +89,9 @@ export default function CompleteRegistration() {
           full_name: name,
           email,
           user_type: userType,
+          dob,
+          sex,
+          city,
         });
         dbError = error;
       }
@@ -135,6 +148,35 @@ export default function CompleteRegistration() {
           <option value="teacher">Teacher</option>
           <option value="student">Student</option>
         </select>
+
+        <input
+          type="date"
+          className="w-full border p-2 rounded"
+          value={dob}
+          onChange={(e) => setDob(e.target.value)}
+          required
+        />
+
+        <select
+          className="w-full border p-2 rounded"
+          value={sex}
+          onChange={(e) => setSex(e.target.value)}
+          required
+        >
+          <option value="">Select Sex</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </select>
+
+        <input
+          type="text"
+          placeholder="City"
+          className="w-full border p-2 rounded"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          required
+        />
 
         {/* ✅ Only show password fields for email/password users */}
         {user?.app_metadata?.provider === "email" && (
