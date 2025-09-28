@@ -194,4 +194,23 @@ export default function CompleteRegistration() {
 
             <input
               type="password"
-              placeholder="Confirm pa
+              placeholder="Confirm password"
+              className="w-full border p-2 rounded"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg"
+        >
+          {loading ? "Saving..." : "Save & Continue"}
+        </button>
+      </form>
+    </div>
+  );
+}
