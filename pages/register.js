@@ -1,5 +1,5 @@
 // pages/register.js
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/router";
 import Banner from "../components/Banner";
@@ -17,6 +17,24 @@ export default function RegisterPage() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ Auto-detect city on mount
+  useEffect(() => {
+    const fetchCity = async () => {
+      if (!city) {
+        try {
+          const res = await fetch("https://ipapi.co/json/");
+          const data = await res.json();
+          if (data?.city) {
+            setCity(data.city);
+          }
+        } catch (err) {
+          console.error("Failed to auto-detect city:", err);
+        }
+      }
+    };
+    fetchCity();
+  }, [city]);
+
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!fullName || !email || !phone || !sex || !dob || !city || !userType || !password) {
@@ -27,19 +45,15 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // check existing email in auth or users
-      const { data: existingAuth, error: e1 } = await supabase.auth.admin.listUsers?.(); // may not be allowed — safe to skip
-      // sign up
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
+
       const userId = data.user.id;
-      // insert profile row (use same id)
+
       const { error: insertError } = await supabase.from("users").insert([
         {
           id: userId,
@@ -70,31 +84,84 @@ export default function RegisterPage() {
       <h2 className="text-xl font-semibold mt-4">Register</h2>
 
       <form className="mt-4 space-y-3" onSubmit={handleRegister}>
-        <input placeholder="Full name" value={fullName} onChange={(e)=>setFullName(e.target.value)} className="w-full p-2 border rounded" />
-        <input placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} className="w-full p-2 border rounded" />
-        <input placeholder="Phone" value={phone} onChange={(e)=>setPhone(e.target.value)} className="w-full p-2 border rounded" />
+        <input
+          placeholder="Full name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <input
+          placeholder="Phone"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+
         <div className="flex gap-2">
-          <select value={sex} onChange={(e)=>setSex(e.target.value)} className="flex-1 p-2 border rounded">
+          <select
+            value={sex}
+            onChange={(e) => setSex(e.target.value)}
+            className="flex-1 p-2 border rounded"
+          >
             <option value="">Select sex</option>
             <option value="male">Male</option>
             <option value="female">Female</option>
             <option value="other">Other</option>
           </select>
-          <input type="date" value={dob} onChange={(e)=>setDob(e.target.value)} className="flex-1 p-2 border rounded" />
+          <input
+            type="date"
+            value={dob}
+            onChange={(e) => setDob(e.target.value)}
+            className="flex-1 p-2 border rounded"
+          />
         </div>
 
-        <input placeholder="City" value={city} onChange={(e)=>setCity(e.target.value)} className="w-full p-2 border rounded" />
+        {/* ✅ City is auto-filled but still editable */}
+        <input
+          placeholder="City"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
 
-        <select value={userType} onChange={(e)=>setUserType(e.target.value)} className="w-full p-2 border rounded">
+        <select
+          value={userType}
+          onChange={(e) => setUserType(e.target.value)}
+          className="w-full p-2 border rounded"
+        >
           <option value="">Select user type</option>
           <option value="teacher">Teacher</option>
           <option value="student">Student</option>
         </select>
 
-        <input type="password" placeholder="Password" value={password} onChange={(e)=>setPassword(e.target.value)} className="w-full p-2 border rounded" />
-        <input type="password" placeholder="Confirm Password" value={confirm} onChange={(e)=>setConfirm(e.target.value)} className="w-full p-2 border rounded" />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <input
+          type="password"
+          placeholder="Confirm Password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
 
-        <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white py-2 rounded">{loading ? "Registering..." : "Register"}</button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-emerald-600 text-white py-2 rounded"
+        >
+          {loading ? "Registering..." : "Register"}
+        </button>
       </form>
     </div>
   );
