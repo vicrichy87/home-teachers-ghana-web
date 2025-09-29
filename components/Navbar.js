@@ -8,29 +8,47 @@ import { useRouter } from "next/router";
 export default function Navbar() {
   const router = useRouter();
   const [session, setSession] = useState(null);
+  const [userType, setUserType] = useState(null); // 👈 track teacher/student
   const [country, setCountry] = useState({ name: "", code: "" });
 
   useEffect(() => {
     // 🔑 Supabase session listener
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) fetchUserType(session.user.id);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session?.user) fetchUserType(session.user.id);
+      else setUserType(null);
     });
     return () => sub?.subscription?.unsubscribe?.();
   }, []);
+
+  const fetchUserType = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("user_type")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) setUserType(data.user_type);
+    } catch (err) {
+      console.error("Failed to fetch user_type:", err);
+    }
+  };
 
   useEffect(() => {
     // 🌍 Detect user country via IP with localStorage caching
     const fetchLocation = async () => {
       try {
-        // Check cache first
         const cached = localStorage.getItem("user_country");
         if (cached) {
           setCountry(JSON.parse(cached));
           return;
         }
 
-        // If not cached, fetch from API
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
         let newCountry;
@@ -77,19 +95,19 @@ export default function Navbar() {
         </Link>
 
         <nav className="flex items-center space-x-4">
-          <Link href="/">
-            <a className="text-slate-700 hover:text-sky-600 flex items-center gap-2">
-              {country.code && (
-                <span title={country.name} className="text-lg">
-                  {getFlagEmoji(country.code)}
-                </span>
-              )}
-            <a className="text-sky-600 font-semibold">  Home</a>
-            </a>
-          </Link>
-
           {!session ? (
             <>
+              {/* Not logged in → Show Home + Login/Register */}
+              <Link href="/">
+                <a className="text-slate-700 hover:text-sky-600 flex items-center gap-2">
+                  {country.code && (
+                    <span title={country.name} className="text-lg">
+                      {getFlagEmoji(country.code)}
+                    </span>
+                  )}
+                  Home
+                </a>
+              </Link>
               <Link href="/login">
                 <a className="text-sky-600 font-semibold">Login</a>
               </Link>
@@ -101,6 +119,20 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              {/* Logged in → Show Flag + Home + Teacher/Student + Logout */}
+              <span title={country.name} className="text-lg">
+                {getFlagEmoji(country.code)}
+              </span>
+              <Link href="/">
+                <a className="text-slate-700 hover:text-sky-600">Home</a>
+              </Link>
+              {userType && (
+                <Link href={`/${userType}`}>
+                  <a className="text-slate-700 hover:text-sky-600 capitalize">
+                    {userType}
+                  </a>
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="ml-3 bg-red-500 text-white px-3 py-1 rounded"
@@ -114,4 +146,3 @@ export default function Navbar() {
     </div>
   );
 }
-
