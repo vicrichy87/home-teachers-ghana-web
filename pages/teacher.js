@@ -55,7 +55,7 @@ export default function TeacherPage() {
     }
   }
 
-  // ✅ Updated: fetch students with subject, level and image
+  // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
       const { data, error } = await supabase
@@ -66,18 +66,16 @@ export default function TeacherPage() {
           level,
           date_added,
           expiry_date,
-          student:student_id ( id, full_name, email, profile_image )
+          student:student_id ( id, full_name, email, phone, profile_image )
         `)
         .eq("teacher_id", teacher.id)
         .order("date_added", { ascending: false });
 
       if (error) throw error;
 
-      // map images from student_images bucket if not absolute
       const studentsWithImages = (data || []).map(s => {
         let imageUrl = s.student?.profile_image || null;
         if (imageUrl && !imageUrl.startsWith("http")) {
-          // stored only file path → get public URL from bucket
           const { data: publicUrlData } = supabase.storage
             .from("student_images")
             .getPublicUrl(imageUrl);
@@ -280,6 +278,7 @@ export default function TeacherPage() {
                 <div>
                   <div className="font-semibold">{s.student.full_name}</div>
                   <div className="text-sm text-gray-600">{s.student.email}</div>
+                  <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
                   <div className="text-sm">
                     📘 {s.subject} ({s.level})
                   </div>
