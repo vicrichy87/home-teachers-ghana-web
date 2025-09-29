@@ -33,18 +33,12 @@ export default function Home() {
 
         if (error) throw error;
 
-        // 🔗 Convert profile_image path → public URL
+        // 🖼️ Use profile_image directly (already public URL) or fallback
         const teachersWithUrls =
-          teachersData?.map((t) => {
-            if (!t.profile_image) {
-              return { ...t, image_url: "https://via.placeholder.com/150?text=No+Image" };
-            }
-            const { data: publicUrl } = supabase.storage
-              .from("profile-pictures")
-              .getPublicUrl(t.profile_image);
-
-            return { ...t, image_url: publicUrl.publicUrl };
-          }) || [];
+          teachersData?.map((t) => ({
+            ...t,
+            image_url: t.profile_image || "/placeholder.png",
+          })) || [];
 
         setTeachers(teachersWithUrls);
       } catch (err) {
@@ -85,7 +79,7 @@ export default function Home() {
                     <img
                       src={teacher.image_url}
                       alt={teacher.full_name}
-                      className="w-24 h-24 rounded-full object-cover mb-3"
+                      className="w-24 h-24 rounded-full object-cover mb-3 border"
                     />
                     <h3 className="text-lg font-medium text-gray-800">
                       {teacher.full_name}
