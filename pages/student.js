@@ -18,12 +18,27 @@ export default function StudentPage() {
 
   useEffect(() => {
     fetchStudentProfile();
-    detectLocation(); // 🌍 Auto-detect location on load
   }, []);
 
   useEffect(() => {
     if (tab === "myTeachers" && student) fetchMyTeachers();
   }, [tab, student]);
+
+  // 🌍 Auto-detect location from IP
+  useEffect(() => {
+    async function detectLocation() {
+      try {
+        const res = await fetch("https://ipapi.co/json/"); // free IP API
+        const data = await res.json();
+        if (data && data.city) {
+          setSearchLocation(data.city);
+        }
+      } catch (err) {
+        console.error("Location detect error:", err);
+      }
+    }
+    detectLocation();
+  }, []);
 
   async function fetchStudentProfile() {
     setLoading(true);
@@ -69,39 +84,13 @@ export default function StudentPage() {
     }
   }
 
-  // 🌍 Auto-detect location using browser geolocation + reverse geocoding
-  function detectLocation() {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          // Use OpenStreetMap reverse geocoding
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-          );
-          const data = await res.json();
-          const cityName = data.address.city || data.address.town || data.address.state || "";
-          if (cityName) setSearchLocation(cityName);
-        } catch (err) {
-          console.error("Location detection failed:", err);
-        }
-      });
-    }
-  }
-
   // 🔍 Case-insensitive searches
   async function handleSearchByLocation() {
     try {
-      let locationToSearch = searchLocation;
-      // Normalize Accra → Greater Accra
-      if (locationToSearch.toLowerCase() === "accra") {
-        locationToSearch = "Greater Accra";
-      }
-
       const { data, error } = await supabase
         .from("users")
         .select("id, full_name, city, profile_image")
-        .ilike("city", locationToSearch)
+        .ilike("city", searchLocation)
         .eq("user_type", "teacher");
       if (error) throw error;
       setTeachers(data || []);
