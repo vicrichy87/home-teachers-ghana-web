@@ -61,10 +61,31 @@ export default function TeacherProfile() {
     fetchData();
   }, [id]);
 
-  // ✅ Register student to teacher
-  async function handlePayToRegister(teacherId) {
+  // ✅ Register student to teacher for a subject + level
+  async function handlePayToRegister(teacherId, subject, level) {
     try {
       if (!student) return alert("You must be logged in as a student to register.");
+
+      // 1️⃣ Check if already registered and not expired
+      const { data: existing, error: checkError } = await supabase
+        .from("teacher_students")
+        .select("*")
+        .eq("student_id", student.id)
+        .eq("teacher_id", teacherId)
+        .eq("subject", subject)
+        .eq("level", level)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existing) {
+        const today = new Date().toISOString().split("T")[0];
+        if (existing.expiry_date && existing.expiry_date >= today) {
+          return alert("❌ You are already registered for this subject and level. Wait until it expires before registering again.");
+        }
+      }
+
+      // 2️⃣ Insert new registration
       const dateAdded = new Date();
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + 1);
@@ -73,13 +94,15 @@ export default function TeacherProfile() {
         {
           student_id: student.id,
           teacher_id: teacherId,
+          subject,
+          level,
           date_added: dateAdded.toISOString().split("T")[0],
           expiry_date: expiryDate.toISOString().split("T")[0],
         },
       ]);
       if (error) throw error;
 
-      alert("✅ Successfully registered to teacher!");
+      alert("✅ Successfully registered!");
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -155,7 +178,9 @@ export default function TeacherProfile() {
                     <td className="px-4 py-2 border">
                       <button
                         className="bg-green-600 text-white px-3 py-1 rounded"
-                        onClick={() => handlePayToRegister(teacher.id)}
+                        onClick={() =>
+                          handlePayToRegister(teacher.id, row.subject, row.level)
+                        }
                       >
                         Pay to Register
                       </button>
