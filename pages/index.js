@@ -9,6 +9,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
 
+  // Get Supabase storage base URL from your client
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
   useEffect(() => {
     const fetchLocationAndTeachers = async () => {
       try {
@@ -43,6 +46,12 @@ export default function Home() {
     fetchLocationAndTeachers();
   }, []);
 
+  // Helper to build the full Supabase image URL
+  const getImageUrl = (path) => {
+    if (!path) return "https://via.placeholder.com/150?text=No+Image";
+    return `${SUPABASE_URL}/storage/v1/object/public/profile-pictures/${path}`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Banner />
@@ -69,19 +78,14 @@ export default function Home() {
                 <Link href={`/teacher/${teacher.id}`} key={teacher.id}>
                   <a className="bg-white shadow rounded-lg p-4 flex flex-col items-center hover:shadow-md transition">
                     <img
-                      src={
-                        teacher.avatar_url ||
-                        "https://via.placeholder.com/150?text=No+Image"
-                      }
+                      src={getImageUrl(teacher.profile_image)}
                       alt={teacher.full_name}
                       className="w-24 h-24 rounded-full object-cover mb-3"
                     />
                     <h3 className="text-lg font-medium text-gray-800">
                       {teacher.full_name}
                     </h3>
-                    <p className="text-gray-500 text-sm">
-                      {teacher.location}
-                    </p>
+                    <p className="text-gray-500 text-sm">{teacher.city}</p>
                   </a>
                 </Link>
               ))}
