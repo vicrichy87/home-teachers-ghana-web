@@ -68,12 +68,12 @@ export default function Navbar() {
         <nav className="flex items-center space-x-4">
           <Link href="/">
             <a className="text-slate-700 hover:text-sky-600 flex items-center gap-2">
-              Home
               {country.code && (
                 <span title={country.name} className="text-lg">
                   {getFlagEmoji(country.code)}
                 </span>
               )}
+              Home
             </a>
           </Link>
 
