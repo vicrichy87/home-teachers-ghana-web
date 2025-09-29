@@ -72,14 +72,14 @@ export default function Home() {
           {loading ? (
             <p className="text-gray-500">Loading teachers...</p>
           ) : teachers.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {teachers.map((teacher) => (
                 <Link href={`/teacher/${teacher.id}`} key={teacher.id}>
-                  <a className="bg-white shadow rounded-lg p-4 flex flex-col items-center hover:shadow-md transition">
+                  <a className="bg-white shadow rounded-lg p-3 flex flex-col items-center hover:shadow-md transition">
                     <img
                       src={teacher.image_url}
                       alt={teacher.full_name}
-                      className="w-24 h-24 rounded-full object-cover mb-3 border"
+                      className="w-20 h-20 rounded-full object-cover mb-3 border"
                     />
                     <h3 className="text-lg font-medium text-gray-800">
                       {teacher.full_name}
