@@ -22,7 +22,14 @@ export default function TeacherProfile() {
           .single();
 
         if (error) throw error;
-        setTeacher(data);
+
+        // 🖼️ Attach image_url (from profile_image or fallback)
+        const teacherWithImage = {
+          ...data,
+          image_url: data?.profile_image || "/placeholder.png",
+        };
+
+        setTeacher(teacherWithImage);
       } catch (err) {
         console.error("Error fetching teacher:", err);
       } finally {
@@ -54,18 +61,15 @@ export default function TeacherProfile() {
       <div className="max-w-3xl mx-auto bg-white shadow rounded-lg p-6">
         <div className="flex flex-col items-center">
           <img
-            src={
-              teacher.avatar_url ||
-              "https://via.placeholder.com/150?text=No+Image"
-            }
+            src={teacher.image_url}
             alt={teacher.full_name}
-            className="w-32 h-32 rounded-full object-cover mb-4"
+            className="w-32 h-32 rounded-full object-cover mb-4 border"
           />
           <h1 className="text-3xl font-bold text-blue-600 mb-2">
             {teacher.full_name}
           </h1>
           <p className="text-gray-600 mb-2">
-            📍 {teacher.location || "Location not available"}
+            📍 {teacher.city || "Location not available"}
           </p>
           {teacher.email && (
             <p className="text-gray-700 mb-4">
