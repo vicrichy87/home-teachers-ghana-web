@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // ✅ Check session after OAuth redirect
+  // ✅ Check session after returning from OAuth redirect
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -70,7 +70,8 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/login`, // ✅ redirect back here, not directly to complete-registration
+          // ✅ Send Google users to a dedicated callback page
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
