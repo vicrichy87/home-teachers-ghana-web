@@ -16,7 +16,7 @@ export default function TeacherProfile() {
       try {
         const { data, error } = await supabase
           .from("users")
-          .select("id, full_name, profile_image, city, subjects, bio, user_type")
+          .select("id, full_name, profile_image, city, subjects, phone, user_type")
           .eq("id", id)
           .eq("user_type", "teacher")
           .single();
@@ -72,8 +72,8 @@ export default function TeacherProfile() {
               📚 <span className="font-medium">Subjects:</span> {teacher.subjects}
             </p>
           )}
-          {teacher.bio && (
-            <p className="text-gray-600 text-center">{teacher.bio}</p>
+          {teacher.phone && (
+            <p className="text-gray-600 text-center">{teacher.phone}</p>
           )}
         </div>
       </div>
