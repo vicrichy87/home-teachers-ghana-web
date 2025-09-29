@@ -9,6 +9,7 @@ export default function TeacherProfile() {
   const [teacher, setTeacher] = useState(null);
   const [rates, setRates] = useState([]);
   const [student, setStudent] = useState(null);
+  const [userType, setUserType] = useState(null); // ✅ Track whether user is student or teacher
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,16 +17,21 @@ export default function TeacherProfile() {
 
     const fetchData = async () => {
       try {
-        // ✅ Get logged-in student
+        // ✅ Get logged-in user
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: studentData } = await supabase
+          const { data: userData } = await supabase
             .from("users")
             .select("*")
             .eq("id", user.id)
-            .eq("user_type", "student")
             .single();
-          setStudent(studentData);
+
+          if (userData) {
+            setUserType(userData.user_type);
+            if (userData.user_type === "student") {
+              setStudent(userData);
+            }
+          }
         }
 
         // 🎓 Fetch teacher details
@@ -176,14 +182,20 @@ export default function TeacherProfile() {
                       {row.rate}
                     </td>
                     <td className="px-4 py-2 border">
-                      <button
-                        className="bg-green-600 text-white px-3 py-1 rounded"
-                        onClick={() =>
-                          handlePayToRegister(teacher.id, row.subject, row.level)
-                        }
-                      >
-                        Pay to Register
-                      </button>
+                      {userType === "student" ? (
+                        <button
+                          className="bg-green-600 text-white px-3 py-1 rounded"
+                          onClick={() =>
+                            handlePayToRegister(teacher.id, row.subject, row.level)
+                          }
+                        >
+                          Pay to Register
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 italic">
+                          Not available
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
