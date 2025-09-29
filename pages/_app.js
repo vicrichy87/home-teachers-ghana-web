@@ -74,7 +74,7 @@ export default function MyApp({ Component, pageProps }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-sky-50">
         <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="ml-3 text-gray-600 text-lg">Checking session...</p>
+        <p className="ml-3 text-gray-600 text-lg">Loading! Please wait...</p>
       </div>
     );
   }
