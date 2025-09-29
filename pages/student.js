@@ -72,7 +72,7 @@ export default function StudentPage() {
     try {
       const { data, error } = await supabase
         .from("users")
-        .select("id, full_name, email, phone, city")
+        .select("id, full_name, city, profile_image")
         .eq("city", searchLocation)
         .eq("user_type", "teacher");
       if (error) throw error;
@@ -86,7 +86,10 @@ export default function StudentPage() {
     try {
       const { data, error } = await supabase
         .from("teacher_rates")
-        .select("id, subject, level, rate, teacher:teacher_id ( id, full_name, email, phone, city )")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
         .eq("subject", searchSubject)
         .eq("level", searchLevel);
       if (error) throw error;
@@ -100,7 +103,10 @@ export default function StudentPage() {
     try {
       const { data, error } = await supabase
         .from("teacher_rates")
-        .select("id, subject, level, rate, teacher:teacher_id ( id, full_name, email, phone, city )")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
         .eq("subject", searchSubject);
       if (error) throw error;
       setTeachers(data || []);
@@ -282,28 +288,28 @@ export default function StudentPage() {
                   {teachers.map((it, idx) => {
                     const teacherObj = it.teacher || it;
                     return (
-                      <div key={idx} className="p-3 border rounded bg-white">
-                        <div className="flex justify-between">
-                          <div>
-                            <div className="font-semibold">{teacherObj.full_name}</div>
-                            <div className="text-sm text-slate-600">
-                              {teacherObj.email} | {teacherObj.phone}
+                      <div key={idx} className="p-3 border rounded bg-white flex gap-4 items-center">
+                        <img
+                          src={teacherObj.profile_image || "/placeholder.png"}
+                          alt={teacherObj.full_name}
+                          className="w-16 h-16 rounded-full border object-cover"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold">{teacherObj.full_name}</div>
+                          <div className="text-sm text-slate-600">{teacherObj.city}</div>
+                          {it.subject && (
+                            <div className="text-sm">
+                              Subject: {it.subject} ({it.level}) — GHC {it.rate}
                             </div>
-                            <div className="text-sm">{teacherObj.city}</div>
-                            {it.subject && (
-                              <div className="text-sm">
-                                Subject: {it.subject} ({it.level}) — GHC {it.rate}
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <button
-                              className="bg-green-600 text-white px-3 py-1 rounded"
-                              onClick={() => handlePayToRegister(teacherObj.id, it.subject, it.level)}
-                            >
-                              Pay to Register
-                            </button>
-                          </div>
+                          )}
+                        </div>
+                        <div>
+                          <button
+                            className="bg-green-600 text-white px-3 py-1 rounded"
+                            onClick={() => handlePayToRegister(teacherObj.id, it.subject, it.level)}
+                          >
+                            Pay to Register
+                          </button>
                         </div>
                       </div>
                     );
