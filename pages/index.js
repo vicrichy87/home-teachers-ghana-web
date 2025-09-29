@@ -27,9 +27,9 @@ export default function Home() {
         // 📚 Fetch teachers from Supabase
         const { data: teachersData, error } = await supabase
           .from("users")
-          .select("id, full_name, avatar_url, location, user_type")
+          .select("id, full_name, profile_image, city, user_type")
           .eq("user_type", "teacher")
-          .eq("location", location);
+          .eq("city", location);
 
         if (error) throw error;
         setTeachers(teachersData || []);
