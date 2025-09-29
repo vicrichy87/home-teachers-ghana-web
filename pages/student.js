@@ -68,13 +68,13 @@ export default function StudentPage() {
     }
   }
 
-  // 🔍 Search by location (case-insensitive)
+  // 🔍 Case-insensitive searches
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
         .from("users")
         .select("id, full_name, city, profile_image")
-        .ilike("city", searchLocation) // case-insensitive
+        .ilike("city", searchLocation)
         .eq("user_type", "teacher");
       if (error) throw error;
       setTeachers(data || []);
@@ -83,7 +83,6 @@ export default function StudentPage() {
     }
   }
 
-  // 🔍 Search by subject + level (case-insensitive)
   async function handleSearchBySubjectAndLevel() {
     try {
       const { data, error } = await supabase
@@ -92,8 +91,8 @@ export default function StudentPage() {
           id, subject, level, rate,
           teacher:teacher_id ( id, full_name, city, profile_image )
         `)
-        .ilike("subject", searchSubject) // case-insensitive
-        .ilike("level", searchLevel);   // case-insensitive
+        .ilike("subject", searchSubject)
+        .ilike("level", searchLevel);
       if (error) throw error;
       setTeachers(data || []);
     } catch (err) {
@@ -101,7 +100,6 @@ export default function StudentPage() {
     }
   }
 
-  // 🔍 Search by subject only (case-insensitive)
   async function handleSearchBySubjectOnly() {
     try {
       const { data, error } = await supabase
@@ -110,7 +108,7 @@ export default function StudentPage() {
           id, subject, level, rate,
           teacher:teacher_id ( id, full_name, city, profile_image )
         `)
-        .ilike("subject", searchSubject); // case-insensitive
+        .ilike("subject", searchSubject);
       if (error) throw error;
       setTeachers(data || []);
     } catch (err) {
@@ -144,7 +142,7 @@ export default function StudentPage() {
     }
   }
 
-  // ✅ Upload profile image for students
+  // ✅ Upload profile image
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -291,7 +289,11 @@ export default function StudentPage() {
                   {teachers.map((it, idx) => {
                     const teacherObj = it.teacher || it;
                     return (
-                      <div key={idx} className="p-3 border rounded bg-white flex gap-4 items-center">
+                      <div
+                        key={idx}
+                        className="p-3 border rounded bg-white flex gap-4 items-center cursor-pointer hover:bg-slate-50"
+                        onClick={() => router.push(`/teacher/${teacherObj.id}`)}
+                      >
                         <img
                           src={teacherObj.profile_image || "/placeholder.png"}
                           alt={teacherObj.full_name}
@@ -309,7 +311,10 @@ export default function StudentPage() {
                         <div>
                           <button
                             className="bg-green-600 text-white px-3 py-1 rounded"
-                            onClick={() => handlePayToRegister(teacherObj.id, it.subject, it.level)}
+                            onClick={(e) => {
+                              e.stopPropagation(); // prevent card click
+                              handlePayToRegister(teacherObj.id, it.subject, it.level);
+                            }}
                           >
                             Pay to Register
                           </button>
@@ -329,7 +334,11 @@ export default function StudentPage() {
               <div className="space-y-3 mt-3">
                 {myTeachers.length === 0 && <div className="text-slate-600">You have no registered teachers.</div>}
                 {myTeachers.map((m) => (
-                  <div key={m.id} className="p-4 border rounded bg-gray-50 flex gap-4 items-center">
+                  <div
+                    key={m.id}
+                    className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50"
+                    onClick={() => router.push(`/teacher/${m.teacher.id}`)}
+                  >
                     <img
                       src={m.teacher?.profile_image || "/placeholder.png"}
                       alt={m.teacher?.full_name}
