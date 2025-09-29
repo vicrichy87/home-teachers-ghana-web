@@ -109,7 +109,7 @@ export default function StudentPage() {
     }
   }
 
-  async function handlePayToRegister(teacherId) {
+  async function handlePayToRegister(teacherId, subject, level) {
     try {
       if (!student) return alert("Student not found");
       const dateAdded = new Date();
@@ -122,8 +122,8 @@ export default function StudentPage() {
           teacher_id: teacherId,
           date_added: dateAdded.toISOString().split("T")[0],
           expiry_date: expiryDate.toISOString().split("T")[0],
-          subject: searchSubject || null,
-          level: searchLevel || null,
+          subject: subject || null,
+          level: level || null,
         },
       ]);
       if (error) throw error;
@@ -146,7 +146,7 @@ export default function StudentPage() {
       const filePath = `student_images/${user.id}_${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("student_images") // ✅ student bucket
+        .from("student_images")
         .upload(filePath, file, { contentType: file.type, upsert: true });
       if (uploadError) throw uploadError;
 
@@ -225,8 +225,91 @@ export default function StudentPage() {
 
           {/* Search Teacher Tab */}
           {tab==="searchTeacher" && (
-            <div className="mt-4">
-              {/* ... unchanged search section ... */}
+            <div className="mt-4 space-y-4">
+              <div>
+                <input
+                  value={searchLocation}
+                  onChange={(e)=>setSearchLocation(e.target.value)}
+                  placeholder="Location (city)"
+                  className="w-full p-2 border rounded"
+                />
+                <div className="mt-2">
+                  <button
+                    onClick={handleSearchByLocation}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded"
+                  >
+                    Search by Location
+                  </button>
+                </div>
+              </div>
+              <div>
+                <input
+                  value={searchSubject}
+                  onChange={(e)=>setSearchSubject(e.target.value)}
+                  placeholder="Subject"
+                  className="w-full p-2 border rounded"
+                />
+                <div className="flex gap-2 mt-2">
+                  <select
+                    value={searchLevel}
+                    onChange={(e)=>setSearchLevel(e.target.value)}
+                    className="p-2 border rounded"
+                  >
+                    <option value="">Select level</option>
+                    <option value="JHS">JHS</option>
+                    <option value="SHS">SHS</option>
+                    <option value="Remedial">Remedial</option>
+                  </select>
+                  <button
+                    onClick={handleSearchBySubjectAndLevel}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded"
+                  >
+                    Search by Subject & Level
+                  </button>
+                  <button
+                    onClick={handleSearchBySubjectOnly}
+                    className="bg-sky-600 text-white px-4 py-2 rounded"
+                  >
+                    Search Subject Only
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold">Results</h4>
+                <div className="space-y-3 mt-2">
+                  {teachers.length === 0 && <div className="text-slate-600">No results</div>}
+                  {teachers.map((it, idx) => {
+                    const teacherObj = it.teacher || it;
+                    return (
+                      <div key={idx} className="p-3 border rounded bg-white">
+                        <div className="flex justify-between">
+                          <div>
+                            <div className="font-semibold">{teacherObj.full_name}</div>
+                            <div className="text-sm text-slate-600">
+                              {teacherObj.email} | {teacherObj.phone}
+                            </div>
+                            <div className="text-sm">{teacherObj.city}</div>
+                            {it.subject && (
+                              <div className="text-sm">
+                                Subject: {it.subject} ({it.level}) — GHC {it.rate}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <button
+                              className="bg-green-600 text-white px-3 py-1 rounded"
+                              onClick={() => handlePayToRegister(teacherObj.id, it.subject, it.level)}
+                            >
+                              Pay to Register
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 
