@@ -12,6 +12,20 @@ export default function TeacherProfile() {
   const [userType, setUserType] = useState(null); // ✅ Track whether user is student or teacher
   const [loading, setLoading] = useState(true);
 
+  // ✅ Mask phone number
+  const maskPhone = (phone) => {
+    if (!phone) return "";
+    return phone.replace(/(\d{2})\d+(\d{2})/, "$1****$2"); 
+  };
+
+  // ✅ Mask email
+  const maskEmail = (email) => {
+    if (!email) return "";
+    const [name, domain] = email.split("@");
+    if (!name || !domain) return email;
+    return name[0] + "***" + name[name.length - 1] + "@" + domain;
+  };
+
   useEffect(() => {
     if (!id) return;
 
@@ -72,7 +86,6 @@ export default function TeacherProfile() {
     try {
       if (!student) return alert("You must be logged in as a student to register.");
 
-      // 1️⃣ Check if already registered and not expired
       const { data: existing, error: checkError } = await supabase
         .from("teacher_students")
         .select("*")
@@ -91,7 +104,6 @@ export default function TeacherProfile() {
         }
       }
 
-      // 2️⃣ Insert new registration
       const dateAdded = new Date();
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + 1);
@@ -148,11 +160,11 @@ export default function TeacherProfile() {
           </p>
           {teacher.email && (
             <p className="text-gray-700 mb-2">
-              📧 <span className="font-medium">Email:</span> {teacher.email}
+              📧 <span className="font-medium">Email:</span> {maskEmail(teacher.email)}
             </p>
           )}
           {teacher.phone && (
-            <p className="text-gray-600">📞 {teacher.phone}</p>
+            <p className="text-gray-600">📞 {maskPhone(teacher.phone)}</p>
           )}
         </div>
       </div>
