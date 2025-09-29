@@ -68,12 +68,13 @@ export default function StudentPage() {
     }
   }
 
+  // 🔍 Search by location (case-insensitive)
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
         .from("users")
         .select("id, full_name, city, profile_image")
-        .eq("city", searchLocation)
+        .ilike("city", searchLocation) // case-insensitive
         .eq("user_type", "teacher");
       if (error) throw error;
       setTeachers(data || []);
@@ -82,6 +83,7 @@ export default function StudentPage() {
     }
   }
 
+  // 🔍 Search by subject + level (case-insensitive)
   async function handleSearchBySubjectAndLevel() {
     try {
       const { data, error } = await supabase
@@ -90,8 +92,8 @@ export default function StudentPage() {
           id, subject, level, rate,
           teacher:teacher_id ( id, full_name, city, profile_image )
         `)
-        .eq("subject", searchSubject)
-        .eq("level", searchLevel);
+        .ilike("subject", searchSubject) // case-insensitive
+        .ilike("level", searchLevel);   // case-insensitive
       if (error) throw error;
       setTeachers(data || []);
     } catch (err) {
@@ -99,6 +101,7 @@ export default function StudentPage() {
     }
   }
 
+  // 🔍 Search by subject only (case-insensitive)
   async function handleSearchBySubjectOnly() {
     try {
       const { data, error } = await supabase
@@ -107,7 +110,7 @@ export default function StudentPage() {
           id, subject, level, rate,
           teacher:teacher_id ( id, full_name, city, profile_image )
         `)
-        .eq("subject", searchSubject);
+        .ilike("subject", searchSubject); // case-insensitive
       if (error) throw error;
       setTeachers(data || []);
     } catch (err) {
