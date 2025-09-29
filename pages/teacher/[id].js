@@ -8,13 +8,26 @@ export default function TeacherProfile() {
   const { id } = router.query;
   const [teacher, setTeacher] = useState(null);
   const [rates, setRates] = useState([]);
+  const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
 
-    const fetchTeacher = async () => {
+    const fetchData = async () => {
       try {
+        // ✅ Get logged-in student
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: studentData } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .eq("user_type", "student")
+            .single();
+          setStudent(studentData);
+        }
+
         // 🎓 Fetch teacher details
         const { data, error } = await supabase
           .from("users")
@@ -22,7 +35,6 @@ export default function TeacherProfile() {
           .eq("id", id)
           .eq("user_type", "teacher")
           .single();
-
         if (error) throw error;
 
         const teacherWithImage = {
@@ -36,7 +48,6 @@ export default function TeacherProfile() {
           .from("teacher_rates")
           .select("id, subject, level, rate")
           .eq("teacher_id", id);
-
         if (ratesError) throw ratesError;
 
         setRates(ratesData || []);
@@ -47,8 +58,32 @@ export default function TeacherProfile() {
       }
     };
 
-    fetchTeacher();
+    fetchData();
   }, [id]);
+
+  // ✅ Register student to teacher
+  async function handlePayToRegister(teacherId) {
+    try {
+      if (!student) return alert("You must be logged in as a student to register.");
+      const dateAdded = new Date();
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+      const { error } = await supabase.from("teacher_students").insert([
+        {
+          student_id: student.id,
+          teacher_id: teacherId,
+          date_added: dateAdded.toISOString().split("T")[0],
+          expiry_date: expiryDate.toISOString().split("T")[0],
+        },
+      ]);
+      if (error) throw error;
+
+      alert("✅ Successfully registered to teacher!");
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  }
 
   if (loading) {
     return (
@@ -106,6 +141,7 @@ export default function TeacherProfile() {
                   <th className="px-4 py-2 border">Subject</th>
                   <th className="px-4 py-2 border">Level</th>
                   <th className="px-4 py-2 border">Rate (GHC)</th>
+                  <th className="px-4 py-2 border">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,6 +151,14 @@ export default function TeacherProfile() {
                     <td className="px-4 py-2 border">{row.level}</td>
                     <td className="px-4 py-2 border text-blue-600 font-medium">
                       {row.rate}
+                    </td>
+                    <td className="px-4 py-2 border">
+                      <button
+                        className="bg-green-600 text-white px-3 py-1 rounded"
+                        onClick={() => handlePayToRegister(teacher.id)}
+                      >
+                        Pay to Register
+                      </button>
                     </td>
                   </tr>
                 ))}
