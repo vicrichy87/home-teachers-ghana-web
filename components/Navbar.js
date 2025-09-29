@@ -20,21 +20,32 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    // 🌍 Detect user country via IP
+    // 🌍 Detect user country via IP with localStorage caching
     const fetchLocation = async () => {
       try {
+        // Check cache first
+        const cached = localStorage.getItem("user_country");
+        if (cached) {
+          setCountry(JSON.parse(cached));
+          return;
+        }
+
+        // If not cached, fetch from API
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
+        let newCountry;
         if (data?.country && data?.country_name) {
-          setCountry({ name: data.country_name, code: data.country });
+          newCountry = { name: data.country_name, code: data.country };
         } else {
-          // fallback if no data returned
-          setCountry({ name: "World", code: "🌍" });
+          newCountry = { name: "World", code: "🌍" };
         }
+        setCountry(newCountry);
+        localStorage.setItem("user_country", JSON.stringify(newCountry));
       } catch (err) {
         console.error("Failed to fetch location:", err);
-        // fallback if API fails
-        setCountry({ name: "World", code: "🌍" });
+        const fallback = { name: "World", code: "🌍" };
+        setCountry(fallback);
+        localStorage.setItem("user_country", JSON.stringify(fallback));
       }
     };
     fetchLocation();
@@ -73,7 +84,7 @@ export default function Navbar() {
                   {getFlagEmoji(country.code)}
                 </span>
               )}
-           <a className="text-sky-600 font-semibold">   Home</a>
+              Home
             </a>
           </Link>
 
@@ -103,4 +114,3 @@ export default function Navbar() {
     </div>
   );
 }
-
