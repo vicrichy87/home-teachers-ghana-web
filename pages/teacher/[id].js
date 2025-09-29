@@ -16,7 +16,7 @@ export default function TeacherProfile() {
       try {
         const { data, error } = await supabase
           .from("users")
-          .select("id, full_name, avatar_url, location, subjects, bio, user_type")
+          .select("id, full_name, profile_image, city, subjects, bio, user_type")
           .eq("id", id)
           .eq("user_type", "teacher")
           .single();
