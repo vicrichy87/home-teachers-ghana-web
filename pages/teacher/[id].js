@@ -7,13 +7,15 @@ export default function TeacherProfile() {
   const router = useRouter();
   const { id } = router.query;
   const [teacher, setTeacher] = useState(null);
+  const [rates, setRates] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return; // wait until router is ready
+    if (!id) return;
 
     const fetchTeacher = async () => {
       try {
+        // 🎓 Fetch teacher details
         const { data, error } = await supabase
           .from("users")
           .select("id, full_name, profile_image, city, email, phone, user_type")
@@ -23,13 +25,21 @@ export default function TeacherProfile() {
 
         if (error) throw error;
 
-        // 🖼️ Attach image_url (from profile_image or fallback)
         const teacherWithImage = {
           ...data,
           image_url: data?.profile_image || "/placeholder.png",
         };
-
         setTeacher(teacherWithImage);
+
+        // 💰 Fetch teacher subjects + levels + rates
+        const { data: ratesData, error: ratesError } = await supabase
+          .from("teacher_rates")
+          .select("id, subject, level, rate")
+          .eq("teacher_id", id);
+
+        if (ratesError) throw ratesError;
+
+        setRates(ratesData || []);
       } catch (err) {
         console.error("Error fetching teacher:", err);
       } finally {
@@ -57,7 +67,8 @@ export default function TeacherProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-8 space-y-8">
+      {/* Teacher Profile Card */}
       <div className="max-w-3xl mx-auto bg-white shadow rounded-lg p-6">
         <div className="flex flex-col items-center">
           <img
@@ -72,14 +83,47 @@ export default function TeacherProfile() {
             📍 {teacher.city || "Location not available"}
           </p>
           {teacher.email && (
-            <p className="text-gray-700 mb-4">
-              📚 <span className="font-medium">Email:</span> {teacher.email}
+            <p className="text-gray-700 mb-2">
+              📧 <span className="font-medium">Email:</span> {teacher.email}
             </p>
           )}
           {teacher.phone && (
-            <p className="text-gray-600 text-center">{teacher.phone}</p>
+            <p className="text-gray-600">📞 {teacher.phone}</p>
           )}
         </div>
+      </div>
+
+      {/* Subjects + Levels + Rates Table */}
+      <div className="max-w-3xl mx-auto bg-white shadow rounded-lg p-6">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+          Subjects, Levels & Rates
+        </h2>
+        {rates.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-gray-200 text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-2 border">Subject</th>
+                  <th className="px-4 py-2 border">Level</th>
+                  <th className="px-4 py-2 border">Rate (GHC)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rates.map((row) => (
+                  <tr key={row.id} className="text-center">
+                    <td className="px-4 py-2 border">{row.subject}</td>
+                    <td className="px-4 py-2 border">{row.level}</td>
+                    <td className="px-4 py-2 border text-blue-600 font-medium">
+                      {row.rate}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-500">No subjects or rates available.</p>
+        )}
       </div>
     </div>
   );
