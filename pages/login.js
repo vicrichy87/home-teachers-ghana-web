@@ -10,6 +10,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  // ✅ Clear any leftover OAuth state on mount to prevent bad_oauth_state
+  useEffect(() => {
+    const clearOAuthState = async () => {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("error") === "invalid_request") {
+        url.searchParams.delete("error");
+        url.searchParams.delete("error_code");
+        url.searchParams.delete("error_description");
+        window.history.replaceState({}, document.title, url.pathname);
+      }
+    };
+    clearOAuthState();
+  }, []);
+
   // ✅ Check session after returning from OAuth redirect
   useEffect(() => {
     const checkSession = async () => {
@@ -70,7 +84,7 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // ✅ Send Google users to a dedicated callback page
+          // ✅ Dedicated callback page to avoid OAuth state issues
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
