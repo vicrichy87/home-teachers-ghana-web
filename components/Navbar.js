@@ -105,7 +105,7 @@ export default function Navbar() {
                       {getFlagEmoji(country.code)}
                     </span>
                   )}
-                <a "text-sky-600 font-semibold">  Home </a>
+                <a className="text-sky-600 font-semibold">  Home </a>
                 </a>
               </Link>
               <Link href="/login">
@@ -146,4 +146,5 @@ export default function Navbar() {
     </div>
   );
 }
+
 
