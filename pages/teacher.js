@@ -55,20 +55,44 @@ export default function TeacherPage() {
     }
   }
 
+  // ✅ Updated: fetch students with subject, level and image
   async function fetchStudents() {
     try {
       const { data, error } = await supabase
         .from("teacher_students")
         .select(`
           id,
+          subject,
+          level,
           date_added,
           expiry_date,
-          student:student_id ( full_name, email )
+          student:student_id ( id, full_name, email, profile_image )
         `)
         .eq("teacher_id", teacher.id)
         .order("date_added", { ascending: false });
+
       if (error) throw error;
-      setStudents(data || []);
+
+      // map images from student_images bucket if not absolute
+      const studentsWithImages = (data || []).map(s => {
+        let imageUrl = s.student?.profile_image || null;
+        if (imageUrl && !imageUrl.startsWith("http")) {
+          // stored only file path → get public URL from bucket
+          const { data: publicUrlData } = supabase.storage
+            .from("student_images")
+            .getPublicUrl(imageUrl);
+          imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
+        }
+        return {
+          ...s,
+          student: {
+            ...s.student,
+            image_url: imageUrl || "/placeholder.png",
+          },
+        };
+      });
+
+      setStudents(studentsWithImages);
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -147,7 +171,7 @@ export default function TeacherPage() {
     }
   }
 
-  // ✅ Updated: Upload profile image to "profile-pictures" bucket inside user folder
+  // ✅ Upload profile image to "profile-pictures"
   async function handlePickImage(file) {
     try {
       setUploading(true);
@@ -155,7 +179,7 @@ export default function TeacherPage() {
       if (!user) throw new Error("User not logged in");
 
       const ext = file.name.split(".").pop();
-      const filePath = `${user.id}/${Date.now()}.${ext}`;  // 👈 store inside user folder
+      const filePath = `${user.id}/${Date.now()}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("profile-pictures")
@@ -241,23 +265,35 @@ export default function TeacherPage() {
         </div>
       )}
 
-     
       {tab === "students" && (
         <div className="mt-4">
-          <h3 className="font-semibold">Students</h3>
-          <div className="space-y-3 mt-3">
+          <h3 className="font-semibold mb-2">Students</h3>
+          <div className="space-y-3">
             {students.length === 0 && <div>No students yet.</div>}
             {students.map(s => (
-              <div key={s.id} className="border p-3 rounded">
-                <div className="font-semibold">{s.student.full_name}</div>
-                <div>{s.student.email}</div>
-                <div>Date added: {s.date_added} — Expiry: {s.expiry_date}</div>
+              <div key={s.id} className="border p-3 rounded flex items-center gap-3">
+                <img
+                  src={s.student.image_url}
+                  alt={s.student.full_name}
+                  className="w-14 h-14 rounded-full border object-cover"
+                />
+                <div>
+                  <div className="font-semibold">{s.student.full_name}</div>
+                  <div className="text-sm text-gray-600">{s.student.email}</div>
+                  <div className="text-sm">
+                    📘 {s.subject} ({s.level})
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Added: {s.date_added} — Expiry: {s.expiry_date}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* Rates tabs remain unchanged */}
       {tab === "rates" && (
         <div className="mt-4">
           <input
@@ -364,4 +400,3 @@ export default function TeacherPage() {
     </div>
   );
 }
-
