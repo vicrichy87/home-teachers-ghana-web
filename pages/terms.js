@@ -4,7 +4,7 @@ export default function Terms() {
       <h1 className="text-3xl font-bold mb-6 text-gray-800">
         Terms & Conditions
       </h1>
-      <p className="text-gray-600 mb-6">Last updated: [Insert Date]</p>
+      <p className="text-gray-600 mb-6">Last updated: 30-09-2025</p>
 
       <p className="mb-4 text-gray-700">
         These Terms & Conditions (“Terms”) govern your use of the Home Teachers Ghana
