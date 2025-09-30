@@ -1,4 +1,3 @@
-// pages/teacher/[id].js
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
@@ -9,7 +8,7 @@ export default function TeacherProfile() {
   const [teacher, setTeacher] = useState(null);
   const [rates, setRates] = useState([]);
   const [student, setStudent] = useState(null);
-  const [userType, setUserType] = useState(null); // ✅ Track whether user is student or teacher
+  const [userType, setUserType] = useState(null); // Track logged-in user type
   const [loading, setLoading] = useState(true);
 
   // ✅ Mask phone number
@@ -24,6 +23,19 @@ export default function TeacherProfile() {
     const [name, domain] = email.split("@");
     if (!name || !domain) return email;
     return name[0] + "***" + name[name.length - 1] + "@" + domain;
+  };
+
+  // ✅ Calculate age in full years
+  const calculateAge = (dob) => {
+    if (!dob) return "N/A";
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   useEffect(() => {
@@ -42,26 +54,23 @@ export default function TeacherProfile() {
 
           if (userData) {
             setUserType(userData.user_type);
-            if (userData.user_type === "student") {
-              setStudent(userData);
-            }
+            if (userData.user_type === "student") setStudent(userData);
           }
         }
 
         // 🎓 Fetch teacher details
         const { data, error } = await supabase
           .from("users")
-          .select("id, full_name, profile_image, city, email, phone, user_type")
+          .select("id, full_name, profile_image, city, email, phone, dob, user_type")
           .eq("id", id)
           .eq("user_type", "teacher")
           .single();
         if (error) throw error;
 
-        const teacherWithImage = {
+        setTeacher({
           ...data,
           image_url: data?.profile_image || "/placeholder.png",
-        };
-        setTeacher(teacherWithImage);
+        });
 
         // 💰 Fetch teacher subjects + levels + rates
         const { data: ratesData, error: ratesError } = await supabase
@@ -81,7 +90,6 @@ export default function TeacherProfile() {
     fetchData();
   }, [id]);
 
-  // ✅ Register student to teacher for a subject + level
   async function handlePayToRegister(teacherId, subject, level) {
     try {
       if (!student) return alert("You must be logged in as a student to register.");
@@ -100,7 +108,7 @@ export default function TeacherProfile() {
       if (existing) {
         const today = new Date().toISOString().split("T")[0];
         if (existing.expiry_date && existing.expiry_date >= today) {
-          return alert("❌ You are already registered for this subject and level. Wait until it expires before registering again.");
+          return alert("❌ Already registered. Wait until it expires.");
         }
       }
 
@@ -158,6 +166,11 @@ export default function TeacherProfile() {
           <p className="text-gray-600 mb-2">
             📍 {teacher.city || "Location not available"}
           </p>
+          {teacher.dob && (
+            <p className="text-gray-600 mb-2">
+              🎂 Age: {calculateAge(teacher.dob)} years
+            </p>
+          )}
           {teacher.email && (
             <p className="text-gray-700 mb-2">
               📧 <span className="font-medium">Email:</span> {maskEmail(teacher.email)}
@@ -204,9 +217,7 @@ export default function TeacherProfile() {
                           Pay to Register
                         </button>
                       ) : (
-                        <span className="text-gray-400 italic">
-                          Not available
-                        </span>
+                        <span className="text-gray-400 italic">Not available</span>
                       )}
                     </td>
                   </tr>
