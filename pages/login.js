@@ -28,6 +28,11 @@ export default function LoginPage() {
           .maybeSingle();
 
         if (!profile) {
+          // ✅ Allow admin to bypass complete-registration
+          if (user.email === "admin@admin.ts") {
+            router.push("/admin");
+            return;
+          }
           router.push("/complete-registration");
           return;
         }
@@ -59,6 +64,11 @@ export default function LoginPage() {
         .maybeSingle();
 
       if (!profile) {
+        // ✅ Allow admin to bypass complete-registration
+        if (email === "admin@admin.ts") {
+          router.push("/admin");
+          return;
+        }
         router.push("/complete-registration");
       } else if (profile.user_type === "admin") {
         router.push("/admin");
@@ -109,6 +119,7 @@ export default function LoginPage() {
           className="w-full p-2 border rounded"
           type="password"
           placeholder="Password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
