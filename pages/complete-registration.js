@@ -33,12 +33,14 @@ export default function CompleteRegistration() {
       }
 
       setUser(user);
+
+      // Autofill from Google or email metadata
       setName(user.user_metadata?.full_name || "");
       setEmail(user.email || "");
-      setDob(user.user_metadata?.dob || ""); // if provided by Google
-      setSex(user.user_metadata?.sex || ""); // if provided by Google
+      setDob(user.user_metadata?.dob || "");
+      setSex(user.user_metadata?.sex || "");
       setCity(user.user_metadata?.city || "");
-      setPhone(user.user_metadata?.phone || ""); // ✅ if available
+      setPhone(user.user_metadata?.phone || "");
     };
 
     getUser();
@@ -73,12 +75,17 @@ export default function CompleteRegistration() {
     e.preventDefault();
     if (!user) return;
 
-    // ✅ Password validation
+    // ✅ For email/password users, validate password
     if (user.app_metadata?.provider === "email") {
       if (password !== confirmPassword) {
         alert("Passwords do not match!");
         return;
       }
+    }
+
+    if (!userType) {
+      alert("Please select whether you are a teacher or a student.");
+      return;
     }
 
     setLoading(true);
@@ -106,7 +113,7 @@ export default function CompleteRegistration() {
             dob,
             sex,
             city,
-            phone, // ✅ save phone
+            phone,
           })
           .eq("id", user.id);
         dbError = error;
@@ -120,14 +127,14 @@ export default function CompleteRegistration() {
           dob,
           sex,
           city,
-          phone, // ✅ insert phone
+          phone,
         });
         dbError = error;
       }
 
       if (dbError) throw dbError;
 
-      // ✅ Only update password if email/password account
+      // ✅ Only update password if it's an email/password account
       if (user.app_metadata?.provider === "email" && password) {
         const { error: pwError } = await supabase.auth.updateUser({ password });
         if (pwError) throw pwError;
@@ -178,7 +185,6 @@ export default function CompleteRegistration() {
           <option value="student">Student</option>
         </select>
 
-        {/* ✅ Added label for DOB */}
         <label className="block text-gray-700 font-medium">Date of Birth</label>
         <input
           type="date"
@@ -200,7 +206,6 @@ export default function CompleteRegistration() {
           <option value="other">Other</option>
         </select>
 
-        {/* ✅ Phone number field */}
         <input
           type="tel"
           placeholder="Phone Number"
@@ -210,7 +215,6 @@ export default function CompleteRegistration() {
           required
         />
 
-        {/* ✅ Auto-detected city but editable */}
         <input
           type="text"
           placeholder="City"
