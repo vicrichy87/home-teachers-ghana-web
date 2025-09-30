@@ -175,6 +175,11 @@ export default function AdminPage() {
   const renderRatesTable = () => {
     if (!rates.length) return <p>No rates found.</p>;
 
+    const ratesWithTeacher = rates.map(rate => {
+      const teacher = users.find(u => u.id === rate.teacher_id);
+      return { ...rate, teacher_name: teacher ? teacher.full_name : "Unknown" };
+    });
+
     return (
       <>
         <div className="flex space-x-4 mb-4">
@@ -190,22 +195,18 @@ export default function AdminPage() {
         <table className="w-full border">
           <thead className="bg-gray-100">
             <tr>
-              <th>ID</th>
-              <th>Teacher ID</th>
+              <th>Teacher Name</th>
               <th>Subject</th>
               <th>Rate</th>
-              <th>Created At</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {applySearchFilterSort(rates, "teacher_rates").map((rate) => (
+            {applySearchFilterSort(ratesWithTeacher, "teacher_rates").map((rate) => (
               <tr key={rate.id}>
-                <td>{rate.id}</td>
-                <td>{rate.teacher_id}</td>
+                <td>{rate.teacher_name}</td>
                 <td>{rate.subject}</td>
                 <td>{rate.rate}</td>
-                <td>{new Date(rate.created_at).toLocaleDateString()}</td>
                 <td className="flex gap-2">
                   <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
                   <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteRate(rate.id)}>Delete</button>
@@ -220,6 +221,16 @@ export default function AdminPage() {
 
   const renderSubjectsTable = () => {
     if (!subjects.length) return <p>No subjects found.</p>;
+
+    const subjectsWithNames = subjects.map(s => {
+      const teacher = users.find(u => u.id === s.teacher_id);
+      const student = users.find(u => u.id === s.student_id);
+      return {
+        ...s,
+        teacher_name: teacher ? teacher.full_name : "Unknown",
+        student_name: student ? student.full_name : "Unknown",
+      };
+    });
 
     return (
       <>
@@ -236,22 +247,18 @@ export default function AdminPage() {
         <table className="w-full border">
           <thead className="bg-gray-100">
             <tr>
-              <th>ID</th>
-              <th>Teacher ID</th>
-              <th>Student ID</th>
+              <th>Teacher Name</th>
+              <th>Student Name</th>
               <th>Level</th>
-              <th>Created At</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {applySearchFilterSort(subjects, "teacher_students").map((s) => (
+            {applySearchFilterSort(subjectsWithNames, "teacher_students").map((s) => (
               <tr key={s.id}>
-                <td>{s.id}</td>
-                <td>{s.teacher_id}</td>
-                <td>{s.student_id}</td>
+                <td>{s.teacher_name}</td>
+                <td>{s.student_name}</td>
                 <td>{s.level}</td>
-                <td>{new Date(s.created_at).toLocaleDateString()}</td>
                 <td className="flex gap-2">
                   <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
                   <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteSubject(s.id)}>Delete</button>
