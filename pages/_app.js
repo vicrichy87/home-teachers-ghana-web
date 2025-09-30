@@ -28,6 +28,7 @@ export default function MyApp({ Component, pageProps }) {
       ];
 
       if (!user) {
+        // Not logged in → only allow public + login/register
         if (![...publicRoutes, "/login", "/register"].includes(router.pathname)) {
           router.push("/login");
         }
@@ -42,8 +43,12 @@ export default function MyApp({ Component, pageProps }) {
         .eq("id", user.id)
         .maybeSingle();
 
+      // 🔑 Only non-admins get forced to complete registration
       if (!profile) {
-        if (router.pathname !== "/complete-registration") {
+        if (
+          router.pathname !== "/complete-registration" &&
+          user.user_metadata?.user_type !== "admin"
+        ) {
           router.push("/complete-registration");
         }
         setChecking(false);
@@ -83,6 +88,7 @@ export default function MyApp({ Component, pageProps }) {
 
     checkAuth();
 
+    // Re-run when auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       checkAuth();
     });
