@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/router";
 import Banner from "../components/Banner";
+import Link from "next/link";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function RegisterPage() {
   const [userType, setUserType] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // ✅ Auto-detect city on mount
@@ -42,7 +44,14 @@ export default function RegisterPage() {
       alert("Please fill all fields");
       return;
     }
-    if (password !== confirm) return alert("Passwords don't match");
+    if (password !== confirm) {
+      alert("Passwords don't match");
+      return;
+    }
+    if (!acceptTerms) {
+      alert("You must accept the Privacy Policy and Terms & Conditions to register.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -155,6 +164,26 @@ export default function RegisterPage() {
           onChange={(e) => setConfirm(e.target.value)}
           className="w-full p-2 border rounded"
         />
+
+        {/* ✅ Privacy Policy & Terms checkbox */}
+        <div className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={acceptTerms}
+            onChange={(e) => setAcceptTerms(e.target.checked)}
+            className="mt-1"
+          />
+          <p className="text-sm text-gray-700">
+            I agree to the{" "}
+            <Link href="/privacy-policy" className="text-sky-600 underline">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/terms" className="text-sky-600 underline">
+              Terms & Conditions
+            </Link>
+          </p>
+        </div>
 
         <button
           type="submit"
