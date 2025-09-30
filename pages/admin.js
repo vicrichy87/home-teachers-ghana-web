@@ -16,6 +16,10 @@ export default function AdminPage() {
   const [filterValue, setFilterValue] = useState("");
   const [sortConfig, setSortConfig] = useState({ field: "created_at", direction: "desc" });
 
+  // Track editing rows
+  const [editingRow, setEditingRow] = useState({ table: null, id: null });
+  const [editValues, setEditValues] = useState({});
+
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -102,12 +106,35 @@ export default function AdminPage() {
   };
 
   const handleDeleteSubject = async (id) => {
-    if (!confirm("Are you sure you want to delete this subject?")) return;
+    if (!confirm("Are you sure you want to delete this subscription?")) return;
     await supabase.from("teacher_students").delete().eq("id", id);
     fetchData();
   };
 
-  // --- RENDER TABLES ---
+  // --- EDIT Handlers ---
+  const startEdit = (table, row) => {
+    setEditingRow({ table, id: row.id });
+    setEditValues({ ...row });
+  };
+
+  const cancelEdit = () => {
+    setEditingRow({ table: null, id: null });
+    setEditValues({});
+  };
+
+  const saveEdit = async () => {
+    const { table, id } = editingRow;
+    if (table === "users") {
+      await supabase.from("users").update(editValues).eq("id", id);
+    } else if (table === "teacher_rates") {
+      await supabase.from("teacher_rates").update(editValues).eq("id", id);
+    } else if (table === "teacher_students") {
+      await supabase.from("teacher_students").update(editValues).eq("id", id);
+    }
+    cancelEdit();
+    fetchData();
+  };
+
   const renderUsersTable = () => {
     if (!users.length) return <p>No users found.</p>;
 
@@ -151,18 +178,59 @@ export default function AdminPage() {
           <tbody>
             {applySearchFilterSort(users, "users").map((user) => (
               <tr key={user.id}>
-                <td>{user.profile_image ? <img src={user.profile_image} alt={user.full_name} className="w-10 h-10 rounded-full object-cover"/> : "No Image"}</td>
-                <td>{user.full_name}</td>
-                <td>{user.user_type}</td>
-                <td>{user.email}</td>
-                <td>{user.phone}</td>
-                <td>{user.city}</td>
-                <td>{user.sex}</td>
-                <td>{user.dob}</td>
+                <td>
+                  {user.profile_image ? (
+                    <img src={user.profile_image} alt={user.full_name} className="w-10 h-10 rounded-full object-cover"/>
+                  ) : "No Image"}
+                </td>
+                <td>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <input type="text" value={editValues.full_name} onChange={(e) => setEditValues({...editValues, full_name: e.target.value})} />
+                  ) : user.full_name}
+                </td>
+                <td>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <input type="text" value={editValues.user_type} onChange={(e) => setEditValues({...editValues, user_type: e.target.value})} />
+                  ) : user.user_type}
+                </td>
+                <td>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <input type="text" value={editValues.email} onChange={(e) => setEditValues({...editValues, email: e.target.value})} />
+                  ) : user.email}
+                </td>
+                <td>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <input type="text" value={editValues.phone} onChange={(e) => setEditValues({...editValues, phone: e.target.value})} />
+                  ) : user.phone}
+                </td>
+                <td>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <input type="text" value={editValues.city} onChange={(e) => setEditValues({...editValues, city: e.target.value})} />
+                  ) : user.city}
+                </td>
+                <td>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <input type="text" value={editValues.sex} onChange={(e) => setEditValues({...editValues, sex: e.target.value})} />
+                  ) : user.sex}
+                </td>
+                <td>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <input type="date" value={editValues.dob} onChange={(e) => setEditValues({...editValues, dob: e.target.value})} />
+                  ) : user.dob}
+                </td>
                 <td>{new Date(user.created_at).toLocaleDateString()}</td>
                 <td className="flex gap-2">
-                  <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
-                  <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteUser(user.id)}>Delete</button>
+                  {editingRow.table === "users" && editingRow.id === user.id ? (
+                    <>
+                      <button className="bg-green-500 text-white px-2 py-1 rounded" onClick={saveEdit}>Save</button>
+                      <button className="bg-gray-500 text-white px-2 py-1 rounded" onClick={cancelEdit}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="bg-yellow-500 text-white px-2 py-1 rounded" onClick={() => startEdit("users", user)}>Edit</button>
+                      <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteUser(user.id)}>Delete</button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
@@ -205,11 +273,28 @@ export default function AdminPage() {
             {applySearchFilterSort(ratesWithTeacher, "teacher_rates").map((rate) => (
               <tr key={rate.id}>
                 <td>{rate.teacher_name}</td>
-                <td>{rate.subject}</td>
-                <td>{rate.rate}</td>
+                <td>
+                  {editingRow.table === "teacher_rates" && editingRow.id === rate.id ? (
+                    <input type="text" value={editValues.subject} onChange={(e) => setEditValues({...editValues, subject: e.target.value})} />
+                  ) : rate.subject}
+                </td>
+                <td>
+                  {editingRow.table === "teacher_rates" && editingRow.id === rate.id ? (
+                    <input type="number" value={editValues.rate} onChange={(e) => setEditValues({...editValues, rate: e.target.value})} />
+                  ) : rate.rate}
+                </td>
                 <td className="flex gap-2">
-                  <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
-                  <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteRate(rate.id)}>Delete</button>
+                  {editingRow.table === "teacher_rates" && editingRow.id === rate.id ? (
+                    <>
+                      <button className="bg-green-500 text-white px-2 py-1 rounded" onClick={saveEdit}>Save</button>
+                      <button className="bg-gray-500 text-white px-2 py-1 rounded" onClick={cancelEdit}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="bg-yellow-500 text-white px-2 py-1 rounded" onClick={() => startEdit("teacher_rates", rate)}>Edit</button>
+                      <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteRate(rate.id)}>Delete</button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
@@ -219,8 +304,8 @@ export default function AdminPage() {
     );
   };
 
-  const renderSubjectsTable = () => {
-    if (!subjects.length) return <p>No subjects found.</p>;
+  const renderSubscriptionsTable = () => {
+    if (!subjects.length) return <p>No subscriptions found.</p>;
 
     const subjectsWithNames = subjects.map(s => {
       const teacher = users.find(u => u.id === s.teacher_id);
@@ -237,7 +322,7 @@ export default function AdminPage() {
         <div className="flex space-x-4 mb-4">
           <input
             type="text"
-            placeholder="Search subjects..."
+            placeholder="Search subscriptions..."
             className="border px-2 py-1 rounded w-1/2"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -258,10 +343,23 @@ export default function AdminPage() {
               <tr key={s.id}>
                 <td>{s.teacher_name}</td>
                 <td>{s.student_name}</td>
-                <td>{s.level}</td>
+                <td>
+                  {editingRow.table === "teacher_students" && editingRow.id === s.id ? (
+                    <input type="text" value={editValues.level} onChange={(e) => setEditValues({...editValues, level: e.target.value})} />
+                  ) : s.level}
+                </td>
                 <td className="flex gap-2">
-                  <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
-                  <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteSubject(s.id)}>Delete</button>
+                  {editingRow.table === "teacher_students" && editingRow.id === s.id ? (
+                    <>
+                      <button className="bg-green-500 text-white px-2 py-1 rounded" onClick={saveEdit}>Save</button>
+                      <button className="bg-gray-500 text-white px-2 py-1 rounded" onClick={cancelEdit}>Cancel</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="bg-yellow-500 text-white px-2 py-1 rounded" onClick={() => startEdit("teacher_students", s)}>Edit</button>
+                      <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteSubject(s.id)}>Delete</button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
@@ -278,7 +376,7 @@ export default function AdminPage() {
       <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
 
       <div className="flex space-x-4 mb-6">
-        {["users", "rates", "subjects"].map((t) => (
+        {["users", "rates", "subscriptions"].map((t) => (
           <button
             key={t}
             className={`px-3 py-1 rounded ${tab === t ? "bg-sky-600 text-white" : "bg-gray-200"}`}
@@ -296,7 +394,7 @@ export default function AdminPage() {
 
       {tab === "users" && renderUsersTable()}
       {tab === "rates" && renderRatesTable()}
-      {tab === "subjects" && renderSubjectsTable()}
+      {tab === "subscriptions" && renderSubscriptionsTable()}
     </div>
   );
 }
