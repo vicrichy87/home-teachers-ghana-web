@@ -7,17 +7,18 @@ export default function CompleteRegistration() {
   const router = useRouter();
   const [user, setUser] = useState(null);
 
-  const [name, setName] = useState(""); // maps to full_name in DB
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [userType, setUserType] = useState(""); // teacher or student
-  const [dob, setDob] = useState(""); // date of birth
-  const [sex, setSex] = useState(""); // male/female/other
+  const [userType, setUserType] = useState("");
+  const [dob, setDob] = useState("");
+  const [sex, setSex] = useState("");
   const [city, setCity] = useState("");
-  const [phone, setPhone] = useState(""); // ✅ new phone field
+  const [phone, setPhone] = useState("");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [acceptedTerms, setAcceptedTerms] = useState(false); // ✅ new state
   const [loading, setLoading] = useState(false);
 
   // ✅ Fetch user on mount
@@ -55,12 +56,9 @@ export default function CompleteRegistration() {
           const data = await res.json();
           if (data?.city) {
             let detectedCity = data.city;
-
-            // 🔄 Normalize Accra → Greater Accra
             if (detectedCity.toLowerCase() === "accra") {
               detectedCity = "Greater Accra";
             }
-
             setCity(detectedCity);
           }
         } catch (err) {
@@ -74,6 +72,12 @@ export default function CompleteRegistration() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) return;
+
+    // ✅ Require terms acceptance
+    if (!acceptedTerms) {
+      alert("You must accept the Privacy Policy & Terms before continuing.");
+      return;
+    }
 
     // ✅ For email/password users, validate password
     if (user.app_metadata?.provider === "email") {
@@ -103,7 +107,6 @@ export default function CompleteRegistration() {
       let dbError = null;
 
       if (existingUser) {
-        // Update existing row
         const { error } = await supabase
           .from("users")
           .update({
@@ -118,7 +121,6 @@ export default function CompleteRegistration() {
           .eq("id", user.id);
         dbError = error;
       } else {
-        // Insert new row
         const { error } = await supabase.from("users").insert({
           id: user.id,
           full_name: name,
@@ -134,7 +136,6 @@ export default function CompleteRegistration() {
 
       if (dbError) throw dbError;
 
-      // ✅ Only update password if it's an email/password account
       if (user.app_metadata?.provider === "email" && password) {
         const { error: pwError } = await supabase.auth.updateUser({ password });
         if (pwError) throw pwError;
@@ -246,6 +247,37 @@ export default function CompleteRegistration() {
             />
           </>
         )}
+
+        {/* ✅ Privacy Policy & Terms checkbox */}
+        <div className="flex items-start space-x-2">
+          <input
+            type="checkbox"
+            id="terms"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-1"
+            required
+          />
+          <label htmlFor="terms" className="text-sm text-gray-700">
+            I agree to the{" "}
+            <a
+              href="/privacy-policy"
+              target="_blank"
+              className="text-blue-600 hover:underline"
+            >
+              Privacy Policy
+            </a>{" "}
+            and{" "}
+            <a
+              href="/terms"
+              target="_blank"
+              className="text-blue-600 hover:underline"
+            >
+              Terms & Conditions
+            </a>
+            .
+          </label>
+        </div>
 
         <button
           type="submit"
