@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
       <h1 className="text-3xl font-bold mb-6 text-gray-800">
         Privacy Policy
       </h1>
-      <p className="text-gray-600 mb-6">Last updated: [Insert Date]</p>
+      <p className="text-gray-600 mb-6">Last updated: 30-09-2025</p>
 
       <p className="mb-4 text-gray-700">
         Home Teachers Ghana (“we,” “our,” “us”) is committed to protecting your privacy.
