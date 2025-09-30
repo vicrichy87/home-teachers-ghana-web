@@ -108,7 +108,7 @@ export default function RegisterPage() {
         ]);
         if (childError) throw childError;
 
-        // Step 3: Insert parent record
+        // Step 3: Insert parent record (no auth)
         const { error: parentError } = await supabase.from("parents").insert([
           {
             full_name: trimmedFullName,
