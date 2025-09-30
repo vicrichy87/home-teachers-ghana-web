@@ -45,7 +45,7 @@ export default function RegisterPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // Trim values to avoid spaces-only entries
+    // Trim values
     const trimmedFullName = fullName.trim();
     const trimmedEmail = email.trim();
     const trimmedPhone = phone.trim();
@@ -97,7 +97,7 @@ export default function RegisterPage() {
       const userId = data.user.id;
 
       if (trimmedUserType === "parent") {
-        // Insert child as student in users table
+        // Insert child as student
         const { data: child, error: childError } = await supabase
           .from("users")
           .insert([
@@ -107,16 +107,16 @@ export default function RegisterPage() {
               dob: childDob,
               user_type: "student",
               city,
-              email: trimmedEmail, // parent's email
-              phone: trimmedPhone, // parent's phone
-              level: "Nursery",    // default level
+              email: trimmedEmail,
+              phone: trimmedPhone,
+              level: "Nursery",
             },
           ])
           .select("*")
           .single();
         if (childError) throw childError;
 
-        // Insert parent in parents table
+        // Insert parent
         const { error: parentError } = await supabase
           .from("parents")
           .insert([
@@ -176,6 +176,22 @@ export default function RegisterPage() {
           placeholder="Phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+
+        {/* Password fields */}
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <input
+          type="password"
+          placeholder="Confirm Password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
           className="w-full p-2 border rounded"
         />
 
