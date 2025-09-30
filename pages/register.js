@@ -45,30 +45,42 @@ export default function RegisterPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // Validate fields
+    // 1️⃣ Validate required fields for all users
     if (!fullName || !email || !phone || !userType || !password) {
       alert("Please fill all required fields");
       return;
     }
+
+    // 2️⃣ Validate sex & dob for non-parents
+    if (userType !== "parent" && (!sex || !dob)) {
+      alert("Please provide your sex and date of birth");
+      return;
+    }
+
+    // 3️⃣ Validate child info for parents
+    if (userType === "parent" && (!childName || !childSex || !childDob)) {
+      alert("Please provide your child's name, sex, and date of birth");
+      return;
+    }
+
+    // 4️⃣ Password match
     if (password !== confirm) {
       alert("Passwords don't match");
       return;
     }
-    if (!acceptTerms) {
-      alert("You must accept the Privacy Policy and Terms & Conditions to register.");
-      return;
-    }
 
-    // If parent, validate child info
-    if (userType === "parent" && (!childName || !childSex || !childDob)) {
-      alert("Please provide your child's name, sex, and date of birth");
+    // 5️⃣ Terms & Policy
+    if (!acceptTerms) {
+      alert(
+        "You must accept the Privacy Policy and Terms & Conditions to register."
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      // 1️⃣ Sign up user in Supabase Auth
+      // 6️⃣ Sign up user in Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -78,7 +90,7 @@ export default function RegisterPage() {
       const userId = data.user.id;
 
       if (userType === "parent") {
-        // 2️⃣ Insert child as student
+        // 7️⃣ Insert child as student in users table
         const { data: child, error: childError } = await supabase
           .from("users")
           .insert([
@@ -93,7 +105,7 @@ export default function RegisterPage() {
           .single();
         if (childError) throw childError;
 
-        // 3️⃣ Insert parent into parents table
+        // 8️⃣ Insert parent in parents table
         const { error: parentError } = await supabase
           .from("parents")
           .insert([
@@ -107,7 +119,7 @@ export default function RegisterPage() {
           ]);
         if (parentError) throw parentError;
       } else {
-        // Regular student/teacher/admin
+        // Regular student/teacher/admin registration
         const { error: insertError } = await supabase.from("users").insert([
           {
             id: userId,
@@ -161,36 +173,43 @@ export default function RegisterPage() {
           required
         />
 
-        <div className="flex gap-2">
-          <select
-            value={sex}
-            onChange={(e) => setSex(e.target.value)}
-            className="flex-1 p-2 border rounded"
-          >
-            <option value="">Select sex</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          <input
-            type="date"
-            value={dob}
-            onChange={(e) => setDob(e.target.value)}
-            className="flex-1 p-2 border rounded"
-          />
-        </div>
+        {/* Non-parent info */}
+        {userType !== "parent" && (
+          <div className="flex gap-2">
+            <select
+              value={sex}
+              onChange={(e) => setSex(e.target.value)}
+              className="flex-1 p-2 border rounded"
+              required
+            >
+              <option value="">Select sex</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+              className="flex-1 p-2 border rounded"
+              required
+            />
+          </div>
+        )}
 
         <input
           placeholder="City"
           value={city}
           onChange={(e) => setCity(e.target.value)}
           className="w-full p-2 border rounded"
+          required
         />
 
         <select
           value={userType}
           onChange={(e) => setUserType(e.target.value)}
           className="w-full p-2 border rounded"
+          required
         >
           <option value="">Select user type</option>
           <option value="teacher">Teacher</option>
