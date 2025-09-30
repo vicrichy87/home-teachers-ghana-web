@@ -24,11 +24,10 @@ export default function MyApp({ Component, pageProps }) {
         "/contact",
         "/privacy-policy",
         "/terms",
-        "/403", // make 403 public
+        "/403",
       ];
 
       if (!user) {
-        // Not logged in → only allow public + login/register
         if (![...publicRoutes, "/login", "/register"].includes(router.pathname)) {
           router.push("/login");
         }
@@ -43,10 +42,10 @@ export default function MyApp({ Component, pageProps }) {
         .eq("id", user.id)
         .maybeSingle();
 
-      // 🔑 If no profile exists
+      // 🔑 Handle missing profile
       if (!profile) {
         if (user.email === "admin@admin.ts") {
-          // ✅ Bypass complete-registration for admin
+          // Admin bypass
           if (!router.pathname.startsWith("/admin")) {
             router.push("/admin");
           }
@@ -76,15 +75,25 @@ export default function MyApp({ Component, pageProps }) {
         router.push("/403");
       }
 
-      // ✅ Redirect logged-in users away from login/register
+      // ✅ Redirect logged-in users away from login/register/complete-registration
       if (
         ["/login", "/register", "/complete-registration"].includes(
           router.pathname
         )
       ) {
-        if (userType === "admin") router.push("/admin");
-        else if (userType === "teacher") router.push("/teacher");
-        else router.push("/student");
+        if (userType === "admin" && !router.pathname.startsWith("/admin")) {
+          router.push("/admin");
+        } else if (
+          userType === "teacher" &&
+          !router.pathname.startsWith("/teacher")
+        ) {
+          router.push("/teacher");
+        } else if (
+          userType === "student" &&
+          !router.pathname.startsWith("/student")
+        ) {
+          router.push("/student");
+        }
       }
 
       setChecking(false);
@@ -92,7 +101,6 @@ export default function MyApp({ Component, pageProps }) {
 
     checkAuth();
 
-    // Re-run when auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       checkAuth();
     });
