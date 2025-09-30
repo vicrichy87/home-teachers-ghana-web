@@ -23,11 +23,11 @@ export default function MyApp({ Component, pageProps }) {
         "/about",
         "/contact",
         "/privacy-policy",
-        "/terms"
+        "/terms",
+        "/403", // make 403 public
       ];
 
       if (!user) {
-        // Not logged in → only allow public + login/register
         if (![...publicRoutes, "/login", "/register"].includes(router.pathname)) {
           router.push("/login");
         }
@@ -43,7 +43,6 @@ export default function MyApp({ Component, pageProps }) {
         .maybeSingle();
 
       if (!profile) {
-        // No profile → force complete registration
         if (router.pathname !== "/complete-registration") {
           router.push("/complete-registration");
         }
@@ -51,13 +50,31 @@ export default function MyApp({ Component, pageProps }) {
         return;
       }
 
-      // ✅ User has profile
+      const userType = profile.user_type;
+
+      // ✅ Restrict routes based on role
+      if (router.pathname.startsWith("/admin") && userType !== "admin") {
+        router.push("/403");
+      } else if (
+        router.pathname.startsWith("/teacher") &&
+        userType !== "teacher"
+      ) {
+        router.push("/403");
+      } else if (
+        router.pathname.startsWith("/student") &&
+        userType !== "student"
+      ) {
+        router.push("/403");
+      }
+
+      // ✅ Redirect logged-in users away from login/register
       if (
         ["/login", "/register", "/complete-registration"].includes(
           router.pathname
         )
       ) {
-        if (profile.user_type === "teacher") router.push("/teacher");
+        if (userType === "admin") router.push("/admin");
+        else if (userType === "teacher") router.push("/teacher");
         else router.push("/student");
       }
 
@@ -66,7 +83,6 @@ export default function MyApp({ Component, pageProps }) {
 
     checkAuth();
 
-    // Re-run when auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       checkAuth();
     });
