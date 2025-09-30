@@ -51,19 +51,16 @@ export default function RegisterPage() {
     const trimmedUserType = userType.trim();
     const trimmedPassword = password.trim();
 
-    // Required fields
     if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
       alert("Please fill all required fields");
       return;
     }
 
-    // Non-parent validation
     if (trimmedUserType !== "parent" && (!sex || !dob)) {
       alert("Please provide your sex and date of birth");
       return;
     }
 
-    // Parent validation
     if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
       alert("Please provide your child's name, sex, and date of birth");
       return;
@@ -83,16 +80,27 @@ export default function RegisterPage() {
 
     try {
       if (trimmedUserType === "parent") {
-        // Step 1: Sign up auth user for child
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // 1️⃣ Sign up parent first
+        const { data: parentAuth, error: parentAuthError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password: trimmedPassword,
         });
-        if (authError) throw authError;
+        if (parentAuthError) throw parentAuthError;
 
-        const childId = authData.user.id;
+        const parentId = parentAuth.user.id;
 
-        // Step 2: Insert child into users table
+        // 2️⃣ Sign up child in Auth
+        const childEmail = `${childName.replace(/\s+/g, "").toLowerCase()}@temp.com`; // temporary unique email for child
+        const childPassword = trimmedPassword; // can use same password
+        const { data: childAuth, error: childAuthError } = await supabase.auth.signUp({
+          email: childEmail,
+          password: childPassword,
+        });
+        if (childAuthError) throw childAuthError;
+
+        const childId = childAuth.user.id;
+
+        // 3️⃣ Insert child into users table
         const { error: childError } = await supabase.from("users").insert([
           {
             id: childId,
@@ -101,21 +109,35 @@ export default function RegisterPage() {
             dob: childDob,
             user_type: "student",
             city,
-            email: trimmedEmail,
+            email: childEmail,
             phone: trimmedPhone,
             level: "Nursery",
           },
         ]);
         if (childError) throw childError;
 
-        // Step 3: Insert parent record (no auth)
+        // 4️⃣ Insert parent into parents table with user_id
         const { error: parentError } = await supabase.from("parents").insert([
           {
+            user_id: parentId,
             full_name: trimmedFullName,
             child_id: childId,
           },
         ]);
         if (parentError) throw parentError;
+
+        // Optionally insert parent into users table if you want them to log in normally
+        const { error: parentUserError } = await supabase.from("users").insert([
+          {
+            id: parentId,
+            full_name: trimmedFullName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            user_type: "parent",
+            city,
+          },
+        ]);
+        if (parentUserError) throw parentUserError;
 
       } else {
         // Regular student / teacher
@@ -143,13 +165,7 @@ export default function RegisterPage() {
       }
 
       alert("Registration successful. Redirecting...");
-
-      // Redirect
-      if (trimmedUserType === "teacher") {
-        router.push("/teacher");
-      } else {
-        router.push("/student"); // students + parents redirect here
-      }
+      router.push("/student"); // parents and students go here
 
     } catch (err) {
       alert(err.message || String(err));
@@ -183,7 +199,6 @@ export default function RegisterPage() {
           className="w-full p-2 border rounded"
         />
 
-        {/* Password */}
         <input
           type="password"
           placeholder="Password"
@@ -199,7 +214,6 @@ export default function RegisterPage() {
           className="w-full p-2 border rounded"
         />
 
-        {/* Non-parent info */}
         {userType !== "parent" && (
           <div className="flex gap-2">
             <select
@@ -239,7 +253,6 @@ export default function RegisterPage() {
           <option value="parent">Parent</option>
         </select>
 
-        {/* Parent extra fields */}
         {userType === "parent" && (
           <div className="p-4 border rounded bg-gray-50 space-y-3">
             <h3 className="font-semibold">Child Information</h3>
