@@ -105,7 +105,7 @@ export default function Navbar() {
                       {getFlagEmoji(country.code)}
                     </span>
                   )}
-                <a className="text-sky-600 font-semibold">  Home </a>
+                  <span className="text-sky-600 font-semibold">Home</span>
                 </a>
               </Link>
               <Link href="/login">
@@ -119,7 +119,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              {/* Logged in → Show Flag + Home + Teacher/Student + Logout */}
+              {/* Logged in → Show Flag + Home + Profile (based on userType) + Logout */}
               <span title={country.name} className="text-lg">
                 {getFlagEmoji(country.code)}
               </span>
@@ -128,9 +128,7 @@ export default function Navbar() {
               </Link>
               {userType && (
                 <Link href={`/${userType}`}>
-                  <a className="text-slate-700 hover:text-sky-600 capitalize">
-                    {userType}
-                  </a>
+                  <a className="text-slate-700 hover:text-sky-600">Profile</a>
                 </Link>
               )}
               <button
@@ -146,5 +144,3 @@ export default function Navbar() {
     </div>
   );
 }
-
-
