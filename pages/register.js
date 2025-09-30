@@ -45,31 +45,31 @@ export default function RegisterPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // 1️⃣ Validate required fields for all users
+    // Validate required fields for all users
     if (!fullName || !email || !phone || !userType || !password) {
       alert("Please fill all required fields");
       return;
     }
 
-    // 2️⃣ Validate sex & dob for non-parents
+    // Validate sex & dob only for non-parents
     if (userType !== "parent" && (!sex || !dob)) {
       alert("Please provide your sex and date of birth");
       return;
     }
 
-    // 3️⃣ Validate child info for parents
+    // Validate child info for parents
     if (userType === "parent" && (!childName || !childSex || !childDob)) {
       alert("Please provide your child's name, sex, and date of birth");
       return;
     }
 
-    // 4️⃣ Password match
+    // Password match
     if (password !== confirm) {
       alert("Passwords don't match");
       return;
     }
 
-    // 5️⃣ Terms & Policy
+    // Terms & Policy
     if (!acceptTerms) {
       alert(
         "You must accept the Privacy Policy and Terms & Conditions to register."
@@ -80,7 +80,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 6️⃣ Sign up user in Supabase Auth
+      // Sign up user in Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -90,7 +90,7 @@ export default function RegisterPage() {
       const userId = data.user.id;
 
       if (userType === "parent") {
-        // 7️⃣ Insert child as student in users table
+        // Insert child as student in users table
         const { data: child, error: childError } = await supabase
           .from("users")
           .insert([
@@ -100,20 +100,21 @@ export default function RegisterPage() {
               dob: childDob,
               user_type: "student",
               city,
+              email, // parent's email
+              phone, // parent's phone
             },
           ])
+          .select("*")
           .single();
         if (childError) throw childError;
 
-        // 8️⃣ Insert parent in parents table
+        // Insert parent in parents table
         const { error: parentError } = await supabase
           .from("parents")
           .insert([
             {
-              user_id: userId, // auth id
+              user_id: userId, // parent auth ID
               full_name: fullName,
-              email,
-              phone,
               child_id: child.id,
             },
           ]);
