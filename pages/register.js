@@ -145,8 +145,15 @@ export default function RegisterPage() {
         if (insertError) throw insertError;
       }
 
-      alert("Registration successful. Please login.");
-      router.push("/login");
+      alert("Registration successful. Redirecting...");
+
+      // Redirect based on user type
+      if (trimmedUserType === "teacher") {
+        router.push("/teacher");
+      } else {
+        router.push("/student");
+      }
+
     } catch (err) {
       alert(err.message || String(err));
     } finally {
