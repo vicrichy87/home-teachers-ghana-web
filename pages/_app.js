@@ -43,13 +43,17 @@ export default function MyApp({ Component, pageProps }) {
         .eq("id", user.id)
         .maybeSingle();
 
-      // 🔑 Only non-admins get forced to complete registration
+      // 🔑 If no profile exists
       if (!profile) {
-        if (
-          router.pathname !== "/complete-registration" &&
-          user.user_metadata?.user_type !== "admin"
-        ) {
-          router.push("/complete-registration");
+        if (user.email === "admin@admin.ts") {
+          // ✅ Bypass complete-registration for admin
+          if (!router.pathname.startsWith("/admin")) {
+            router.push("/admin");
+          }
+        } else {
+          if (router.pathname !== "/complete-registration") {
+            router.push("/complete-registration");
+          }
         }
         setChecking(false);
         return;
