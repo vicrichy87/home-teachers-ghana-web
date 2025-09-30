@@ -1,20 +1,21 @@
 // pages/admin.js
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 
 export default function AdminPage() {
-  const router = useRouter();
-  const [userType, setUserType] = useState(null);
   const [tab, setTab] = useState("users");
   const [users, setUsers] = useState([]);
   const [rates, setRates] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState({});
-  const [creating, setCreating] = useState({});
 
-  // Search, filter, sort states
+  // Inline editing & creating
+  const [editing, setEditing] = useState({});
+  const [editValues, setEditValues] = useState({});
+  const [creating, setCreating] = useState(false);
+  const [createValues, setCreateValues] = useState({});
+
+  // Search, filter, sort
   const [searchQuery, setSearchQuery] = useState("");
   const [filterValue, setFilterValue] = useState("");
   const [sortConfig, setSortConfig] = useState({ field: null, direction: "asc" });
@@ -32,50 +33,80 @@ export default function AdminPage() {
     "hashed_token",
   ];
 
+  // 🔹 Fetch data
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("users")
-        .select("user_type")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (!profile || profile.user_type !== "admin") {
-        router.push("/");
-        return;
-      }
-      setUserType("admin");
-    };
-
-    checkAuth();
-  }, [router]);
-
-  useEffect(() => {
-    if (userType === "admin") {
-      fetchData();
-    }
-  }, [userType]);
+    fetchData();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
+
     const { data: allUsers } = await supabase.from("users").select("*");
     const { data: allRates } = await supabase.from("teacher_rates").select("*");
     const { data: allSubjects } = await supabase.from("teacher_students").select("*");
+
     setUsers(allUsers || []);
     setRates(allRates || []);
     setSubjects(allSubjects || []);
     setLoading(false);
   };
 
-  // --- CRUD functions remain unchanged (delete, edit, create) ---
+  // --- CRUD Functions ---
+  const handleEdit = (row) => {
+    setEditing({ id: row.id, table: tab });
+    setEditValues(row);
+  };
+
+  const handleChange = (field, value) => {
+    if (editing.id) {
+      setEditValues((prev) => ({ ...prev, [field]: value }));
+    } else {
+      setCreateValues((prev) => ({ ...prev, [field]: value }));
+    }
+  };
+
+  const handleSave = async () => {
+    const { id, table } = editing;
+
+    let tableName =
+      table === "users"
+        ? "users"
+        : table === "rates"
+        ? "teacher_rates"
+        : "teacher_students";
+
+    await supabase.from(tableName).update(editValues).eq("id", id);
+
+    setEditing({});
+    fetchData();
+  };
+
+  const handleDelete = async (row) => {
+    let tableName =
+      tab === "users"
+        ? "users"
+        : tab === "rates"
+        ? "teacher_rates"
+        : "teacher_students";
+
+    await supabase.from(tableName).delete().eq("id", row.id);
+    fetchData();
+  };
+
+  const handleCreate = async () => {
+    let tableName =
+      tab === "users"
+        ? "users"
+        : tab === "rates"
+        ? "teacher_rates"
+        : "teacher_students";
+
+    await supabase.from(tableName).insert([createValues]);
+
+    setCreating(false);
+    setCreateValues({});
+    fetchData();
+  };
 
   // --- Search, filter, sort helpers ---
   const applySearchFilterSort = (data, table) => {
@@ -114,15 +145,13 @@ export default function AdminPage() {
   const handleSort = (field) => {
     setSortConfig((prev) => {
       if (prev.field === field) {
-        return {
-          field,
-          direction: prev.direction === "asc" ? "desc" : "asc",
-        };
+        return { field, direction: prev.direction === "asc" ? "desc" : "asc" };
       }
       return { field, direction: "asc" };
     });
   };
 
+  // --- Table Renderer ---
   const renderTable = (data, table) => {
     if (!data.length) return <p>No records found.</p>;
     const visibleFields = Object.keys(data[0]).filter(
@@ -133,6 +162,17 @@ export default function AdminPage() {
 
     return (
       <>
+        {/* Add New Button */}
+        <button
+          onClick={() => {
+            setCreating(true);
+            setCreateValues({});
+          }}
+          className="mb-4 px-3 py-1 bg-green-600 text-white rounded"
+        >
+          + Add New
+        </button>
+
         {/* Search + filter controls */}
         <div className="flex space-x-4 mb-4">
           <input
@@ -155,37 +195,9 @@ export default function AdminPage() {
               <option value="admin">Admin</option>
             </select>
           )}
-
-          {table === "teacher_students" && (
-            <select
-              className="border px-2 py-1 rounded"
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
-            >
-              <option value="">All levels</option>
-              <option value="Primary">Primary</option>
-              <option value="JHS">JHS</option>
-              <option value="SHS">SHS</option>
-              <option value="University">University</option>
-            </select>
-          )}
-
-          {table === "teacher_rates" && (
-            <select
-              className="border px-2 py-1 rounded"
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
-            >
-              <option value="">All teachers</option>
-              {[...new Set(rates.map((r) => r.teacher_id))].map((id) => (
-                <option key={id} value={id}>
-                  Teacher {id}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
 
+        {/* Data Table */}
         <table className="w-full border">
           <thead className="bg-gray-100">
             <tr>
@@ -204,15 +216,88 @@ export default function AdminPage() {
             </tr>
           </thead>
           <tbody>
+            {/* Creating New Record Row */}
+            {creating && (
+              <tr>
+                {visibleFields.map((field) => (
+                  <td key={field} className="border px-3 py-2">
+                    <input
+                      type="text"
+                      value={createValues[field] ?? ""}
+                      onChange={(e) => handleChange(field, e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                    />
+                  </td>
+                ))}
+                <td className="border px-3 py-2 space-x-2">
+                  <button
+                    onClick={handleCreate}
+                    className="px-2 py-1 bg-green-500 text-white rounded"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCreating(false);
+                      setCreateValues({});
+                    }}
+                    className="px-2 py-1 bg-gray-400 text-white rounded"
+                  >
+                    Cancel
+                  </button>
+                </td>
+              </tr>
+            )}
+
+            {/* Data Rows */}
             {filteredData.map((row) => (
               <tr key={row.id}>
                 {visibleFields.map((field) => (
                   <td key={field} className="border px-3 py-2">
-                    {row[field]}
+                    {editing.id === row.id ? (
+                      <input
+                        type="text"
+                        value={editValues[field] ?? ""}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        className="border rounded px-2 py-1 w-full"
+                      />
+                    ) : (
+                      row[field]
+                    )}
                   </td>
                 ))}
-                <td className="border px-3 py-2">
-                  {/* Edit/Delete buttons (reuse your existing edit logic here) */}
+                <td className="border px-3 py-2 space-x-2">
+                  {editing.id === row.id ? (
+                    <>
+                      <button
+                        onClick={handleSave}
+                        className="px-2 py-1 bg-green-500 text-white rounded"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditing({})}
+                        className="px-2 py-1 bg-gray-400 text-white rounded"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleEdit(row)}
+                        className="px-2 py-1 bg-blue-500 text-white rounded"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(row)}
+                        className="px-2 py-1 bg-red-500 text-white rounded"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
@@ -247,6 +332,8 @@ export default function AdminPage() {
               setSearchQuery("");
               setFilterValue("");
               setSortConfig({ field: null, direction: "asc" });
+              setCreating(false);
+              setEditing({});
             }}
           >
             {t.charAt(0).toUpperCase() + t.slice(1)}
