@@ -32,7 +32,8 @@ export default function LoginPage() {
           return;
         }
 
-        if (profile.user_type === "teacher") router.push("/teacher");
+        if (profile.user_type === "admin") router.push("/admin");
+        else if (profile.user_type === "teacher") router.push("/teacher");
         else router.push("/student");
       }
     };
@@ -57,9 +58,15 @@ export default function LoginPage() {
         .eq("id", data.user.id)
         .maybeSingle();
 
-      if (!profile) router.push("/complete-registration");
-      else if (profile.user_type === "teacher") router.push("/teacher");
-      else router.push("/student");
+      if (!profile) {
+        router.push("/complete-registration");
+      } else if (profile.user_type === "admin") {
+        router.push("/admin");
+      } else if (profile.user_type === "teacher") {
+        router.push("/teacher");
+      } else {
+        router.push("/student");
+      }
     } catch (err) {
       console.error("Login error:", err);
       alert(err.message || String(err));
