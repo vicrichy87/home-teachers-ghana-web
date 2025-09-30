@@ -57,7 +57,7 @@ export default function RegisterPage() {
       return;
     }
 
-    // Validate child info for parents
+    // Validate child info only for parents
     if (userType === "parent" && (!childName || !childSex || !childDob)) {
       alert("Please provide your child's name, sex, and date of birth");
       return;
@@ -90,7 +90,7 @@ export default function RegisterPage() {
       const userId = data.user.id;
 
       if (userType === "parent") {
-        // Insert child as student in users table
+        // Insert child as student in users table (child + parent's email & phone)
         const { data: child, error: childError } = await supabase
           .from("users")
           .insert([
@@ -100,8 +100,9 @@ export default function RegisterPage() {
               dob: childDob,
               user_type: "student",
               city,
-              email, // parent's email
-              phone, // parent's phone
+              email,       // parent's email
+              phone,       // parent's phone
+              level: "Nursery", // default level
             },
           ])
           .select("*")
