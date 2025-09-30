@@ -14,7 +14,7 @@ export default function Terms() {
       <h2 className="text-xl font-semibold mt-6 mb-2">1. Eligibility</h2>
       <ul className="list-disc list-inside space-y-1 text-gray-700">
         <li>You must be at least 18 years old to register as a teacher.</li>
-        <li>Students under 18 must have parental/guardian consent.</li>
+        <li>Students under 13 must have parental/guardian consent.</li>
       </ul>
 
       <h2 className="text-xl font-semibold mt-6 mb-2">2. Account Registration</h2>
