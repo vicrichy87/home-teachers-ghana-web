@@ -45,20 +45,27 @@ export default function RegisterPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // Validate required fields for all users
-    if (!fullName || !email || !phone || !userType || !password) {
+    // Trim values to avoid spaces-only entries
+    const trimmedFullName = fullName.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedUserType = userType.trim();
+    const trimmedPassword = password.trim();
+
+    // Validate required fields
+    if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
       alert("Please fill all required fields");
       return;
     }
 
-    // Validate sex & dob only for non-parents
-    if (userType !== "parent" && (!sex || !dob)) {
+    // Validate sex & dob for non-parents
+    if (trimmedUserType !== "parent" && (!sex || !dob)) {
       alert("Please provide your sex and date of birth");
       return;
     }
 
-    // Validate child info only for parents
-    if (userType === "parent" && (!childName || !childSex || !childDob)) {
+    // Validate child info for parents
+    if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
       alert("Please provide your child's name, sex, and date of birth");
       return;
     }
@@ -82,27 +89,27 @@ export default function RegisterPage() {
     try {
       // Sign up user in Supabase Auth
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: trimmedEmail,
+        password: trimmedPassword,
       });
       if (error) throw error;
 
       const userId = data.user.id;
 
-      if (userType === "parent") {
-        // Insert child as student in users table (child + parent's email & phone)
+      if (trimmedUserType === "parent") {
+        // Insert child as student in users table
         const { data: child, error: childError } = await supabase
           .from("users")
           .insert([
             {
-              full_name: childName,
+              full_name: childName.trim(),
               sex: childSex,
               dob: childDob,
               user_type: "student",
               city,
-              email,       // parent's email
-              phone,       // parent's phone
-              level: "Nursery", // default level
+              email: trimmedEmail, // parent's email
+              phone: trimmedPhone, // parent's phone
+              level: "Nursery",    // default level
             },
           ])
           .select("*")
@@ -114,8 +121,8 @@ export default function RegisterPage() {
           .from("parents")
           .insert([
             {
-              user_id: userId, // parent auth ID
-              full_name: fullName,
+              user_id: userId,
+              full_name: trimmedFullName,
               child_id: child.id,
             },
           ]);
@@ -125,13 +132,13 @@ export default function RegisterPage() {
         const { error: insertError } = await supabase.from("users").insert([
           {
             id: userId,
-            full_name: fullName,
-            email,
-            phone,
+            full_name: trimmedFullName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
             sex,
             dob,
             city,
-            user_type: userType,
+            user_type: trimmedUserType,
             profile_image: null,
           },
         ]);
@@ -158,21 +165,18 @@ export default function RegisterPage() {
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           className="w-full p-2 border rounded"
-          required
         />
         <input
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="w-full p-2 border rounded"
-          required
         />
         <input
           placeholder="Phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           className="w-full p-2 border rounded"
-          required
         />
 
         {/* Non-parent info */}
@@ -182,7 +186,6 @@ export default function RegisterPage() {
               value={sex}
               onChange={(e) => setSex(e.target.value)}
               className="flex-1 p-2 border rounded"
-              required
             >
               <option value="">Select sex</option>
               <option value="male">Male</option>
@@ -194,7 +197,6 @@ export default function RegisterPage() {
               value={dob}
               onChange={(e) => setDob(e.target.value)}
               className="flex-1 p-2 border rounded"
-              required
             />
           </div>
         )}
@@ -204,14 +206,12 @@ export default function RegisterPage() {
           value={city}
           onChange={(e) => setCity(e.target.value)}
           className="w-full p-2 border rounded"
-          required
         />
 
         <select
           value={userType}
           onChange={(e) => setUserType(e.target.value)}
           className="w-full p-2 border rounded"
-          required
         >
           <option value="">Select user type</option>
           <option value="teacher">Teacher</option>
@@ -228,13 +228,11 @@ export default function RegisterPage() {
               value={childName}
               onChange={(e) => setChildName(e.target.value)}
               className="w-full p-2 border rounded"
-              required
             />
             <select
               value={childSex}
               onChange={(e) => setChildSex(e.target.value)}
               className="w-full p-2 border rounded"
-              required
             >
               <option value="">Select sex</option>
               <option value="Male">Male</option>
@@ -245,7 +243,6 @@ export default function RegisterPage() {
               value={childDob}
               onChange={(e) => setChildDob(e.target.value)}
               className="w-full p-2 border rounded"
-              required
             />
           </div>
         )}
