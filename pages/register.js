@@ -45,90 +45,88 @@ export default function RegisterPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // Trim values
     const trimmedFullName = fullName.trim();
     const trimmedEmail = email.trim();
     const trimmedPhone = phone.trim();
     const trimmedUserType = userType.trim();
     const trimmedPassword = password.trim();
 
-    // Validate required fields
+    // Required fields
     if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
       alert("Please fill all required fields");
       return;
     }
 
-    // Validate sex & dob for non-parents
+    // Non-parent validation
     if (trimmedUserType !== "parent" && (!sex || !dob)) {
       alert("Please provide your sex and date of birth");
       return;
     }
 
-    // Validate child info for parents
+    // Parent validation
     if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
       alert("Please provide your child's name, sex, and date of birth");
       return;
     }
 
-    // Password match
     if (password !== confirm) {
       alert("Passwords don't match");
       return;
     }
 
-    // Terms & Policy
     if (!acceptTerms) {
-      alert(
-        "You must accept the Privacy Policy and Terms & Conditions to register."
-      );
+      alert("You must accept the Privacy Policy and Terms & Conditions to register.");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Sign up user in Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password: trimmedPassword,
-      });
-      if (error) throw error;
-
-      const userId = data.user.id;
-
       if (trimmedUserType === "parent") {
-        // Insert child as student
-        const { data: child, error: childError } = await supabase
-          .from("users")
-          .insert([
-            {
-              full_name: childName.trim(),
-              sex: childSex,
-              dob: childDob,
-              user_type: "student",
-              city,
-              email: trimmedEmail,
-              phone: trimmedPhone,
-              level: "Nursery",
-            },
-          ])
-          .select("*")
-          .single();
+        // Step 1: Sign up auth user for child
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        });
+        if (authError) throw authError;
+
+        const childId = authData.user.id;
+
+        // Step 2: Insert child into users table
+        const { error: childError } = await supabase.from("users").insert([
+          {
+            id: childId,
+            full_name: childName.trim(),
+            sex: childSex,
+            dob: childDob,
+            user_type: "student",
+            city,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            level: "Nursery",
+          },
+        ]);
         if (childError) throw childError;
 
-        // Insert parent
-        const { error: parentError } = await supabase
-          .from("parents")
-          .insert([
-            {
-              user_id: userId,
-              full_name: trimmedFullName,
-              child_id: child.id,
-            },
-          ]);
+        // Step 3: Insert parent record
+        const { error: parentError } = await supabase.from("parents").insert([
+          {
+            full_name: trimmedFullName,
+            child_id: childId,
+          },
+        ]);
         if (parentError) throw parentError;
+
       } else {
-        // Regular student/teacher/admin registration
+        // Regular student / teacher
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        });
+        if (authError) throw authError;
+
+        const userId = authData.user.id;
+
         const { error: insertError } = await supabase.from("users").insert([
           {
             id: userId,
@@ -139,7 +137,6 @@ export default function RegisterPage() {
             dob,
             city,
             user_type: trimmedUserType,
-            profile_image: null,
           },
         ]);
         if (insertError) throw insertError;
@@ -147,11 +144,11 @@ export default function RegisterPage() {
 
       alert("Registration successful. Redirecting...");
 
-      // Redirect based on user type
+      // Redirect
       if (trimmedUserType === "teacher") {
         router.push("/teacher");
       } else {
-        router.push("/student");
+        router.push("/student"); // students + parents redirect here
       }
 
     } catch (err) {
@@ -186,7 +183,7 @@ export default function RegisterPage() {
           className="w-full p-2 border rounded"
         />
 
-        {/* Password fields */}
+        {/* Password */}
         <input
           type="password"
           placeholder="Password"
@@ -242,7 +239,7 @@ export default function RegisterPage() {
           <option value="parent">Parent</option>
         </select>
 
-        {/* Parent child info */}
+        {/* Parent extra fields */}
         {userType === "parent" && (
           <div className="p-4 border rounded bg-gray-50 space-y-3">
             <h3 className="font-semibold">Child Information</h3>
@@ -258,8 +255,8 @@ export default function RegisterPage() {
               className="w-full p-2 border rounded"
             >
               <option value="">Select sex</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
             </select>
             <input
               type="date"
