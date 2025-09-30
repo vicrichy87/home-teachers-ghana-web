@@ -18,7 +18,13 @@ export default function MyApp({ Component, pageProps }) {
       } = await supabase.auth.getUser();
 
       // ✅ Public routes that don’t need login
-      const publicRoutes = ["/", "/about", "/contact"]; // add any other public pages
+      const publicRoutes = [
+        "/",
+        "/about",
+        "/contact",
+        "/privacy-policy",
+        "/terms"
+      ];
 
       if (!user) {
         // Not logged in → only allow public + login/register
