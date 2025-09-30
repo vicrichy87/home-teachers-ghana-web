@@ -60,12 +60,15 @@ export default function MyApp({ Component, pageProps }) {
       // 🔹 3. Role-based route protection
       if (router.pathname.startsWith("/admin") && userType !== "admin") {
         router.push("/403");
-      } else if (
+      } 
+      else if (
         router.pathname.startsWith("/teacher") &&
+        router.pathname !== "/teacher/[id]" && // ✅ allow profile pages for any logged-in user
         userType !== "teacher"
       ) {
         router.push("/403");
-      } else if (
+      } 
+      else if (
         router.pathname.startsWith("/student") &&
         userType !== "student"
       ) {
