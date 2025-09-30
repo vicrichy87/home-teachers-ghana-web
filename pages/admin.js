@@ -88,6 +88,26 @@ export default function AdminPage() {
     return filtered;
   };
 
+  // --- DELETE Handlers ---
+  const handleDeleteUser = async (id) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    await supabase.from("users").delete().eq("id", id);
+    fetchData();
+  };
+
+  const handleDeleteRate = async (id) => {
+    if (!confirm("Are you sure you want to delete this rate?")) return;
+    await supabase.from("teacher_rates").delete().eq("id", id);
+    fetchData();
+  };
+
+  const handleDeleteSubject = async (id) => {
+    if (!confirm("Are you sure you want to delete this subject?")) return;
+    await supabase.from("teacher_students").delete().eq("id", id);
+    fetchData();
+  };
+
+  // --- RENDER TABLES ---
   const renderUsersTable = () => {
     if (!users.length) return <p>No users found.</p>;
 
@@ -117,38 +137,21 @@ export default function AdminPage() {
           <thead className="bg-gray-100">
             <tr>
               <th>Profile</th>
-              <th className="cursor-pointer" onClick={() => handleSort("full_name")}>
-                Name {sortConfig.field === "full_name" && (sortConfig.direction === "asc" ? "▲" : "▼")}
-              </th>
-              <th className="cursor-pointer" onClick={() => handleSort("user_type")}>
-                User Type {sortConfig.field === "user_type" && (sortConfig.direction === "asc" ? "▲" : "▼")}
-              </th>
-              <th className="cursor-pointer" onClick={() => handleSort("email")}>
-                Email {sortConfig.field === "email" && (sortConfig.direction === "asc" ? "▲" : "▼")}
-              </th>
+              <th onClick={() => handleSort("full_name")}>Name</th>
+              <th onClick={() => handleSort("user_type")}>User Type</th>
+              <th onClick={() => handleSort("email")}>Email</th>
               <th>Phone</th>
               <th>City</th>
               <th>Sex</th>
               <th>DOB</th>
-              <th className="cursor-pointer" onClick={() => handleSort("created_at")}>
-                Created At {sortConfig.field === "created_at" && (sortConfig.direction === "asc" ? "▲" : "▼")}
-              </th>
+              <th onClick={() => handleSort("created_at")}>Created At</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {applySearchFilterSort(users, "users").map((user) => (
               <tr key={user.id}>
-                <td>
-                  {user.profile_image ? (
-                    <img
-                      src={user.profile_image}
-                      alt={user.full_name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span>No Image</span>
-                  )}
-                </td>
+                <td>{user.profile_image ? <img src={user.profile_image} alt={user.full_name} className="w-10 h-10 rounded-full object-cover"/> : "No Image"}</td>
                 <td>{user.full_name}</td>
                 <td>{user.user_type}</td>
                 <td>{user.email}</td>
@@ -157,6 +160,10 @@ export default function AdminPage() {
                 <td>{user.sex}</td>
                 <td>{user.dob}</td>
                 <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                <td className="flex gap-2">
+                  <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
+                  <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteUser(user.id)}>Delete</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -165,13 +172,99 @@ export default function AdminPage() {
     );
   };
 
-  if (loading) {
+  const renderRatesTable = () => {
+    if (!rates.length) return <p>No rates found.</p>;
+
     return (
-      <div className="flex items-center justify-center min-h-screen bg-sky-50">
-        <p className="text-gray-600">Loading admin dashboard...</p>
-      </div>
+      <>
+        <div className="flex space-x-4 mb-4">
+          <input
+            type="text"
+            placeholder="Search rates..."
+            className="border px-2 py-1 rounded w-1/2"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <table className="w-full border">
+          <thead className="bg-gray-100">
+            <tr>
+              <th>ID</th>
+              <th>Teacher ID</th>
+              <th>Subject</th>
+              <th>Rate</th>
+              <th>Created At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {applySearchFilterSort(rates, "teacher_rates").map((rate) => (
+              <tr key={rate.id}>
+                <td>{rate.id}</td>
+                <td>{rate.teacher_id}</td>
+                <td>{rate.subject}</td>
+                <td>{rate.rate}</td>
+                <td>{new Date(rate.created_at).toLocaleDateString()}</td>
+                <td className="flex gap-2">
+                  <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
+                  <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteRate(rate.id)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
     );
-  }
+  };
+
+  const renderSubjectsTable = () => {
+    if (!subjects.length) return <p>No subjects found.</p>;
+
+    return (
+      <>
+        <div className="flex space-x-4 mb-4">
+          <input
+            type="text"
+            placeholder="Search subjects..."
+            className="border px-2 py-1 rounded w-1/2"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <table className="w-full border">
+          <thead className="bg-gray-100">
+            <tr>
+              <th>ID</th>
+              <th>Teacher ID</th>
+              <th>Student ID</th>
+              <th>Level</th>
+              <th>Created At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {applySearchFilterSort(subjects, "teacher_students").map((s) => (
+              <tr key={s.id}>
+                <td>{s.id}</td>
+                <td>{s.teacher_id}</td>
+                <td>{s.student_id}</td>
+                <td>{s.level}</td>
+                <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                <td className="flex gap-2">
+                  <button className="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
+                  <button className="bg-red-500 text-white px-2 py-1 rounded" onClick={() => handleDeleteSubject(s.id)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    );
+  };
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen bg-sky-50"><p className="text-gray-600">Loading admin dashboard...</p></div>;
 
   return (
     <div className="p-6">
@@ -195,8 +288,8 @@ export default function AdminPage() {
       </div>
 
       {tab === "users" && renderUsersTable()}
-      {tab === "rates" && <p>Rates table coming soon...</p>}
-      {tab === "subjects" && <p>Subjects table coming soon...</p>}
+      {tab === "rates" && renderRatesTable()}
+      {tab === "subjects" && renderSubjectsTable()}
     </div>
   );
 }
