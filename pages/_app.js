@@ -24,9 +24,10 @@ export default function MyApp({ Component, pageProps }) {
         "/contact",
         "/privacy-policy",
         "/terms",
-        "/403",
+        "/403", // make 403 public
       ];
 
+      // 🔹 1. If not logged in → only allow public routes + login/register
       if (!user) {
         if (![...publicRoutes, "/login", "/register"].includes(router.pathname)) {
           router.push("/login");
@@ -35,24 +36,20 @@ export default function MyApp({ Component, pageProps }) {
         return;
       }
 
-      // ✅ Logged in, check profile
+      // 🔹 2. Check profile
       const { data: profile } = await supabase
         .from("users")
         .select("user_type")
         .eq("id", user.id)
         .maybeSingle();
 
-      // 🔑 Handle missing profile
+      // 🔑 Only non-admins get forced to complete registration
       if (!profile) {
-        if (user.email === "admin@admin.ts") {
-          // Admin bypass
-          if (!router.pathname.startsWith("/admin")) {
-            router.push("/admin");
-          }
-        } else {
-          if (router.pathname !== "/complete-registration") {
-            router.push("/complete-registration");
-          }
+        if (
+          router.pathname !== "/complete-registration" &&
+          user.user_metadata?.user_type !== "admin"
+        ) {
+          router.push("/complete-registration");
         }
         setChecking(false);
         return;
@@ -60,7 +57,7 @@ export default function MyApp({ Component, pageProps }) {
 
       const userType = profile.user_type;
 
-      // ✅ Restrict routes based on role
+      // 🔹 3. Role-based route protection
       if (router.pathname.startsWith("/admin") && userType !== "admin") {
         router.push("/403");
       } else if (
@@ -75,25 +72,15 @@ export default function MyApp({ Component, pageProps }) {
         router.push("/403");
       }
 
-      // ✅ Redirect logged-in users away from login/register/complete-registration
+      // 🔹 4. Redirect logged-in users away from login/register/complete-registration
       if (
         ["/login", "/register", "/complete-registration"].includes(
           router.pathname
         )
       ) {
-        if (userType === "admin" && !router.pathname.startsWith("/admin")) {
-          router.push("/admin");
-        } else if (
-          userType === "teacher" &&
-          !router.pathname.startsWith("/teacher")
-        ) {
-          router.push("/teacher");
-        } else if (
-          userType === "student" &&
-          !router.pathname.startsWith("/student")
-        ) {
-          router.push("/student");
-        }
+        if (userType === "admin") router.push("/admin");
+        else if (userType === "teacher") router.push("/teacher");
+        else router.push("/student");
       }
 
       setChecking(false);
@@ -101,6 +88,7 @@ export default function MyApp({ Component, pageProps }) {
 
     checkAuth();
 
+    // Re-run when auth state changes
     const { data: listener } = supabase.auth.onAuthStateChange(() => {
       checkAuth();
     });
