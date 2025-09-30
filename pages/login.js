@@ -1,3 +1,4 @@
+// pages/login.js
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/router";
@@ -8,21 +9,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
-
-  // ✅ Clear any leftover OAuth state on mount to prevent bad_oauth_state
-  useEffect(() => {
-    const clearOAuthState = async () => {
-      const url = new URL(window.location.href);
-      if (url.searchParams.get("error") === "invalid_request") {
-        url.searchParams.delete("error");
-        url.searchParams.delete("error_code");
-        url.searchParams.delete("error_description");
-        window.history.replaceState({}, document.title, url.pathname);
-      }
-    };
-    clearOAuthState();
-  }, []);
 
   // ✅ Check session after returning from OAuth redirect
   useEffect(() => {
@@ -73,6 +61,7 @@ export default function LoginPage() {
       else if (profile.user_type === "teacher") router.push("/teacher");
       else router.push("/student");
     } catch (err) {
+      console.error("Login error:", err);
       alert(err.message || String(err));
     } finally {
       setLoading(false);
@@ -80,17 +69,20 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // ✅ Dedicated callback page to avoid OAuth state issues
+          // ✅ Ensure redirect to callback page
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       if (error) throw error;
     } catch (err) {
+      console.error("Google login error:", err);
       alert(err.message || String(err));
+      setGoogleLoading(false);
     }
   };
 
@@ -132,6 +124,7 @@ export default function LoginPage() {
       {/* Google Login */}
       <button
         onClick={handleGoogleLogin}
+        disabled={googleLoading}
         className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded flex items-center justify-center gap-2"
       >
         <img
@@ -139,7 +132,7 @@ export default function LoginPage() {
           alt="Google"
           className="w-5 h-5 bg-white rounded"
         />
-        Continue with Google
+        {googleLoading ? "Redirecting..." : "Continue with Google"}
       </button>
 
       <p className="mt-3 text-sm">
