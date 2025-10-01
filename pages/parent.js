@@ -7,7 +7,12 @@ export default function ParentPage() {
   const [childTeachers, setChildTeachers] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
   const [teachers, setTeachers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+
+  // 🔍 Search filters (mirroring student.js)
+  const [searchType, setSearchType] = useState("location"); // location | subject | subject-level
+  const [location, setLocation] = useState("");
+  const [subject, setSubject] = useState("");
+  const [level, setLevel] = useState("");
   const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
@@ -43,7 +48,7 @@ export default function ParentPage() {
         // fetch all teachers
         let { data: allTeachers } = await supabase
           .from("users")
-          .select("id, full_name, city, profile_image, subject")
+          .select("id, full_name, city, profile_image, subject, level")
           .eq("user_type", "teacher");
 
         setTeachers(allTeachers || []);
@@ -78,20 +83,27 @@ export default function ParentPage() {
     alert("Profile picture uploaded!");
   };
 
-  // 🔍 Search function (mirrored from student.js)
-  const handleSearch = (term) => {
-    setSearchTerm(term);
-    if (!term.trim()) {
-      setSearchResults(teachers);
-      return;
+  // 🔍 Handle search (mirrors student.js filters)
+  const handleSearch = () => {
+    let results = teachers;
+
+    if (searchType === "location" && location.trim()) {
+      results = teachers.filter((t) =>
+        t.city?.toLowerCase().includes(location.toLowerCase())
+      );
+    } else if (searchType === "subject" && subject.trim()) {
+      results = teachers.filter((t) =>
+        t.subject?.toLowerCase().includes(subject.toLowerCase())
+      );
+    } else if (searchType === "subject-level" && subject.trim() && level.trim()) {
+      results = teachers.filter(
+        (t) =>
+          t.subject?.toLowerCase().includes(subject.toLowerCase()) &&
+          t.level?.toLowerCase().includes(level.toLowerCase())
+      );
     }
-    const filtered = teachers.filter(
-      (t) =>
-        t.full_name?.toLowerCase().includes(term.toLowerCase()) ||
-        t.city?.toLowerCase().includes(term.toLowerCase()) ||
-        t.subject?.toLowerCase().includes(term.toLowerCase())
-    );
-    setSearchResults(filtered);
+
+    setSearchResults(results);
   };
 
   return (
@@ -153,45 +165,120 @@ export default function ParentPage() {
             </div>
           )}
 
-          {/* Search Teachers Tab */}
+          {/* Search Teachers Tab (mirrors student.js) */}
           {activeTab === "search" && (
             <div>
               <h3 className="text-lg font-semibold mb-3">Search Teachers</h3>
-              <input
-                type="text"
-                placeholder="Search by name, city, or subject..."
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="border rounded px-3 py-2 w-full mb-4"
-              />
-              {searchResults.length > 0 ? (
-                <ul>
-                  {searchResults.map((t) => {
-                    const { data } = supabase.storage
-                      .from("profile-pictures")
-                      .getPublicUrl(t.profile_image || "");
-                    return (
-                      <li
-                        key={t.id}
-                        className="border p-3 rounded mb-2 flex items-center gap-3"
-                      >
-                        <img
-                          src={t.profile_image ? data.publicUrl : "/default-avatar.png"}
-                          alt={t.full_name}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
-                        <div>
-                          <p className="font-medium">{t.full_name}</p>
-                          <p className="text-sm text-gray-500">{t.city}</p>
-                          <p className="text-sm text-gray-400">{t.subject}</p>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p>No teachers found.</p>
+
+              {/* Search options */}
+              <div className="flex gap-4 mb-4">
+                <label>
+                  <input
+                    type="radio"
+                    value="location"
+                    checked={searchType === "location"}
+                    onChange={() => setSearchType("location")}
+                  />
+                  <span className="ml-2">By Location</span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    value="subject"
+                    checked={searchType === "subject"}
+                    onChange={() => setSearchType("subject")}
+                  />
+                  <span className="ml-2">By Subject</span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    value="subject-level"
+                    checked={searchType === "subject-level"}
+                    onChange={() => setSearchType("subject-level")}
+                  />
+                  <span className="ml-2">By Subject + Level</span>
+                </label>
+              </div>
+
+              {/* Inputs for search */}
+              {searchType === "location" && (
+                <input
+                  type="text"
+                  placeholder="Enter location..."
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="border px-3 py-2 rounded w-full mb-3"
+                />
               )}
+
+              {searchType === "subject" && (
+                <input
+                  type="text"
+                  placeholder="Enter subject..."
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="border px-3 py-2 rounded w-full mb-3"
+                />
+              )}
+
+              {searchType === "subject-level" && (
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    placeholder="Enter subject..."
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="border px-3 py-2 rounded w-1/2"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter level..."
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value)}
+                    className="border px-3 py-2 rounded w-1/2"
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={handleSearch}
+                className="bg-emerald-500 text-white px-4 py-2 rounded"
+              >
+                Search
+              </button>
+
+              {/* Results */}
+              <div className="mt-4">
+                {searchResults.length > 0 ? (
+                  <ul>
+                    {searchResults.map((t) => {
+                      const { data } = supabase.storage
+                        .from("profile-pictures")
+                        .getPublicUrl(t.profile_image || "");
+                      return (
+                        <li
+                          key={t.id}
+                          className="border p-3 rounded mb-2 flex items-center gap-3"
+                        >
+                          <img
+                            src={t.profile_image ? data.publicUrl : "/default-avatar.png"}
+                            alt={t.full_name}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
+                          <div>
+                            <p className="font-medium">{t.full_name}</p>
+                            <p className="text-sm text-gray-500">{t.city}</p>
+                            <p className="text-sm text-gray-400">{t.subject} {t.level && `(${t.level})`}</p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p>No teachers found.</p>
+                )}
+              </div>
             </div>
           )}
 
