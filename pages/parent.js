@@ -136,42 +136,47 @@ export default function ParentPage() {
     }
   }
 
-  // ✅ Upload profile image
-  async function uploadProfileImage(file) {
-    try {
-      setUploading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+// ✅ Upload profile image (fixed for correct bucket + column)
+async function uploadProfileImage(file) {
+  try {
+    setUploading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
 
-      const ext = file.name.split(".").pop();
-      const filePath = `parent_images/${user.id}_${Date.now()}.${ext}`;
+    const ext = file.name.split(".").pop();
+    const filePath = `profile-pictures/${user.id}_${Date.now()}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("parent_images")
-        .upload(filePath, file, { contentType: file.type, upsert: true });
-      if (uploadError) throw uploadError;
+    // Upload to correct bucket
+    const { error: uploadError } = await supabase.storage
+      .from("profile-pictures") // ✅ your actual bucket
+      .upload(filePath, file, { contentType: file.type, upsert: true });
+    if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = supabase
-        .storage
-        .from("parent_images")
-        .getPublicUrl(filePath);
+    // Get public URL
+    const { data: publicUrlData } = supabase
+      .storage
+      .from("profile-pictures") // ✅ correct bucket
+      .getPublicUrl(filePath);
 
-      const publicUrl = publicUrlData.publicUrl;
+    const publicUrl = publicUrlData.publicUrl;
 
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({ profile_image: publicUrl })
-        .eq("id", user.id);
-      if (updateError) throw updateError;
+    // Update user profile with new picture
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ profile_image: publicUrl }) // ✅ correct column
+      .eq("id", user.id);
+    if (updateError) throw updateError;
 
-      setParent(prev => ({ ...prev, profile_image: publicUrl }));
-      alert("Profile image updated!");
-    } catch (err) {
-      alert(err.message || String(err));
-    } finally {
-      setUploading(false);
-    }
+    // Update local state
+    setParent(prev => ({ ...prev, profile_image: publicUrl })); // or setStudent()
+    alert("Profile image updated!");
+  } catch (err) {
+    alert(err.message || String(err));
+  } finally {
+    setUploading(false);
   }
+}
+
 
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
