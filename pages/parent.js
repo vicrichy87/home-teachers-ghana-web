@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useRouter } from "next/router";
+import Banner from "../components/Banner";
 
 export default function ParentPage() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [profileImageUrl, setProfileImageUrl] = useState(null);
   const [childTeachers, setChildTeachers] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
   const [searchResults, setSearchResults] = useState([]);
 
-  // 🔍 Search filters
+  // 🔍 Search filters (same as student.js)
   const [searchType, setSearchType] = useState("location");
   const [location, setLocation] = useState("");
   const [subject, setSubject] = useState("");
@@ -16,7 +19,9 @@ export default function ParentPage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (user) {
         let { data: userDetails } = await supabase
@@ -27,6 +32,7 @@ export default function ParentPage() {
 
         setUser(userDetails);
 
+        // profile picture
         if (userDetails?.profile_image) {
           const { data } = supabase.storage
             .from("profile-pictures")
@@ -34,7 +40,7 @@ export default function ParentPage() {
           setProfileImageUrl(data.publicUrl);
         }
 
-        // fetch child's teachers
+        // child’s teachers
         let { data: teachers } = await supabase
           .from("parent_child_teachers")
           .select("teacher_id, users(full_name)")
@@ -46,6 +52,7 @@ export default function ParentPage() {
     fetchUser();
   }, []);
 
+  // 📸 Upload parent profile picture
   const uploadProfilePicture = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
@@ -71,7 +78,7 @@ export default function ParentPage() {
     alert("Profile picture uploaded!");
   };
 
-  // 🔍 Handle search with Supabase queries
+  // 🔍 Search (mirrors student.js)
   const handleSearch = async () => {
     let query = supabase
       .from("users")
@@ -83,7 +90,9 @@ export default function ParentPage() {
     } else if (searchType === "subject" && subject.trim()) {
       query = query.ilike("subject", `%${subject}%`);
     } else if (searchType === "subject-level" && subject.trim() && level.trim()) {
-      query = query.ilike("subject", `%${subject}%`).ilike("level", `%${level}%`);
+      query = query
+        .ilike("subject", `%${subject}%`)
+        .ilike("level", `%${level}%`);
     }
 
     const { data, error } = await query;
@@ -91,44 +100,22 @@ export default function ParentPage() {
       console.error("Search error:", error.message);
       setSearchResults([]);
     } else {
-      // ✅ Fix: attach image URLs
-      const withUrls = (data || []).map((t) => {
-        if (t.profile_image) {
-          const { data: img } = supabase.storage
-            .from("profile-pictures")
-            .getPublicUrl(t.profile_image);
-          return { ...t, profileImageUrl: img.publicUrl };
-        }
-        return { ...t, profileImageUrl: "/default-avatar.png" };
-      });
-      setSearchResults(withUrls);
-    }
-  };
-
-  // 📌 Register child with a teacher
-  const registerChildWithTeacher = async (teacherId) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from("parent_child_teachers")
-      .insert([{ parent_id: user.id, teacher_id: teacherId }]);
-    if (error) {
-      alert("Error registering child with teacher: " + error.message);
-    } else {
-      alert("Child registered with teacher successfully!");
-      handleSearch(); // refresh search results
+      setSearchResults(data || []);
     }
   };
 
   return (
     <div className="p-6">
+      <Banner />
+
       {user && (
         <>
           <h2 className="text-2xl font-bold mb-6">Parent Dashboard</h2>
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 border-b pb-2">
+          {/* Tabs (equal width, consistent with student.js) */}
+          <div className="flex mb-6 border-b pb-2">
             <button
-              className={`px-4 py-2 rounded ${
+              className={`flex-1 px-2 py-2 text-sm rounded ${
                 activeTab === "profile" ? "bg-emerald-500 text-white" : "bg-gray-200"
               }`}
               onClick={() => setActiveTab("profile")}
@@ -136,7 +123,7 @@ export default function ParentPage() {
               Profile
             </button>
             <button
-              className={`px-4 py-2 rounded ${
+              className={`flex-1 px-2 py-2 text-sm rounded ${
                 activeTab === "search" ? "bg-emerald-500 text-white" : "bg-gray-200"
               }`}
               onClick={() => setActiveTab("search")}
@@ -144,7 +131,7 @@ export default function ParentPage() {
               Search Teachers
             </button>
             <button
-              className={`px-4 py-2 rounded ${
+              className={`flex-1 px-2 py-2 text-sm rounded ${
                 activeTab === "teachers" ? "bg-emerald-500 text-white" : "bg-gray-200"
               }`}
               onClick={() => setActiveTab("teachers")}
@@ -183,8 +170,8 @@ export default function ParentPage() {
             <div>
               <h3 className="text-lg font-semibold mb-3">Search Teachers</h3>
 
-              {/* Search options */}
-              <div className="flex gap-4 mb-4">
+              {/* Search criteria */}
+              <div className="flex flex-wrap gap-4 mb-4">
                 <label>
                   <input
                     type="radio"
@@ -214,7 +201,7 @@ export default function ParentPage() {
                 </label>
               </div>
 
-              {/* Inputs */}
+              {/* Input fields */}
               {searchType === "location" && (
                 <input
                   type="text"
@@ -263,14 +250,17 @@ export default function ParentPage() {
               <div className="mt-4">
                 {searchResults.length > 0 ? (
                   <ul>
-                    {searchResults.map((t) => (
-                      <li
-                        key={t.id}
-                        className="border p-3 rounded mb-2 flex items-center gap-3 justify-between"
-                      >
-                        <div className="flex items-center gap-3">
+                    {searchResults.map((t) => {
+                      const { data } = supabase.storage
+                        .from("profile-pictures")
+                        .getPublicUrl(t.profile_image || "");
+                      return (
+                        <li
+                          key={t.id}
+                          className="border p-3 rounded mb-2 flex items-center gap-3"
+                        >
                           <img
-                            src={t.profileImageUrl}
+                            src={t.profile_image ? data.publicUrl : "/default-avatar.png"}
                             alt={t.full_name}
                             className="w-12 h-12 rounded-full object-cover"
                           />
@@ -281,15 +271,9 @@ export default function ParentPage() {
                               {t.subject} {t.level && `(${t.level})`}
                             </p>
                           </div>
-                        </div>
-                        <button
-                          onClick={() => registerChildWithTeacher(t.id)}
-                          className="bg-blue-500 text-white px-3 py-1 rounded"
-                        >
-                          Register Child with Teacher
-                        </button>
-                      </li>
-                    ))}
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
                   <p>No teachers found.</p>
