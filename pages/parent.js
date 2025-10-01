@@ -11,19 +11,14 @@ export default function ParentPage() {
   const [tab, setTab] = useState("profile");
   const [teachers, setTeachers] = useState([]);
   const [myChildTeachers, setMyChildTeachers] = useState([]);
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState("");
   const [searchLocation, setSearchLocation] = useState("");
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Add New Child feature states
-  const [showAddChildForm, setShowAddChildForm] = useState(false);
-  const [newChildName, setNewChildName] = useState("");
-  const [newChildSex, setNewChildSex] = useState("");
-  const [newChildDOB, setNewChildDOB] = useState("");
-  const [children, setChildren] = useState([]);
-
-  // --- Fetch parent profile
+  // Initial fetches
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
@@ -31,39 +26,35 @@ export default function ParentPage() {
       try {
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
-        if (data?.city) setSearchLocation(data.city);
+        if (data && data.city) setSearchLocation(data.city);
       } catch (err) { console.error("Location detect error:", err); }
     }
     detectLocation();
   }, []);
 
+  // Fetch parent profile and children
   async function fetchParentProfile() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+
       const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
       if (error) throw error;
       setParent(data);
+
+      // Fetch all children for this parent
+      const { data: childrenData, error: childrenError } = await supabase
+        .from("parents_children")
+        .select("*")
+        .eq("parent_id", user.id);
+      if (childrenError) throw childrenError;
+      setChildren(childrenData || []);
     } catch (err) { alert(err.message || String(err)); }
     finally { setLoading(false); }
   }
 
-  async function fetchParentChildren() {
-    try {
-      const { data, error } = await supabase
-        .from("parents_children")
-        .select("*")
-        .eq("parent_id", parent.id);
-      if (error) throw error;
-      setChildren(data || []);
-    } catch (err) { console.error("Fetch children error:", err.message); }
-  }
-
-  useEffect(() => {
-    if (parent) fetchParentChildren();
-  }, [parent]);
-
+  // Fetch teachers registered to any child
   async function fetchMyChildTeachers() {
     try {
       const { data, error } = await supabase
@@ -74,10 +65,8 @@ export default function ParentPage() {
           expiry_date,
           subject,
           level,
-          child_id,
-          teacher:teacher_id (
-            id, full_name, email, phone, city, profile_image
-          )
+          child:child_id ( id, full_name ),
+          teacher:teacher_id ( id, full_name, email, phone, city, profile_image )
         `)
         .eq("parent_id", parent.id);
       if (error) throw error;
@@ -85,7 +74,7 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // 🔍 Search functions
+  // Search functions
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
@@ -127,7 +116,7 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // ✅ Upload profile image
+  // Upload profile image
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -161,11 +150,25 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // ✅ Register child to teacher
+  // Add new child
+  async function handleAddNewChild() {
+    const full_name = prompt("Enter child's full name");
+    if (!full_name) return;
+    try {
+      const { data, error } = await supabase
+        .from("parents_children")
+        .insert([{ parent_id: parent.id, full_name }])
+        .select();
+      if (error) throw error;
+      alert("Child added successfully");
+      setChildren(prev => [...prev, data[0]]);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  // Register selected child to teacher
   async function handlePayToRegisterChild(childId, teacherId, subject, level) {
     try {
-      if (!parent) return alert("Parent not found");
-      if (!childId) return alert("Please select a child");
+      if (!childId) return alert("Please select a child first");
 
       const dateAdded = new Date();
       const expiryDate = new Date();
@@ -187,31 +190,6 @@ export default function ParentPage() {
       alert("Successfully registered your child to teacher");
       fetchMyChildTeachers();
       setTab("myChildTeachers");
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
-  // ✅ Add new child
-  async function handleAddChild() {
-    if (!newChildName || !newChildSex || !newChildDOB) {
-      return alert("Please fill all fields");
-    }
-    try {
-      const { data, error } = await supabase
-        .from("parents_children")
-        .insert([{
-          parent_id: parent.id,
-          full_name: newChildName,
-          sex: newChildSex,
-          dob: newChildDOB
-        }]);
-      if (error) throw error;
-
-      setChildren(prev => [...prev, data[0]]);
-      setShowAddChildForm(false);
-      setNewChildName("");
-      setNewChildSex("");
-      setNewChildDOB("");
-      alert("Child added successfully!");
     } catch (err) { alert(err.message || String(err)); }
   }
 
@@ -266,185 +244,149 @@ export default function ParentPage() {
                 </div>
               </div>
 
-              {/* Add New Child Button & Form */}
+              {/* Add New Child Button */}
               <div className="mt-4">
                 <button
-                  onClick={() => setShowAddChildForm(prev => !prev)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded mb-2"
+                  className="bg-green-600 text-white px-4 py-2 rounded"
+                  onClick={handleAddNewChild}
                 >
-                  {showAddChildForm ? "Cancel" : "Add New Child"}
+                  Add New Child
                 </button>
-
-                {showAddChildForm && (
-                  <div className="border p-3 rounded bg-gray-50 space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Child Name"
-                      className="w-full p-2 border rounded"
-                      value={newChildName}
-                      onChange={(e) => setNewChildName(e.target.value)}
-                    />
-                    <select
-                      className="w-full p-2 border rounded"
-                      value={newChildSex}
-                      onChange={(e) => setNewChildSex(e.target.value)}
-                    >
-                      <option value="">Select Sex</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
-                    <input
-                      type="date"
-                      className="w-full p-2 border rounded"
-                      value={newChildDOB}
-                      onChange={(e) => setNewChildDOB(e.target.value)}
-                    />
-                    <button
-                      onClick={handleAddChild}
-                      className="bg-green-600 text-white px-4 py-2 rounded"
-                    >
-                      Save Child
-                    </button>
-                  </div>
-                )}
-
-                {/* List of children */}
-                {children.length > 0 && (
-                  <div className="mt-3">
-                    <h4 className="font-semibold">My Children</h4>
-                    <ul className="list-disc ml-5">
-                      {children.map((c) => (
-                        <li key={c.id}>
-                          {c.full_name} — {c.sex} — {new Date(c.dob).toLocaleDateString()}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
+
+              {/* List of children */}
+              {children.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="font-semibold">My Children</h4>
+                  {children.map(c => (
+                    <div key={c.id} className="p-2 border rounded bg-gray-50">
+                      {c.full_name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* Search Teachers Tab */}
-{tab==="searchTeacher" && (
-  <div className="mt-4 space-y-4">
-    {/* By Location */}
-    <div>
-      <input
-        value={searchLocation}
-        onChange={(e)=>setSearchLocation(e.target.value)}
-        placeholder="Location (city)"
-        className="w-full p-2 border rounded"
-      />
-      <div className="mt-2">
-        <button
-          onClick={handleSearchByLocation}
-          className="bg-emerald-600 text-white px-4 py-2 rounded"
-        >
-          Search by Location
-        </button>
-      </div>
-    </div>
-
-    {/* By Subject + Level */}
-    <div>
-      <input
-        value={searchSubject}
-        onChange={(e)=>setSearchSubject(e.target.value)}
-        placeholder="Subject"
-        className="w-full p-2 border rounded"
-      />
-      <div className="flex gap-2 mt-2">
-        <select
-          value={searchLevel}
-          onChange={(e)=>setSearchLevel(e.target.value)}
-          className="p-2 border rounded"
-        >
-          <option value="">Select level</option>
-          <option value="Nursery">Nursery</option>
-          <option value="JHS">JHS</option>
-          <option value="SHS">SHS</option>
-          <option value="Remedial">Remedial</option>
-        </select>
-        <button
-          onClick={handleSearchBySubjectAndLevel}
-          className="bg-emerald-600 text-white px-4 py-2 rounded"
-        >
-          Search by Subject & Level
-        </button>
-        <button
-          onClick={handleSearchBySubjectOnly}
-          className="bg-sky-600 text-white px-4 py-2 rounded"
-        >
-          Search Subject Only
-        </button>
-      </div>
-    </div>
-
-    {/* Select Child Dropdown */}
-    {children.length > 0 && (
-      <div className="mt-3">
-        <label className="block mb-1 font-semibold">Select Child to Register:</label>
-        <select
-          className="w-full p-2 border rounded"
-          value={selectedChildId}
-          onChange={(e) => setSelectedChildId(e.target.value)}
-        >
-          <option value="">-- Select Child --</option>
-          {children.map(c => (
-            <option key={c.id} value={c.id}>{c.full_name}</option>
-          ))}
-        </select>
-      </div>
-    )}
-
-    {/* Results */}
-    <div>
-      <h4 className="font-semibold mt-4">Results</h4>
-      <div className="space-y-3 mt-2">
-        {teachers.length === 0 && <div className="text-slate-600">No results</div>}
-        {teachers.map((it, idx) => {
-          const teacherObj = it.teacher || it;
-          return (
-            <div
-              key={idx}
-              className="p-3 border rounded bg-white flex gap-4 items-center cursor-pointer hover:bg-slate-50"
-              onClick={() => router.push(`/teacher/${teacherObj.id}`)}
-            >
-              <img
-                src={teacherObj.profile_image || "/placeholder.png"}
-                alt={teacherObj.full_name}
-                className="w-16 h-16 rounded-full border object-cover"
-              />
-              <div className="flex-1">
-                <div className="font-semibold">{teacherObj.full_name}</div>
-                <div className="text-sm text-slate-600">{teacherObj.city}</div>
-                {it.subject && (
-                  <div className="text-sm">
-                    Subject: {it.subject} ({it.level}) — GHC {it.rate}
-                  </div>
-                )}
-              </div>
+          {tab==="searchTeacher" && (
+            <div className="mt-4 space-y-4">
+              {/* By Location */}
               <div>
-                <button
-                  className="bg-green-600 text-white px-3 py-1 rounded"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!selectedChildId) return alert("Please select a child first");
-                    handlePayToRegisterChild(selectedChildId, teacherObj.id, it.subject, it.level);
-                  }}
-                >
-                  Pay to Register Child
-                </button>
+                <input
+                  value={searchLocation}
+                  onChange={(e)=>setSearchLocation(e.target.value)}
+                  placeholder="Location (city)"
+                  className="w-full p-2 border rounded"
+                />
+                <div className="mt-2">
+                  <button
+                    onClick={handleSearchByLocation}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded"
+                  >
+                    Search by Location
+                  </button>
+                </div>
+              </div>
+
+              {/* By Subject + Level */}
+              <div>
+                <input
+                  value={searchSubject}
+                  onChange={(e)=>setSearchSubject(e.target.value)}
+                  placeholder="Subject"
+                  className="w-full p-2 border rounded"
+                />
+                <div className="flex gap-2 mt-2">
+                  <select
+                    value={searchLevel}
+                    onChange={(e)=>setSearchLevel(e.target.value)}
+                    className="p-2 border rounded"
+                  >
+                    <option value="">Select level</option>
+                    <option value="Nursery">Nursery</option>
+                    <option value="JHS">JHS</option>
+                    <option value="SHS">SHS</option>
+                    <option value="Remedial">Remedial</option>
+                  </select>
+                  <button
+                    onClick={handleSearchBySubjectAndLevel}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded"
+                  >
+                    Search by Subject & Level
+                  </button>
+                  <button
+                    onClick={handleSearchBySubjectOnly}
+                    className="bg-sky-600 text-white px-4 py-2 rounded"
+                  >
+                    Search Subject Only
+                  </button>
+                </div>
+              </div>
+
+              {/* Select Child Dropdown */}
+              {children.length > 0 && (
+                <div className="mt-3">
+                  <label className="block mb-1 font-semibold">Select Child to Register:</label>
+                  <select
+                    className="w-full p-2 border rounded"
+                    value={selectedChildId}
+                    onChange={(e) => setSelectedChildId(e.target.value)}
+                  >
+                    <option value="">-- Select Child --</option>
+                    {children.map(c => (
+                      <option key={c.id} value={c.id}>{c.full_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Results */}
+              <div>
+                <h4 className="font-semibold mt-4">Results</h4>
+                <div className="space-y-3 mt-2">
+                  {teachers.length === 0 && <div className="text-slate-600">No results</div>}
+                  {teachers.map((it, idx) => {
+                    const teacherObj = it.teacher || it;
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3 border rounded bg-white flex gap-4 items-center cursor-pointer hover:bg-slate-50"
+                        onClick={() => router.push(`/teacher/${teacherObj.id}`)}
+                      >
+                        <img
+                          src={teacherObj.profile_image || "/placeholder.png"}
+                          alt={teacherObj.full_name}
+                          className="w-16 h-16 rounded-full border object-cover"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold">{teacherObj.full_name}</div>
+                          <div className="text-sm text-slate-600">{teacherObj.city}</div>
+                          {it.subject && (
+                            <div className="text-sm">
+                              Subject: {it.subject} ({it.level}) — GHC {it.rate}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <button
+                            className="bg-green-600 text-white px-3 py-1 rounded"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!selectedChildId) return alert("Please select a child first");
+                              handlePayToRegisterChild(selectedChildId, teacherObj.id, it.subject, it.level);
+                            }}
+                          >
+                            Pay to Register Child
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
-    </div>
-  </div>
-)}
-
+          )}
 
           {/* My Child’s Teachers Tab */}
           {tab==="myChildTeachers" && (
@@ -469,12 +411,14 @@ export default function ParentPage() {
                         {m.teacher.email} | {m.teacher.phone}
                       </div>
                       <div className="text-sm">
+                        Child: <span className="font-medium">{m.child?.full_name}</span>
+                      </div>
+                      <div className="text-sm">
                         Subject: <span className="font-medium">{m.subject}</span> ({m.level})
                       </div>
                       <div className="text-xs text-slate-500">
                         Date added: {new Date(m.date_added).toLocaleDateString()} — Expires: {new Date(m.expiry_date).toLocaleDateString()}
                       </div>
-                      <div className="text-sm">Child: {children.find(c => c.id === m.child_id)?.full_name || "N/A"}</div>
                     </div>
                   </div>
                 ))}
