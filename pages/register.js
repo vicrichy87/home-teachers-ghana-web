@@ -5,9 +5,6 @@ import { useRouter } from "next/router";
 import Banner from "../components/Banner";
 import Link from "next/link";
 
-// For generating unique child emails
-import crypto from "crypto";
-
 export default function RegisterPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
@@ -45,13 +42,50 @@ export default function RegisterPage() {
     fetchCity();
   }, [city]);
 
+  // Helper to generate a UUID v4 in browsers and fallbacks
+  function generateUUID() {
+    try {
+      // 1) Prefer native randomUUID if present
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+      }
+
+      // 2) Use crypto.getRandomValues when available (browser)
+      if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        // Per RFC4122 v4 rules
+        bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+        bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+
+        const byteToHex = [];
+        for (let i = 0; i < 256; ++i) {
+          byteToHex.push((i + 0x100).toString(16).substr(1));
+        }
+
+        return (
+          byteToHex[bytes[0]] + byteToHex[bytes[1]] + byteToHex[bytes[2]] + byteToHex[bytes[3]] + "-" +
+          byteToHex[bytes[4]] + byteToHex[bytes[5]] + "-" +
+          byteToHex[bytes[6]] + byteToHex[bytes[7]] + "-" +
+          byteToHex[bytes[8]] + byteToHex[bytes[9]] + "-" +
+          byteToHex[bytes[10]] + byteToHex[bytes[11]] + byteToHex[bytes[12]] + byteToHex[bytes[13]] + byteToHex[bytes[14]] + byteToHex[bytes[15]]
+        );
+      }
+
+      // 3) Last-resort fallback (not RFC but unique enough)
+      return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    } catch (err) {
+      return "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    }
+  }
+
   const handleRegister = async (e) => {
     e.preventDefault();
 
     const trimmedFullName = fullName.trim();
     const trimmedEmail = email.trim();
     const trimmedPhone = phone.trim();
-    const trimmedUserType = userType.trim();
+    const trimmedUserType = (userType || "").trim();
     const trimmedPassword = password.trim();
 
     if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
@@ -83,16 +117,15 @@ export default function RegisterPage() {
 
     try {
       if (trimmedUserType === "parent") {
-        // 1️⃣ Create parent Auth account
+        // 1) Create parent auth account
         const { data: parentAuth, error: parentAuthError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password: trimmedPassword,
         });
         if (parentAuthError) throw parentAuthError;
+        const parentId = parentAuth?.user?.id;
 
-        const parentId = parentAuth.user.id;
-
-        // 2️⃣ Insert parent into users table
+        // 2) Insert parent into users table
         const { error: parentUserError } = await supabase.from("users").insert([
           {
             id: parentId,
@@ -105,10 +138,9 @@ export default function RegisterPage() {
         ]);
         if (parentUserError) throw parentUserError;
 
-        // 3️⃣ Insert child into users table (student, no auth)
-        const uniqueChildEmail = `${childName
-          .replace(/\s+/g, "_")
-          .toLowerCase()}_${crypto.randomUUID()}@child.temp`;
+        // 3) Insert child into users table (student). We create a guaranteed-unique dummy email for the child
+        const safeChildName = childName.trim().replace(/\s+/g, "_").toLowerCase();
+        const uniqueChildEmail = `${safeChildName}_${generateUUID()}@child.temp`;
 
         const { data: childInsert, error: childError } = await supabase
           .from("users")
@@ -119,38 +151,40 @@ export default function RegisterPage() {
               dob: childDob,
               user_type: "student",
               city,
-              parent_email: trimmedEmail, // ✅ reference to parent
+              parent_email: trimmedEmail, // reference to parent
               phone: trimmedPhone,
               level: "Nursery",
-              email: uniqueChildEmail, // ✅ always unique
+              email: uniqueChildEmail, // always unique; child does NOT have an auth account
             },
           ])
           .select()
           .single();
 
         if (childError) throw childError;
-
         const childId = childInsert.id;
 
-        // 4️⃣ Link parent → child in parents table
-        const { error: parentError } = await supabase.from("parents").insert([
+        // 4) Link parent → child in parents table
+        const { error: parentLinkError } = await supabase.from("parents").insert([
           {
             user_id: parentId,
             full_name: trimmedFullName,
             child_id: childId,
           },
         ]);
-        if (parentError) throw parentError;
+        if (parentLinkError) throw parentLinkError;
 
+        // Redirect parents to student page (as discussed)
+        alert("Registration successful. Redirecting...");
+        router.push("/student");
       } else {
-        // Regular student / teacher
+        // Regular student / teacher (create auth + users row)
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: trimmedEmail,
           password: trimmedPassword,
         });
         if (authError) throw authError;
 
-        const userId = authData.user.id;
+        const userId = authData?.user?.id;
 
         const { error: insertError } = await supabase.from("users").insert([
           {
@@ -165,10 +199,11 @@ export default function RegisterPage() {
           },
         ]);
         if (insertError) throw insertError;
-      }
 
-      alert("Registration successful. Redirecting...");
-      router.push("/student"); // parents + students
+        alert("Registration successful. Redirecting...");
+        if (trimmedUserType === "teacher") router.push("/teacher");
+        else router.push("/student");
+      }
     } catch (err) {
       alert(err.message || String(err));
     } finally {
