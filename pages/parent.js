@@ -9,7 +9,10 @@ export default function ParentPage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (user) {
         let { data: userDetails } = await supabase
           .from("users")
@@ -21,7 +24,7 @@ export default function ParentPage() {
 
         if (userDetails?.profile_image) {
           const { data } = supabase.storage
-            .from("profiles")
+            .from("profile-pictures") // ✅ correct bucket
             .getPublicUrl(userDetails.profile_image);
           setProfileImageUrl(data.publicUrl);
         }
@@ -40,17 +43,29 @@ export default function ParentPage() {
 
   const uploadChildPicture = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || !user) return;
 
-    const filePath = `child-pics/${user.id}/${file.name}`;
-    await supabase.storage.from("profiles").upload(filePath, file, { upsert: true });
+    // unique path per user
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
 
+    const { error: uploadError } = await supabase.storage
+      .from("profile-pictures") // ✅ correct bucket
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      alert("Error uploading image: " + uploadError.message);
+      return;
+    }
+
+    // update user record
     await supabase.from("users").update({ profile_image: filePath }).eq("id", user.id);
 
-    const { data } = supabase.storage.from("profiles").getPublicUrl(filePath);
+    const { data } = supabase.storage.from("profile-pictures").getPublicUrl(filePath);
     setProfileImageUrl(data.publicUrl);
 
-    alert("Child picture uploaded!");
+    alert("Profile picture uploaded!");
   };
 
   return (
@@ -62,19 +77,25 @@ export default function ParentPage() {
           {/* Tabs */}
           <div className="flex gap-4 mb-6 border-b pb-2">
             <button
-              className={`px-3 py-1 rounded ${activeTab === "profile" ? "bg-emerald-500 text-white" : "bg-gray-200"}`}
+              className={`px-3 py-1 rounded ${
+                activeTab === "profile" ? "bg-emerald-500 text-white" : "bg-gray-200"
+              }`}
               onClick={() => setActiveTab("profile")}
             >
               Profile
             </button>
             <button
-              className={`px-3 py-1 rounded ${activeTab === "teachers" ? "bg-emerald-500 text-white" : "bg-gray-200"}`}
+              className={`px-3 py-1 rounded ${
+                activeTab === "teachers" ? "bg-emerald-500 text-white" : "bg-gray-200"
+              }`}
               onClick={() => setActiveTab("teachers")}
             >
               My Child’s Teachers
             </button>
             <button
-              className={`px-3 py-1 rounded ${activeTab === "payments" ? "bg-emerald-500 text-white" : "bg-gray-200"}`}
+              className={`px-3 py-1 rounded ${
+                activeTab === "payments" ? "bg-emerald-500 text-white" : "bg-gray-200"
+              }`}
               onClick={() => setActiveTab("payments")}
             >
               Payments
@@ -90,18 +111,36 @@ export default function ParentPage() {
                   alt="Child profile"
                   className="w-32 h-32 rounded-full object-cover mb-3"
                 />
-                <input type="file" onChange={uploadChildPicture} />
+                <input type="file" accept="image/*" onChange={uploadChildPicture} />
               </div>
               <div className="space-y-2">
-                <p><strong>Parent Name:</strong> {user.full_name}</p>
-                <p><strong>Email:</strong> {user.email}</p>
-                <p><strong>Phone:</strong> {user.phone}</p>
-                <p><strong>Location:</strong> {user.city}</p>
-                <p><strong>Sex:</strong> {user.sex}</p>
-                <p><strong>DOB:</strong> {user.dob}</p>
-                <p><strong>Child’s Name:</strong> {user.child_name}</p>
-                <p><strong>Child’s Sex:</strong> {user.child_sex}</p>
-                <p><strong>Child’s DOB:</strong> {user.child_dob}</p>
+                <p>
+                  <strong>Parent Name:</strong> {user.full_name}
+                </p>
+                <p>
+                  <strong>Email:</strong> {user.email}
+                </p>
+                <p>
+                  <strong>Phone:</strong> {user.phone}
+                </p>
+                <p>
+                  <strong>Location:</strong> {user.city}
+                </p>
+                <p>
+                  <strong>Sex:</strong> {user.sex}
+                </p>
+                <p>
+                  <strong>DOB:</strong> {user.dob}
+                </p>
+                <p>
+                  <strong>Child’s Name:</strong> {user.child_name}
+                </p>
+                <p>
+                  <strong>Child’s Sex:</strong> {user.child_sex}
+                </p>
+                <p>
+                  <strong>Child’s DOB:</strong> {user.child_dob}
+                </p>
               </div>
             </div>
           )}
