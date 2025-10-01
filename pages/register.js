@@ -109,9 +109,10 @@ export default function RegisterPage() {
             dob: childDob,
             user_type: "student",
             city,
-            email: trimmedEmail,
+            email: childEmail,
             phone: trimmedPhone,
             level: "Nursery",
+            parent_email: trimmedEmail,
           },
         ]);
         if (childError) throw childError;
@@ -310,4 +311,5 @@ export default function RegisterPage() {
     </div>
   );
 }
+
 
