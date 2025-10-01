@@ -1,3 +1,4 @@
+// pages/parent.js
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useRouter } from "next/router";
@@ -5,302 +6,364 @@ import Banner from "../components/Banner";
 
 export default function ParentPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [profileImageUrl, setProfileImageUrl] = useState(null);
-  const [childTeachers, setChildTeachers] = useState([]);
-  const [activeTab, setActiveTab] = useState("profile");
-  const [searchResults, setSearchResults] = useState([]);
+  const [parent, setParent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("profile");
+  const [teachers, setTeachers] = useState([]);
+  const [myChildTeachers, setMyChildTeachers] = useState([]);
+  const [searchLocation, setSearchLocation] = useState("");
+  const [searchSubject, setSearchSubject] = useState("");
+  const [searchLevel, setSearchLevel] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  // 🔍 Search filters (same as student.js)
-  const [searchType, setSearchType] = useState("location");
-  const [location, setLocation] = useState("");
-  const [subject, setSubject] = useState("");
-  const [level, setLevel] = useState("");
-
+  // Load parent profile on mount
   useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        let { data: userDetails } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        setUser(userDetails);
-
-        // profile picture
-        if (userDetails?.profile_image) {
-          const { data } = supabase.storage
-            .from("profile-pictures")
-            .getPublicUrl(userDetails.profile_image);
-          setProfileImageUrl(data.publicUrl);
-        }
-
-        // child’s teachers
-        let { data: teachers } = await supabase
-          .from("parent_child_teachers")
-          .select("teacher_id, users(full_name)")
-          .eq("parent_id", user.id);
-
-        setChildTeachers(teachers || []);
-      }
-    };
-    fetchUser();
+    fetchParentProfile();
   }, []);
 
-  // 📸 Upload parent profile picture
-  const uploadProfilePicture = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !user) return;
+  // Load my child’s teachers when tab changes
+  useEffect(() => {
+    if (tab === "myChildTeachers" && parent) fetchMyChildTeachers();
+  }, [tab, parent]);
 
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-    const filePath = `${user.id}/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("profile-pictures")
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) {
-      alert("Error uploading image: " + uploadError.message);
-      return;
+  // Auto-detect location for search
+  useEffect(() => {
+    async function detectLocation() {
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        if (data && data.city) {
+          setSearchLocation(data.city);
+        }
+      } catch (err) {
+        console.error("Location detect error:", err);
+      }
     }
+    detectLocation();
+  }, []);
 
-    await supabase.from("users").update({ profile_image: filePath }).eq("id", user.id);
-
-    const { data } = supabase.storage.from("profile-pictures").getPublicUrl(filePath);
-    setProfileImageUrl(data.publicUrl);
-
-    alert("Profile picture uploaded!");
-  };
-
-  // 🔍 Search (mirrors student.js)
-  const handleSearch = async () => {
-    let query = supabase
-      .from("users")
-      .select("id, full_name, city, subject, level, profile_image")
-      .eq("user_type", "teacher");
-
-    if (searchType === "location" && location.trim()) {
-      query = query.ilike("city", `%${location}%`);
-    } else if (searchType === "subject" && subject.trim()) {
-      query = query.ilike("subject", `%${subject}%`);
-    } else if (searchType === "subject-level" && subject.trim() && level.trim()) {
-      query = query
-        .ilike("subject", `%${subject}%`)
-        .ilike("level", `%${level}%`);
+  // Fetch parent profile
+  async function fetchParentProfile() {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (error) throw error;
+      setParent(data);
+    } catch (err) {
+      alert(err.message || String(err));
+    } finally {
+      setLoading(false);
     }
+  }
 
-    const { data, error } = await query;
-    if (error) {
-      console.error("Search error:", error.message);
-      setSearchResults([]);
-    } else {
-      setSearchResults(data || []);
+  // Fetch child’s registered teachers
+  async function fetchMyChildTeachers() {
+    try {
+      const { data, error } = await supabase
+        .from("parent_child_teachers")
+        .select(`
+          id,
+          date_added,
+          expiry_date,
+          subject,
+          level,
+          teacher:teacher_id (
+            id, full_name, email, phone, city, profile_image
+          )
+        `)
+        .eq("parent_id", parent.id);
+      if (error) throw error;
+      setMyChildTeachers(data || []);
+    } catch (err) {
+      alert(err.message || String(err));
     }
-  };
+  }
+
+  // 🔍 Search functions
+  async function handleSearchByLocation() {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name, city, profile_image")
+        .ilike("city", searchLocation)
+        .eq("user_type", "teacher");
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  }
+
+  async function handleSearchBySubjectOnly() {
+    try {
+      const { data, error } = await supabase
+        .from("teacher_rates")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
+        .ilike("subject", searchSubject);
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  }
+
+  async function handleSearchBySubjectAndLevel() {
+    try {
+      const { data, error } = await supabase
+        .from("teacher_rates")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
+        .ilike("subject", searchSubject)
+        .ilike("level", searchLevel);
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  }
+
+  // ✅ Upload profile image
+  async function uploadProfileImage(file) {
+    try {
+      setUploading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const ext = file.name.split(".").pop();
+      const filePath = `parent_images/${user.id}_${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("parent_images")
+        .upload(filePath, file, { contentType: file.type, upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase
+        .storage
+        .from("parent_images")
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ profile_image: publicUrl })
+        .eq("id", user.id);
+      if (updateError) throw updateError;
+
+      setParent(prev => ({ ...prev, profile_image: publicUrl }));
+      alert("Profile image updated!");
+    } catch (err) {
+      alert(err.message || String(err));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  if (loading) return <div className="text-center py-20">Loading...</div>;
 
   return (
-    <div className="p-6">
-      <Banner />
-
-      {user && (
-        <>
-          <h2 className="text-2xl font-bold mb-6">Parent Dashboard</h2>
-
-          {/* Tabs (equal width, consistent with student.js) */}
-          <div className="flex mb-6 border-b pb-2">
-            <button
-              className={`flex-1 px-2 py-2 text-sm rounded ${
-                activeTab === "profile" ? "bg-emerald-500 text-white" : "bg-gray-200"
-              }`}
-              onClick={() => setActiveTab("profile")}
-            >
-              Profile
-            </button>
-            <button
-              className={`flex-1 px-2 py-2 text-sm rounded ${
-                activeTab === "search" ? "bg-emerald-500 text-white" : "bg-gray-200"
-              }`}
-              onClick={() => setActiveTab("search")}
-            >
-              Search Teachers
-            </button>
-            <button
-              className={`flex-1 px-2 py-2 text-sm rounded ${
-                activeTab === "teachers" ? "bg-emerald-500 text-white" : "bg-gray-200"
-              }`}
-              onClick={() => setActiveTab("teachers")}
-            >
-              My Child’s Teachers
-            </button>
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white p-6 rounded shadow">
+        <Banner />
+        <div className="mt-4">
+          {/* Tabs */}
+          <div className="flex gap-3">
+            {["profile", "searchTeacher", "myChildTeachers"].map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-3 py-1 rounded ${tab===t? "bg-sky-600 text-white":"bg-sky-50"}`}
+              >
+                {t==="profile" ? "Profile" : t==="searchTeacher"? "Search Teachers" : "My Child’s Teachers"}
+              </button>
+            ))}
           </div>
 
           {/* Profile Tab */}
-          {activeTab === "profile" && (
-            <div>
-              <div className="mb-6">
-                <img
-                  src={profileImageUrl || "/default-avatar.png"}
-                  alt="Profile"
-                  className="w-32 h-32 rounded-full object-cover mb-3"
-                />
-                <input type="file" accept="image/*" onChange={uploadProfilePicture} />
-              </div>
-              <div className="space-y-2">
-                <p><strong>Parent Name:</strong> {user.full_name}</p>
-                <p><strong>Email:</strong> {user.email}</p>
-                <p><strong>Phone:</strong> {user.phone}</p>
-                <p><strong>Location:</strong> {user.city}</p>
-                <p><strong>Sex:</strong> {user.sex}</p>
-                <p><strong>DOB:</strong> {user.dob}</p>
-                <p><strong>Child’s Name:</strong> {user.child_name}</p>
-                <p><strong>Child’s Sex:</strong> {user.child_sex}</p>
-                <p><strong>Child’s DOB:</strong> {user.child_dob}</p>
+          {tab==="profile" && (
+            <div className="mt-4">
+              <div className="flex gap-4">
+                <div>
+                  <img
+                    className="w-28 h-28 rounded-full border object-cover"
+                    src={parent?.profile_image || "/placeholder.png"}
+                    alt="profile"
+                  />
+                  <div className="mt-2">
+                    <label className="cursor-pointer bg-sky-600 text-white px-3 py-1 rounded">
+                      {uploading ? "Uploading..." : "Change Photo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e)=> uploadProfileImage(e.target.files[0])}
+                      />
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <div><strong>Parent:</strong> {parent.full_name}</div>
+                  <div><strong>Email:</strong> {parent.email}</div>
+                  <div><strong>Phone:</strong> {parent.phone}</div>
+                  <div><strong>City:</strong> {parent.city}</div>
+                  <div><strong>Sex:</strong> {parent.sex}</div>
+                  <div><strong>DOB:</strong> {parent.dob}</div>
+                  <div><strong>Child Name:</strong> {parent.child_name}</div>
+                  <div><strong>Child Sex:</strong> {parent.child_sex}</div>
+                  <div><strong>Child DOB:</strong> {parent.child_dob}</div>
+                </div>
               </div>
             </div>
           )}
 
           {/* Search Teachers Tab */}
-          {activeTab === "search" && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Search Teachers</h3>
-
-              {/* Search criteria */}
-              <div className="flex flex-wrap gap-4 mb-4">
-                <label>
-                  <input
-                    type="radio"
-                    value="location"
-                    checked={searchType === "location"}
-                    onChange={() => setSearchType("location")}
-                  />
-                  <span className="ml-2">By Location</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    value="subject"
-                    checked={searchType === "subject"}
-                    onChange={() => setSearchType("subject")}
-                  />
-                  <span className="ml-2">By Subject</span>
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    value="subject-level"
-                    checked={searchType === "subject-level"}
-                    onChange={() => setSearchType("subject-level")}
-                  />
-                  <span className="ml-2">By Subject + Level</span>
-                </label>
+          {tab==="searchTeacher" && (
+            <div className="mt-4 space-y-4">
+              {/* By Location */}
+              <div>
+                <input
+                  value={searchLocation}
+                  onChange={(e)=>setSearchLocation(e.target.value)}
+                  placeholder="Location (city)"
+                  className="w-full p-2 border rounded"
+                />
+                <div className="mt-2">
+                  <button
+                    onClick={handleSearchByLocation}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded"
+                  >
+                    Search by Location
+                  </button>
+                </div>
               </div>
 
-              {/* Input fields */}
-              {searchType === "location" && (
+              {/* By Subject + Level */}
+              <div>
                 <input
-                  type="text"
-                  placeholder="Enter location..."
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="border px-3 py-2 rounded w-full mb-3"
+                  value={searchSubject}
+                  onChange={(e)=>setSearchSubject(e.target.value)}
+                  placeholder="Subject"
+                  className="w-full p-2 border rounded"
                 />
-              )}
-              {searchType === "subject" && (
-                <input
-                  type="text"
-                  placeholder="Enter subject..."
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="border px-3 py-2 rounded w-full mb-3"
-                />
-              )}
-              {searchType === "subject-level" && (
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    placeholder="Enter subject..."
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="border px-3 py-2 rounded w-1/2"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Enter level..."
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value)}
-                    className="border px-3 py-2 rounded w-1/2"
-                  />
+                <div className="flex gap-2 mt-2">
+                  <select
+                    value={searchLevel}
+                    onChange={(e)=>setSearchLevel(e.target.value)}
+                    className="p-2 border rounded"
+                  >
+                    <option value="">Select level</option>
+                    <option value="JHS">JHS</option>
+                    <option value="SHS">SHS</option>
+                    <option value="Remedial">Remedial</option>
+                  </select>
+                  <button
+                    onClick={handleSearchBySubjectAndLevel}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded"
+                  >
+                    Search by Subject & Level
+                  </button>
+                  <button
+                    onClick={handleSearchBySubjectOnly}
+                    className="bg-sky-600 text-white px-4 py-2 rounded"
+                  >
+                    Search Subject Only
+                  </button>
                 </div>
-              )}
-
-              <button
-                onClick={handleSearch}
-                className="bg-emerald-500 text-white px-4 py-2 rounded"
-              >
-                Search
-              </button>
+              </div>
 
               {/* Results */}
-              <div className="mt-4">
-                {searchResults.length > 0 ? (
-                  <ul>
-                    {searchResults.map((t) => {
-                      const { data } = supabase.storage
-                        .from("profile-pictures")
-                        .getPublicUrl(t.profile_image || "");
-                      return (
-                        <li
-                          key={t.id}
-                          className="border p-3 rounded mb-2 flex items-center gap-3"
-                        >
-                          <img
-                            src={t.profile_image ? data.publicUrl : "/default-avatar.png"}
-                            alt={t.full_name}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                          <div>
-                            <p className="font-medium">{t.full_name}</p>
-                            <p className="text-sm text-gray-500">{t.city}</p>
-                            <p className="text-sm text-gray-400">
-                              {t.subject} {t.level && `(${t.level})`}
-                            </p>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p>No teachers found.</p>
-                )}
+              <div>
+                <h4 className="font-semibold">Results</h4>
+                <div className="space-y-3 mt-2">
+                  {teachers.length === 0 && <div className="text-slate-600">No results</div>}
+                  {teachers.map((it, idx) => {
+                    const teacherObj = it.teacher || it;
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3 border rounded bg-white flex gap-4 items-center cursor-pointer hover:bg-slate-50"
+                        onClick={() => router.push(`/teacher/${teacherObj.id}`)}
+                      >
+                        <img
+                          src={teacherObj.profile_image || "/placeholder.png"}
+                          alt={teacherObj.full_name}
+                          className="w-16 h-16 rounded-full border object-cover"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold">{teacherObj.full_name}</div>
+                          <div className="text-sm text-slate-600">{teacherObj.city}</div>
+                          {it.subject && (
+                            <div className="text-sm">
+                              Subject: {it.subject} ({it.level}) — GHC {it.rate}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <button
+                            className="bg-green-600 text-white px-3 py-1 rounded"
+                          >
+                            Pay to Register Child
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
 
           {/* My Child’s Teachers Tab */}
-          {activeTab === "teachers" && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3">My Child’s Teachers</h3>
-              {childTeachers.length > 0 ? (
-                <ul>
-                  {childTeachers.map((ct) => (
-                    <li key={ct.teacher_id} className="border p-2 rounded mb-2">
-                      {ct.users.full_name}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No teachers registered yet.</p>
-              )}
+          {tab==="myChildTeachers" && (
+            <div className="mt-4">
+              <h4 className="font-semibold">My Child’s Teachers</h4>
+              <div className="space-y-3 mt-3">
+                {myChildTeachers.length === 0 && <div className="text-slate-600">No registered teachers yet.</div>}
+                {myChildTeachers.map((m) => (
+                  <div
+                    key={m.id}
+                    className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50"
+                    onClick={() => router.push(`/teacher/${m.teacher.id}`)}
+                  >
+                    <img
+                      src={m.teacher?.profile_image || "/placeholder.png"}
+                      alt={m.teacher?.full_name}
+                      className="w-16 h-16 rounded-full border object-cover"
+                    />
+                    <div>
+                      <div className="font-semibold text-lg">{m.teacher.full_name}</div>
+                      <div className="text-sm text-slate-600">
+                        {m.teacher.email} | {m.teacher.phone}
+                      </div>
+                      <div className="text-sm">
+                        Subject: <span className="font-medium">{m.subject}</span> ({m.level})
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Date added: {m.date_added} — Expires: {m.expiry_date}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </>
-      )}
+
+        </div>
+      </div>
     </div>
   );
 }
