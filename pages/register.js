@@ -19,7 +19,7 @@ export default function RegisterPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Child info for parents
+  // child info (only for parent)
   const [childName, setChildName] = useState("");
   const [childSex, setChildSex] = useState("");
   const [childDob, setChildDob] = useState("");
@@ -35,7 +35,7 @@ export default function RegisterPage() {
             setCity(data.city === "Accra" ? "Greater Accra" : data.city);
           }
         } catch (err) {
-          console.error("Failed to auto-detect city:", err);
+          console.error("City fetch failed:", err);
         }
       }
     };
@@ -45,24 +45,13 @@ export default function RegisterPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    const trimmedFullName = fullName.trim();
-    const trimmedEmail = email.trim();
-    const trimmedPhone = phone.trim();
-    const trimmedUserType = userType.trim();
-    const trimmedPassword = password.trim();
-
-    if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !sex || !dob || !userType || !password) {
       alert("Please fill all required fields");
       return;
     }
 
-    if (trimmedUserType !== "parent" && (!sex || !dob)) {
-      alert("Please provide your sex and date of birth");
-      return;
-    }
-
-    if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
-      alert("Please provide your child's name, sex, and date of birth");
+    if (userType === "parent" && (!childName.trim() || !childSex || !childDob)) {
+      alert("Please fill your child’s information");
       return;
     }
 
@@ -79,94 +68,41 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      if (trimmedUserType === "parent") {
-        // 1️⃣ Sign up parent first
-        const { data: parentAuth, error: parentAuthError } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password: trimmedPassword,
-        });
-        if (parentAuthError) throw parentAuthError;
+      // Create auth account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+      if (authError) throw authError;
 
-        const parentId = parentAuth.user.id;
+      const userId = authData.user.id;
 
-        // 2️⃣ Sign up child in Auth
-        const childEmail = `${childName.replace(/\s+/g, "").toLowerCase()}@temp.com`; // temporary unique email for child
-        const childPassword = trimmedPassword; // can use same password
-        const { data: childAuth, error: childAuthError } = await supabase.auth.signUp({
-          email: childEmail,
-          password: childPassword,
-        });
-        if (childAuthError) throw childAuthError;
+      // Insert into users table
+      const { error: insertError } = await supabase.from("users").insert([
+        {
+          id: userId,
+          full_name: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          sex,
+          dob,
+          city,
+          user_type: userType,
+          child_name: userType === "parent" ? childName.trim() : null,
+          child_sex: userType === "parent" ? childSex : null,
+          child_dob: userType === "parent" ? childDob : null,
+        },
+      ]);
+      if (insertError) throw insertError;
 
-        const childId = childAuth.user.id;
-
-        // 3️⃣ Insert child into users table
-        const { error: childError } = await supabase.from("users").insert([
-          {
-            id: childId,
-            full_name: childName.trim(),
-            sex: childSex,
-            dob: childDob,
-            user_type: "student",
-            city,
-            email: childEmail,
-            phone: trimmedPhone,
-            level: "Nursery",
-            parent_email: trimmedEmail,
-          },
-        ]);
-        if (childError) throw childError;
-
-        // 4️⃣ Insert parent into parents table with user_id
-        const { error: parentError } = await supabase.from("parents").insert([
-          {
-            user_id: parentId,
-            full_name: trimmedFullName,
-            child_id: childId,
-          },
-        ]);
-        if (parentError) throw parentError;
-
-        // Optionally insert parent into users table if you want them to log in normally
-        const { error: parentUserError } = await supabase.from("users").insert([
-          {
-            id: parentId,
-            full_name: trimmedFullName,
-            email: trimmedEmail,
-            phone: trimmedPhone,
-            user_type: "parent",
-            city,
-          },
-        ]);
-        if (parentUserError) throw parentUserError;
-
+      // Redirect
+      if (userType === "teacher") {
+        router.push("/teacher");
+      } else if (userType === "parent") {
+        router.push("/parent");
       } else {
-        // Regular student / teacher
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password: trimmedPassword,
-        });
-        if (authError) throw authError;
-
-        const userId = authData.user.id;
-
-        const { error: insertError } = await supabase.from("users").insert([
-          {
-            id: userId,
-            full_name: trimmedFullName,
-            email: trimmedEmail,
-            phone: trimmedPhone,
-            sex,
-            dob,
-            city,
-            user_type: trimmedUserType,
-          },
-        ]);
-        if (insertError) throw insertError;
+        router.push("/student");
       }
-
-      alert("Registration successful. Redirecting...");
-      router.push("/student"); // parents and students go here
 
     } catch (err) {
       alert(err.message || String(err));
@@ -181,73 +117,22 @@ export default function RegisterPage() {
       <h2 className="text-xl font-semibold mt-4">Register</h2>
 
       <form className="mt-4 space-y-3" onSubmit={handleRegister}>
-        <input
-          placeholder="Full name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          placeholder="Phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
+        <input placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full p-2 border rounded" />
+        <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border rounded" />
+        <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full p-2 border rounded" />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
+        <div className="flex gap-2">
+          <select value={sex} onChange={(e) => setSex(e.target.value)} className="flex-1 p-2 border rounded">
+            <option value="">Select sex</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+          <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="flex-1 p-2 border rounded" />
+        </div>
 
-        {userType !== "parent" && (
-          <div className="flex gap-2">
-            <select
-              value={sex}
-              onChange={(e) => setSex(e.target.value)}
-              className="flex-1 p-2 border rounded"
-            >
-              <option value="">Select sex</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-            <input
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              className="flex-1 p-2 border rounded"
-            />
-          </div>
-        )}
+        <input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} className="w-full p-2 border rounded" />
 
-        <input
-          placeholder="City"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          className="w-full p-2 border rounded"
-        />
-
-        <select
-          value={userType}
-          onChange={(e) => setUserType(e.target.value)}
-          className="w-full p-2 border rounded"
-        >
+        <select value={userType} onChange={(e) => setUserType(e.target.value)} className="w-full p-2 border rounded">
           <option value="">Select user type</option>
           <option value="teacher">Teacher</option>
           <option value="student">Student</option>
@@ -257,59 +142,33 @@ export default function RegisterPage() {
         {userType === "parent" && (
           <div className="p-4 border rounded bg-gray-50 space-y-3">
             <h3 className="font-semibold">Child Information</h3>
-            <input
-              placeholder="Child's Name"
-              value={childName}
-              onChange={(e) => setChildName(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-            <select
-              value={childSex}
-              onChange={(e) => setChildSex(e.target.value)}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Select sex</option>
+            <input placeholder="Child's Name" value={childName} onChange={(e) => setChildName(e.target.value)} className="w-full p-2 border rounded" />
+            <select value={childSex} onChange={(e) => setChildSex(e.target.value)} className="w-full p-2 border rounded">
+              <option value="">Select child sex</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
             </select>
-            <input
-              type="date"
-              value={childDob}
-              onChange={(e) => setChildDob(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
+            <input type="date" value={childDob} onChange={(e) => setChildDob(e.target.value)} className="w-full p-2 border rounded" />
           </div>
         )}
 
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 border rounded" />
+        <input type="password" placeholder="Confirm Password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full p-2 border rounded" />
+
         <div className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            checked={acceptTerms}
-            onChange={(e) => setAcceptTerms(e.target.checked)}
-            className="mt-1"
-          />
+          <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} className="mt-1" />
           <p className="text-sm text-gray-700">
             I agree to the{" "}
-            <Link href="/privacy-policy" className="text-sky-600 underline">
-              Privacy Policy
-            </Link>{" "}
+            <Link href="/privacy-policy" className="text-sky-600 underline">Privacy Policy</Link>{" "}
             and{" "}
-            <Link href="/terms" className="text-sky-600 underline">
-              Terms & Conditions
-            </Link>
+            <Link href="/terms" className="text-sky-600 underline">Terms & Conditions</Link>
           </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-emerald-600 text-white py-2 rounded"
-        >
+        <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white py-2 rounded">
           {loading ? "Registering..." : "Register"}
         </button>
       </form>
     </div>
   );
 }
-
-
