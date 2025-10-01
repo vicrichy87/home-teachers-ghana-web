@@ -42,137 +42,131 @@ export default function RegisterPage() {
     fetchCity();
   }, [city]);
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
+const handleRegister = async (e) => {
+  e.preventDefault();
 
-    const trimmedFullName = fullName.trim();
-    const trimmedEmail = email.trim();
-    const trimmedPhone = phone.trim();
-    const trimmedUserType = userType.trim();
-    const trimmedPassword = password.trim();
+  const trimmedFullName = fullName.trim();
+  const trimmedEmail = email.trim();
+  const trimmedPhone = phone.trim();
+  const trimmedUserType = userType.trim();
+  const trimmedPassword = password.trim();
 
-    if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
-      alert("Please fill all required fields");
-      return;
-    }
+  if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
+    alert("Please fill all required fields");
+    return;
+  }
 
-    if (trimmedUserType !== "parent" && (!sex || !dob)) {
-      alert("Please provide your sex and date of birth");
-      return;
-    }
+  if (trimmedUserType !== "parent" && (!sex || !dob)) {
+    alert("Please provide your sex and date of birth");
+    return;
+  }
 
-    if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
-      alert("Please provide your child's name, sex, and date of birth");
-      return;
-    }
+  if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
+    alert("Please provide your child's name, sex, and date of birth");
+    return;
+  }
 
-    if (password !== confirm) {
-      alert("Passwords don't match");
-      return;
-    }
+  if (password !== confirm) {
+    alert("Passwords don't match");
+    return;
+  }
 
-    if (!acceptTerms) {
-      alert("You must accept the Privacy Policy and Terms & Conditions to register.");
-      return;
-    }
+  if (!acceptTerms) {
+    alert("You must accept the Privacy Policy and Terms & Conditions to register.");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      if (trimmedUserType === "parent") {
-        // 1️⃣ Sign up parent first
-        const { data: parentAuth, error: parentAuthError } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password: trimmedPassword,
-        });
-        if (parentAuthError) throw parentAuthError;
+  try {
+    if (trimmedUserType === "parent") {
+      // 1️⃣ Create parent Auth account
+      const { data: parentAuth, error: parentAuthError } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+      if (parentAuthError) throw parentAuthError;
 
-        const parentId = parentAuth.user.id;
+      const parentId = parentAuth.user.id;
 
-        // 2️⃣ Sign up child in Auth
-        const childEmail = `${childName.replace(/\s+/g, "").toLowerCase()}@temp.com`; // temporary unique email for child
-        const childPassword = trimmedPassword; // can use same password
-        const { data: childAuth, error: childAuthError } = await supabase.auth.signUp({
-          email: childEmail,
-          password: childPassword,
-        });
-        if (childAuthError) throw childAuthError;
-
-        const childId = childAuth.user.id;
-
-        // 3️⃣ Insert child into users table
-        const { error: childError } = await supabase.from("users").insert([
+      // 2️⃣ Insert child into users table (student)
+      const { data: childInsert, error: childError } = await supabase
+        .from("users")
+        .insert([
           {
-            id: childId,
             full_name: childName.trim(),
             sex: childSex,
             dob: childDob,
             user_type: "student",
             city,
-            email: childEmail,
+            email: trimmedEmail, // child inherits parent's email
             phone: trimmedPhone,
             level: "Nursery",
           },
-        ]);
-        if (childError) throw childError;
+        ])
+        .select()
+        .single();
 
-        // 4️⃣ Insert parent into parents table with user_id
-        const { error: parentError } = await supabase.from("parents").insert([
-          {
-            user_id: parentId,
-            full_name: trimmedFullName,
-            child_id: childId,
-          },
-        ]);
-        if (parentError) throw parentError;
+      if (childError) throw childError;
 
-        // Optionally insert parent into users table if you want them to log in normally
-        const { error: parentUserError } = await supabase.from("users").insert([
-          {
-            id: parentId,
-            full_name: trimmedFullName,
-            email: trimmedEmail,
-            phone: trimmedPhone,
-            user_type: "parent",
-            city,
-          },
-        ]);
-        if (parentUserError) throw parentUserError;
+      const childId = childInsert.id;
 
-      } else {
-        // Regular student / teacher
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 3️⃣ Insert parent into parents table with relation to child
+      const { error: parentError } = await supabase.from("parents").insert([
+        {
+          user_id: parentId,
+          full_name: trimmedFullName,
+          child_id: childId,
+        },
+      ]);
+      if (parentError) throw parentError;
+
+      // 4️⃣ Insert parent into users table
+      const { error: parentUserError } = await supabase.from("users").insert([
+        {
+          id: parentId,
+          full_name: trimmedFullName,
           email: trimmedEmail,
-          password: trimmedPassword,
-        });
-        if (authError) throw authError;
+          phone: trimmedPhone,
+          user_type: "parent",
+          city,
+        },
+      ]);
+      if (parentUserError) throw parentUserError;
 
-        const userId = authData.user.id;
+    } else {
+      // Regular student / teacher
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
+      if (authError) throw authError;
 
-        const { error: insertError } = await supabase.from("users").insert([
-          {
-            id: userId,
-            full_name: trimmedFullName,
-            email: trimmedEmail,
-            phone: trimmedPhone,
-            sex,
-            dob,
-            city,
-            user_type: trimmedUserType,
-          },
-        ]);
-        if (insertError) throw insertError;
-      }
+      const userId = authData.user.id;
 
-      alert("Registration successful. Redirecting...");
-      router.push("/student"); // parents and students go here
-
-    } catch (err) {
-      alert(err.message || String(err));
-    } finally {
-      setLoading(false);
+      const { error: insertError } = await supabase.from("users").insert([
+        {
+          id: userId,
+          full_name: trimmedFullName,
+          email: trimmedEmail,
+          phone: trimmedPhone,
+          sex,
+          dob,
+          city,
+          user_type: trimmedUserType,
+        },
+      ]);
+      if (insertError) throw insertError;
     }
-  };
+
+    alert("Registration successful. Redirecting...");
+    router.push("/student"); // parents + students
+  } catch (err) {
+    alert(err.message || String(err));
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="max-w-lg mx-auto bg-white p-6 rounded shadow">
@@ -310,3 +304,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+
