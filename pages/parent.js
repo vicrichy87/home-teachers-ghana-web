@@ -7,6 +7,8 @@ export default function ParentPage() {
   const [childTeachers, setChildTeachers] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
   const [teachers, setTeachers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -38,13 +40,14 @@ export default function ParentPage() {
 
         setChildTeachers(teachers || []);
 
-        // fetch all teachers (for search tab)
+        // fetch all teachers
         let { data: allTeachers } = await supabase
           .from("users")
-          .select("id, full_name, city, profile_image")
+          .select("id, full_name, city, profile_image, subject")
           .eq("user_type", "teacher");
 
         setTeachers(allTeachers || []);
+        setSearchResults(allTeachers || []);
       }
     };
     fetchUser();
@@ -73,6 +76,22 @@ export default function ParentPage() {
     setProfileImageUrl(data.publicUrl);
 
     alert("Profile picture uploaded!");
+  };
+
+  // 🔍 Search function (mirrored from student.js)
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+    if (!term.trim()) {
+      setSearchResults(teachers);
+      return;
+    }
+    const filtered = teachers.filter(
+      (t) =>
+        t.full_name?.toLowerCase().includes(term.toLowerCase()) ||
+        t.city?.toLowerCase().includes(term.toLowerCase()) ||
+        t.subject?.toLowerCase().includes(term.toLowerCase())
+    );
+    setSearchResults(filtered);
   };
 
   return (
@@ -138,14 +157,24 @@ export default function ParentPage() {
           {activeTab === "search" && (
             <div>
               <h3 className="text-lg font-semibold mb-3">Search Teachers</h3>
-              {teachers.length > 0 ? (
+              <input
+                type="text"
+                placeholder="Search by name, city, or subject..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="border rounded px-3 py-2 w-full mb-4"
+              />
+              {searchResults.length > 0 ? (
                 <ul>
-                  {teachers.map((t) => {
+                  {searchResults.map((t) => {
                     const { data } = supabase.storage
                       .from("profile-pictures")
                       .getPublicUrl(t.profile_image || "");
                     return (
-                      <li key={t.id} className="border p-3 rounded mb-2 flex items-center gap-3">
+                      <li
+                        key={t.id}
+                        className="border p-3 rounded mb-2 flex items-center gap-3"
+                      >
                         <img
                           src={t.profile_image ? data.publicUrl : "/default-avatar.png"}
                           alt={t.full_name}
@@ -154,13 +183,14 @@ export default function ParentPage() {
                         <div>
                           <p className="font-medium">{t.full_name}</p>
                           <p className="text-sm text-gray-500">{t.city}</p>
+                          <p className="text-sm text-gray-400">{t.subject}</p>
                         </div>
                       </li>
                     );
                   })}
                 </ul>
               ) : (
-                <p>No teachers available.</p>
+                <p>No teachers found.</p>
               )}
             </div>
           )}
