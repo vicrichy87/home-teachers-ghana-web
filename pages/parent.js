@@ -6,14 +6,13 @@ export default function ParentPage() {
   const [profileImageUrl, setProfileImageUrl] = useState(null);
   const [childTeachers, setChildTeachers] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
-  const [teachers, setTeachers] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
 
-  // 🔍 Search filters (mirroring student.js)
-  const [searchType, setSearchType] = useState("location"); // location | subject | subject-level
+  // 🔍 Search filters (same as student.js)
+  const [searchType, setSearchType] = useState("location");
   const [location, setLocation] = useState("");
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -44,15 +43,6 @@ export default function ParentPage() {
           .eq("parent_id", user.id);
 
         setChildTeachers(teachers || []);
-
-        // fetch all teachers
-        let { data: allTeachers } = await supabase
-          .from("users")
-          .select("id, full_name, city, profile_image, subject, level")
-          .eq("user_type", "teacher");
-
-        setTeachers(allTeachers || []);
-        setSearchResults(allTeachers || []);
       }
     };
     fetchUser();
@@ -83,27 +73,25 @@ export default function ParentPage() {
     alert("Profile picture uploaded!");
   };
 
-  // 🔍 Handle search (mirrors student.js filters)
-  const handleSearch = () => {
-    let results = teachers;
+  // 🔍 Handle search with Supabase queries (mirrors student.js)
+  const handleSearch = async () => {
+    let query = supabase.from("users").select("id, full_name, city, subject, level, profile_image").eq("user_type", "teacher");
 
     if (searchType === "location" && location.trim()) {
-      results = teachers.filter((t) =>
-        t.city?.toLowerCase().includes(location.toLowerCase())
-      );
+      query = query.ilike("city", `%${location}%`);
     } else if (searchType === "subject" && subject.trim()) {
-      results = teachers.filter((t) =>
-        t.subject?.toLowerCase().includes(subject.toLowerCase())
-      );
+      query = query.ilike("subject", `%${subject}%`);
     } else if (searchType === "subject-level" && subject.trim() && level.trim()) {
-      results = teachers.filter(
-        (t) =>
-          t.subject?.toLowerCase().includes(subject.toLowerCase()) &&
-          t.level?.toLowerCase().includes(level.toLowerCase())
-      );
+      query = query.ilike("subject", `%${subject}%`).ilike("level", `%${level}%`);
     }
 
-    setSearchResults(results);
+    const { data, error } = await query;
+    if (error) {
+      console.error("Search error:", error.message);
+      setSearchResults([]);
+    } else {
+      setSearchResults(data || []);
+    }
   };
 
   return (
@@ -112,10 +100,10 @@ export default function ParentPage() {
         <>
           <h2 className="text-2xl font-bold mb-6">Parent Dashboard</h2>
 
-          {/* Tabs */}
-          <div className="flex gap-4 mb-6 border-b pb-2">
+          {/* Tabs (equal width like student.js) */}
+          <div className="flex gap-2 mb-6 border-b pb-2">
             <button
-              className={`px-3 py-1 rounded ${
+              className={`flex-1 px-3 py-2 rounded ${
                 activeTab === "profile" ? "bg-emerald-500 text-white" : "bg-gray-200"
               }`}
               onClick={() => setActiveTab("profile")}
@@ -123,7 +111,7 @@ export default function ParentPage() {
               Profile
             </button>
             <button
-              className={`px-3 py-1 rounded ${
+              className={`flex-1 px-3 py-2 rounded ${
                 activeTab === "search" ? "bg-emerald-500 text-white" : "bg-gray-200"
               }`}
               onClick={() => setActiveTab("search")}
@@ -131,7 +119,7 @@ export default function ParentPage() {
               Search Teachers
             </button>
             <button
-              className={`px-3 py-1 rounded ${
+              className={`flex-1 px-3 py-2 rounded ${
                 activeTab === "teachers" ? "bg-emerald-500 text-white" : "bg-gray-200"
               }`}
               onClick={() => setActiveTab("teachers")}
@@ -165,7 +153,7 @@ export default function ParentPage() {
             </div>
           )}
 
-          {/* Search Teachers Tab (mirrors student.js) */}
+          {/* Search Teachers Tab */}
           {activeTab === "search" && (
             <div>
               <h3 className="text-lg font-semibold mb-3">Search Teachers</h3>
@@ -201,7 +189,7 @@ export default function ParentPage() {
                 </label>
               </div>
 
-              {/* Inputs for search */}
+              {/* Inputs */}
               {searchType === "location" && (
                 <input
                   type="text"
@@ -269,7 +257,9 @@ export default function ParentPage() {
                           <div>
                             <p className="font-medium">{t.full_name}</p>
                             <p className="text-sm text-gray-500">{t.city}</p>
-                            <p className="text-sm text-gray-400">{t.subject} {t.level && `(${t.level})`}</p>
+                            <p className="text-sm text-gray-400">
+                              {t.subject} {t.level && `(${t.level})`}
+                            </p>
                           </div>
                         </li>
                       );
