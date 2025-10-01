@@ -37,9 +37,11 @@ export default function LoginPage() {
           return;
         }
 
+        // 🔹 Route based on user_type
         if (profile.user_type === "admin") router.push("/admin");
         else if (profile.user_type === "teacher") router.push("/teacher");
-        else router.push("/student");
+        else if (profile.user_type === "student") router.push("/student");
+        else if (profile.user_type === "parent") router.push("/parent"); // ✅ new
       }
     };
 
@@ -74,8 +76,10 @@ export default function LoginPage() {
         router.push("/admin");
       } else if (profile.user_type === "teacher") {
         router.push("/teacher");
-      } else {
+      } else if (profile.user_type === "student") {
         router.push("/student");
+      } else if (profile.user_type === "parent") {
+        router.push("/parent"); // ✅ new
       }
     } catch (err) {
       console.error("Login error:", err);
