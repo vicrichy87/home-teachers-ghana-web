@@ -11,88 +11,91 @@ export default function ParentPage() {
   const [tab, setTab] = useState("profile");
   const [teachers, setTeachers] = useState([]);
   const [myChildTeachers, setMyChildTeachers] = useState([]);
+  const [children, setChildren] = useState([]);
+  const [newChild, setNewChild] = useState({ full_name: "", sex: "", dob: "" });
   const [searchLocation, setSearchLocation] = useState("");
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
+  const [selectedChild, setSelectedChild] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [children, setChildren] = useState([]);
-  const [newChild, setNewChild] = useState({ name: "", sex: "", dob: "" });
-  const [registerChildId, setRegisterChildId] = useState("");
 
-  // Load parent and children
-  useEffect(() => {
-    fetchParentProfile();
-  }, []);
-
-  useEffect(() => {
-    if (tab === "myChildTeachers" && parent) fetchMyChildTeachers();
-  }, [tab, parent]);
+  useEffect(() => { fetchParentProfile(); }, []);
+  useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
+  useEffect(() => { if (parent) fetchChildren(); }, [parent]);
 
   useEffect(() => {
     async function detectLocation() {
       try {
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
-        if (data?.city) setSearchLocation(data.city);
-      } catch (err) {
-        console.error("Location detect error:", err);
-      }
+        if (data && data.city) setSearchLocation(data.city);
+      } catch (err) { console.error("Location detect error:", err); }
     }
     detectLocation();
   }, []);
 
-  // Fetch parent and children
+  // Fetch parent profile
   async function fetchParentProfile() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
-
       const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
       if (error) throw error;
       setParent(data);
-
-      // Fetch all children for parent
-      const { data: childrenData, error: childrenError } = await supabase
-        .from("parents_children")
-        .select("*")
-        .eq("parent_id", user.id);
-      if (childrenError) throw childrenError;
-      setChildren(childrenData || []);
     } catch (err) { alert(err.message || String(err)); }
     finally { setLoading(false); }
   }
 
-  // Add new child
-  async function handleAddChild() {
+  // Fetch children
+  async function fetchChildren() {
     try {
-      if (!newChild.name || !newChild.sex || !newChild.dob) return alert("Please fill all fields");
       const { data, error } = await supabase
         .from("parents_children")
-        .insert([{ parent_id: parent.id, name: newChild.name, sex: newChild.sex, dob: newChild.dob }])
-        .select()
-        .single();
+        .select("id, full_name, sex, dob, date_added")
+        .eq("parent_id", parent.id);
       if (error) throw error;
-
-      setChildren(prev => [...prev, data]);
-      setNewChild({ name: "", sex: "", dob: "" });
-      alert("Child added successfully!");
+      setChildren(data || []);
+      if (data && data.length > 0) setSelectedChild(data[0]);
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // Fetch child’s registered teachers
+  // Add new child
+  async function handleAddChild() {
+    if (!newChild.full_name || !newChild.sex || !newChild.dob) return alert("Please fill all fields");
+    try {
+      const { error } = await supabase.from("parents_children").insert([{
+        parent_id: parent.id,
+        full_name: newChild.full_name,
+        sex: newChild.sex,
+        dob: newChild.dob,
+        date_added: new Date().toISOString().split("T")[0]
+      }]);
+      if (error) throw error;
+      alert("Child added successfully");
+      setNewChild({ full_name: "", sex: "", dob: "" });
+      fetchChildren();
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  // Fetch my child’s registered teachers
   async function fetchMyChildTeachers() {
     try {
       const { data, error } = await supabase
         .from("parent_child_teachers")
         .select(`
           id,
+          child_id,
           date_added,
           expiry_date,
           subject,
           level,
-          child:child_id ( id, name ),
-          teacher:teacher_id ( id, full_name, email, phone, city, profile_image )
+          teacher:teacher_id (
+            id, full_name, email, phone, city, profile_image
+          ),
+          child:child_id (
+            id, full_name
+          )
         `)
         .eq("parent_id", parent.id);
       if (error) throw error;
@@ -100,7 +103,49 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // Upload profile image
+  // 🔍 Search functions
+  async function handleSearchByLocation() {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name, city, profile_image")
+        .ilike("city", searchLocation)
+        .eq("user_type", "teacher");
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  async function handleSearchBySubjectOnly() {
+    try {
+      const { data, error } = await supabase
+        .from("teacher_rates")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
+        .ilike("subject", searchSubject);
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  async function handleSearchBySubjectAndLevel() {
+    try {
+      const { data, error } = await supabase
+        .from("teacher_rates")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
+        .ilike("subject", searchSubject)
+        .ilike("level", searchLevel);
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  // ✅ Upload profile image
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -134,10 +179,10 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // Register child to teacher
+  // ✅ Register child to teacher
   async function handlePayToRegisterChild(teacherId, subject, level) {
+    if (!selectedChild) return alert("Please select a child first");
     try {
-      if (!registerChildId) return alert("Please select a child to register");
       const dateAdded = new Date();
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + 1);
@@ -145,7 +190,7 @@ export default function ParentPage() {
       const { error } = await supabase.from("parent_child_teachers").insert([
         {
           parent_id: parent.id,
-          child_id: registerChildId,
+          child_id: selectedChild.id,
           teacher_id: teacherId,
           date_added: dateAdded.toISOString().split("T")[0],
           expiry_date: expiryDate.toISOString().split("T")[0],
@@ -155,45 +200,9 @@ export default function ParentPage() {
       ]);
       if (error) throw error;
 
-      alert("Successfully registered child to teacher!");
+      alert(`Child ${selectedChild.full_name} registered successfully`);
       fetchMyChildTeachers();
       setTab("myChildTeachers");
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
-  // Search functions
-  async function handleSearchByLocation() {
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, full_name, city, profile_image")
-        .ilike("city", searchLocation)
-        .eq("user_type", "teacher");
-      if (error) throw error;
-      setTeachers(data || []);
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
-  async function handleSearchBySubjectOnly() {
-    try {
-      const { data, error } = await supabase
-        .from("teacher_rates")
-        .select(`id, subject, level, rate, teacher:teacher_id ( id, full_name, city, profile_image )`)
-        .ilike("subject", searchSubject);
-      if (error) throw error;
-      setTeachers(data || []);
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
-  async function handleSearchBySubjectAndLevel() {
-    try {
-      const { data, error } = await supabase
-        .from("teacher_rates")
-        .select(`id, subject, level, rate, teacher:teacher_id ( id, full_name, city, profile_image )`)
-        .ilike("subject", searchSubject)
-        .ilike("level", searchLevel);
-      if (error) throw error;
-      setTeachers(data || []);
     } catch (err) { alert(err.message || String(err)); }
   }
 
@@ -219,7 +228,7 @@ export default function ParentPage() {
 
           {/* Profile Tab */}
           {tab==="profile" && (
-            <div className="mt-4 space-y-4">
+            <div className="mt-4">
               <div className="flex gap-4">
                 <div>
                   <img
@@ -239,55 +248,63 @@ export default function ParentPage() {
                     </label>
                   </div>
                 </div>
-                <div className="flex-1 space-y-1">
+                <div className="flex-1">
                   <div><strong>Parent:</strong> {parent.full_name}</div>
                   <div><strong>Email:</strong> {parent.email}</div>
                   <div><strong>Phone:</strong> {parent.phone}</div>
                   <div><strong>City:</strong> {parent.city}</div>
                   <div><strong>Sex:</strong> {parent.sex}</div>
                   <div><strong>DOB:</strong> {parent.dob}</div>
-                </div>
-              </div>
 
-              {/* Children */}
-              <div className="mt-4">
-                <h4 className="font-semibold">Children</h4>
-                {children.length === 0 && <div className="text-slate-600">No children added yet.</div>}
-                {children.map(c => (
-                  <div key={c.id} className="p-3 border rounded bg-gray-50 flex justify-between items-center">
-                    <div>{c.name} | {c.sex} | {new Date(c.dob).toLocaleDateString()}</div>
+                  <div className="mt-4">
+                    <h4 className="font-semibold mb-2">Children</h4>
+                    {children.length === 0 && <div className="text-slate-600">No children added yet.</div>}
+                    {children.map(c => (
+                      <div
+                        key={c.id}
+                        className={`p-2 border rounded mb-2 cursor-pointer ${selectedChild?.id === c.id ? "bg-sky-50" : "bg-white"}`}
+                        onClick={() => setSelectedChild(c)}
+                      >
+                        <div><strong>Name:</strong> {c.full_name}</div>
+                        <div><strong>Sex:</strong> {c.sex}</div>
+                        <div><strong>DOB:</strong> {new Date(c.dob).toLocaleDateString()}</div>
+                        <div><strong>Date Added:</strong> {new Date(c.date_added).toLocaleDateString()}</div>
+                      </div>
+                    ))}
+
+                    {/* Add New Child */}
+                    <div className="mt-4 p-3 border rounded bg-gray-50">
+                      <h5 className="font-semibold mb-2">Add New Child</h5>
+                      <input
+                        type="text"
+                        placeholder="Full Name"
+                        value={newChild.full_name}
+                        onChange={e => setNewChild({...newChild, full_name: e.target.value})}
+                        className="w-full p-2 border rounded mb-2"
+                      />
+                      <select
+                        value={newChild.sex}
+                        onChange={e => setNewChild({...newChild, sex: e.target.value})}
+                        className="w-full p-2 border rounded mb-2"
+                      >
+                        <option value="">Select Sex</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                      <input
+                        type="date"
+                        value={newChild.dob}
+                        onChange={e => setNewChild({...newChild, dob: e.target.value})}
+                        className="w-full p-2 border rounded mb-2"
+                      />
+                      <button
+                        onClick={handleAddChild}
+                        className="bg-green-600 text-white px-4 py-2 rounded"
+                      >
+                        Add Child
+                      </button>
+                    </div>
                   </div>
-                ))}
-
-                <div className="mt-3 p-3 border rounded space-y-2">
-                  <h5 className="font-medium">Add New Child</h5>
-                  <input
-                    placeholder="Name"
-                    value={newChild.name}
-                    onChange={(e)=>setNewChild(prev=>({...prev, name:e.target.value}))}
-                    className="w-full p-2 border rounded"
-                  />
-                  <select
-                    value={newChild.sex}
-                    onChange={(e)=>setNewChild(prev=>({...prev, sex:e.target.value}))}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="">Select sex</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                  <input
-                    type="date"
-                    value={newChild.dob}
-                    onChange={(e)=>setNewChild(prev=>({...prev, dob:e.target.value}))}
-                    className="w-full p-2 border rounded"
-                  />
-                  <button
-                    onClick={handleAddChild}
-                    className="bg-emerald-600 text-white px-4 py-2 rounded"
-                  >
-                    Add Child
-                  </button>
                 </div>
               </div>
             </div>
@@ -296,20 +313,6 @@ export default function ParentPage() {
           {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4 space-y-4">
-              <div>
-                <label className="font-medium">Select Child:</label>
-                <select
-                  value={registerChildId}
-                  onChange={(e)=>setRegisterChildId(e.target.value)}
-                  className="w-full p-2 border rounded mb-2"
-                >
-                  <option value="">Select a child</option>
-                  {children.map(c=>(
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
               {/* By Location */}
               <div>
                 <input
@@ -394,7 +397,7 @@ export default function ParentPage() {
                           <button
                             className="bg-green-600 text-white px-3 py-1 rounded"
                             onClick={(e) => {
-                              e.stopPropagation(); 
+                              e.stopPropagation();
                               handlePayToRegisterChild(teacherObj.id, it.subject, it.level);
                             }}
                           >
@@ -432,7 +435,7 @@ export default function ParentPage() {
                         {m.teacher.email} | {m.teacher.phone}
                       </div>
                       <div className="text-sm">
-                        Child: <span className="font-medium">{m.child?.name}</span>
+                        Child: <span className="font-medium">{m.child.full_name}</span>
                       </div>
                       <div className="text-sm">
                         Subject: <span className="font-medium">{m.subject}</span> ({m.level})
