@@ -11,6 +11,7 @@ export default function ParentPage() {
   const [tab, setTab] = useState("profile");
   const [teachers, setTeachers] = useState([]);
   const [myChildTeachers, setMyChildTeachers] = useState([]);
+  const [children, setChildren] = useState([]);
   const [searchLocation, setSearchLocation] = useState("");
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
@@ -18,6 +19,7 @@ export default function ParentPage() {
 
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
+  useEffect(() => { if (parent) fetchChildren(); }, [parent]);
   useEffect(() => {
     async function detectLocation() {
       try {
@@ -29,6 +31,7 @@ export default function ParentPage() {
     detectLocation();
   }, []);
 
+  // Fetch parent profile
   async function fetchParentProfile() {
     setLoading(true);
     try {
@@ -41,6 +44,38 @@ export default function ParentPage() {
     finally { setLoading(false); }
   }
 
+  // Fetch parent's children
+  async function fetchChildren() {
+    try {
+      const { data, error } = await supabase
+        .from("children")
+        .select("*")
+        .eq("parent_id", parent.id);
+      if (error) throw error;
+      setChildren(data || []);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  // Add new child
+  async function handleAddChild() {
+    const name = prompt("Enter child's full name:");
+    if (!name) return;
+    const sex = prompt("Enter child's sex (M/F):");
+    if (!sex) return;
+    const dob = prompt("Enter child's DOB (YYYY-MM-DD):");
+    if (!dob) return;
+
+    try {
+      const { error } = await supabase.from("children").insert([
+        { parent_id: parent.id, full_name: name, sex, dob }
+      ]);
+      if (error) throw error;
+      alert("Child added successfully!");
+      fetchChildren();
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  // Fetch child’s registered teachers
   async function fetchMyChildTeachers() {
     try {
       const { data, error } = await supabase
@@ -51,6 +86,7 @@ export default function ParentPage() {
           expiry_date,
           subject,
           level,
+          child:child_id ( id, full_name ),
           teacher:teacher_id (
             id, full_name, email, phone, city, profile_image
           )
@@ -137,10 +173,11 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // ✅ New: Register child to teacher
-  async function handlePayToRegisterChild(teacherId, subject, level) {
+  // ✅ Register child to teacher
+  async function handlePayToRegisterChild(teacherId, subject, level, childId) {
     try {
       if (!parent) return alert("Parent not found");
+      if (!childId) return alert("Select a child");
 
       const dateAdded = new Date();
       const expiryDate = new Date();
@@ -149,6 +186,7 @@ export default function ParentPage() {
       const { error } = await supabase.from("parent_child_teachers").insert([
         {
           parent_id: parent.id,
+          child_id: childId,
           teacher_id: teacherId,
           date_added: dateAdded.toISOString().split("T")[0],
           expiry_date: expiryDate.toISOString().split("T")[0],
@@ -158,7 +196,7 @@ export default function ParentPage() {
       ]);
       if (error) throw error;
 
-      alert("Successfully registered your child to teacher");
+      alert("Successfully registered child to teacher");
       fetchMyChildTeachers();
       setTab("myChildTeachers");
     } catch (err) { alert(err.message || String(err)); }
@@ -171,6 +209,7 @@ export default function ParentPage() {
       <div className="bg-white p-6 rounded shadow">
         <Banner />
         <div className="mt-4">
+          {/* Tabs */}
           <div className="flex gap-3">
             {["profile", "searchTeacher", "myChildTeachers"].map(t => (
               <button
@@ -212,9 +251,20 @@ export default function ParentPage() {
                   <div><strong>City:</strong> {parent.city}</div>
                   <div><strong>Sex:</strong> {parent.sex}</div>
                   <div><strong>DOB:</strong> {parent.dob}</div>
-                  <div><strong>Child Name:</strong> {parent.child_name}</div>
-                  <div><strong>Child Sex:</strong> {parent.child_sex}</div>
-                  <div><strong>Child DOB:</strong> {parent.child_dob}</div>
+
+                  <div className="mt-3">
+                    <h4 className="font-semibold">Children</h4>
+                    {children.length === 0 && <div>No children added yet</div>}
+                    {children.map(c => (
+                      <div key={c.id} className="text-sm">{c.full_name} ({c.sex}) - {c.dob}</div>
+                    ))}
+                    <button
+                      className="mt-2 bg-emerald-600 text-white px-3 py-1 rounded"
+                      onClick={handleAddChild}
+                    >
+                      Add New Child
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -283,11 +333,12 @@ export default function ParentPage() {
                   {teachers.length === 0 && <div className="text-slate-600">No results</div>}
                   {teachers.map((it, idx) => {
                     const teacherObj = it.teacher || it;
+                    const [selectedChild, setSelectedChild] = useState(children[0]?.id || "");
+
                     return (
                       <div
                         key={idx}
-                        className="p-3 border rounded bg-white flex gap-4 items-center cursor-pointer hover:bg-slate-50"
-                        onClick={() => router.push(`/teacher/${teacherObj.id}`)}
+                        className="p-3 border rounded bg-white flex gap-4 items-center hover:bg-slate-50"
                       >
                         <img
                           src={teacherObj.profile_image || "/placeholder.png"}
@@ -303,13 +354,20 @@ export default function ParentPage() {
                             </div>
                           )}
                         </div>
-                        <div>
+                        <div className="flex flex-col gap-1">
+                          <select
+                            value={selectedChild}
+                            onChange={e => setSelectedChild(e.target.value)}
+                            className="p-1 border rounded"
+                          >
+                            <option value="">Select Child</option>
+                            {children.map(c => (
+                              <option key={c.id} value={c.id}>{c.full_name} ({c.sex})</option>
+                            ))}
+                          </select>
                           <button
                             className="bg-green-600 text-white px-3 py-1 rounded"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent opening /teacher/[id]
-                              handlePayToRegisterChild(teacherObj.id, it.subject, it.level);
-                            }}
+                            onClick={() => handlePayToRegisterChild(teacherObj.id, it.subject, it.level, selectedChild)}
                           >
                             Pay to Register Child
                           </button>
@@ -331,7 +389,7 @@ export default function ParentPage() {
                 {myChildTeachers.map((m) => (
                   <div
                     key={m.id}
-                    className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50"
+                    className="p-4 border rounded bg-gray-50 flex gap-4 items-center hover:bg-slate-50"
                     onClick={() => router.push(`/teacher/${m.teacher.id}`)}
                   >
                     <img
@@ -345,12 +403,14 @@ export default function ParentPage() {
                         {m.teacher.email} | {m.teacher.phone}
                       </div>
                       <div className="text-sm">
+                        Child: <span className="font-medium">{m.child?.full_name}</span>
+                      </div>
+                      <div className="text-sm">
                         Subject: <span className="font-medium">{m.subject}</span> ({m.level})
                       </div>
                       <div className="text-xs text-slate-500">
                         Date added: {new Date(m.date_added).toLocaleDateString()} — Expires: {new Date(m.expiry_date).toLocaleDateString()}
                       </div>
-
                     </div>
                   </div>
                 ))}
