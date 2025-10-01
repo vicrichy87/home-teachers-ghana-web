@@ -271,6 +271,7 @@ async function uploadProfileImage(file) {
                     className="p-2 border rounded"
                   >
                     <option value="">Select level</option>
+                    <option value="Nursery">Nursery</option>
                     <option value="JHS">JHS</option>
                     <option value="SHS">SHS</option>
                     <option value="Remedial">Remedial</option>
