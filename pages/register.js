@@ -42,132 +42,132 @@ export default function RegisterPage() {
     fetchCity();
   }, [city]);
 
-const handleRegister = async (e) => {
-  e.preventDefault();
+  const handleRegister = async (e) => {
+    e.preventDefault();
 
-  const trimmedFullName = fullName.trim();
-  const trimmedEmail = email.trim();
-  const trimmedPhone = phone.trim();
-  const trimmedUserType = userType.trim();
-  const trimmedPassword = password.trim();
+    const trimmedFullName = fullName.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedUserType = userType.trim();
+    const trimmedPassword = password.trim();
 
-  if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
-    alert("Please fill all required fields");
-    return;
-  }
-
-  if (trimmedUserType !== "parent" && (!sex || !dob)) {
-    alert("Please provide your sex and date of birth");
-    return;
-  }
-
-  if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
-    alert("Please provide your child's name, sex, and date of birth");
-    return;
-  }
-
-  if (password !== confirm) {
-    alert("Passwords don't match");
-    return;
-  }
-
-  if (!acceptTerms) {
-    alert("You must accept the Privacy Policy and Terms & Conditions to register.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    if (trimmedUserType === "parent") {
-      // 1️⃣ Create parent Auth account
-      const { data: parentAuth, error: parentAuthError } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password: trimmedPassword,
-      });
-      if (parentAuthError) throw parentAuthError;
-
-      const parentId = parentAuth.user.id;
-
-      // 2️⃣ Insert child into users table (student)
-const { data: childInsert, error: childError } = await supabase
-  .from("users")
-  .insert([
-    {
-      full_name: childName.trim(),
-      sex: childSex,
-      dob: childDob,
-      user_type: "student",
-      city,
-      parent_email: trimmedEmail, // ✅ Save parent’s email here
-      phone: trimmedPhone,
-      level: "Nursery",
-      email: null, // ✅ leave NULL so uniqueness isn’t violated
-    },
-  ])
-  .select()
-  .single();
-
-      if (childError) throw childError;
-
-      const childId = childInsert.id;
-
-      // 3️⃣ Insert parent into parents table with relation to child
-      const { error: parentError } = await supabase.from("parents").insert([
-        {
-          user_id: parentId,
-          full_name: trimmedFullName,
-          child_id: childId,
-        },
-      ]);
-      if (parentError) throw parentError;
-
-      // 4️⃣ Insert parent into users table
-      const { error: parentUserError } = await supabase.from("users").insert([
-        {
-          id: parentId,
-          full_name: trimmedFullName,
-          email: trimmedEmail,
-          phone: trimmedPhone,
-          user_type: "parent",
-          city,
-        },
-      ]);
-      if (parentUserError) throw parentUserError;
-
-    } else {
-      // Regular student / teacher
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password: trimmedPassword,
-      });
-      if (authError) throw authError;
-
-      const userId = authData.user.id;
-
-      const { error: insertError } = await supabase.from("users").insert([
-        {
-          id: userId,
-          full_name: trimmedFullName,
-          email: trimmedEmail,
-          phone: trimmedPhone,
-          sex,
-          dob,
-          city,
-          user_type: trimmedUserType,
-        },
-      ]);
-      if (insertError) throw insertError;
+    if (!trimmedFullName || !trimmedEmail || !trimmedPhone || !trimmedUserType || !trimmedPassword) {
+      alert("Please fill all required fields");
+      return;
     }
 
-    alert("Registration successful. Redirecting...");
-    router.push("/student"); // parents + students
-  } catch (err) {
-    alert(err.message || String(err));
-  } finally {
-    setLoading(false);
-  }
-};
+    if (trimmedUserType !== "parent" && (!sex || !dob)) {
+      alert("Please provide your sex and date of birth");
+      return;
+    }
+
+    if (trimmedUserType === "parent" && (!childName.trim() || !childSex || !childDob)) {
+      alert("Please provide your child's name, sex, and date of birth");
+      return;
+    }
+
+    if (password !== confirm) {
+      alert("Passwords don't match");
+      return;
+    }
+
+    if (!acceptTerms) {
+      alert("You must accept the Privacy Policy and Terms & Conditions to register.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (trimmedUserType === "parent") {
+        // 1️⃣ Create parent Auth account
+        const { data: parentAuth, error: parentAuthError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        });
+        if (parentAuthError) throw parentAuthError;
+
+        const parentId = parentAuth.user.id;
+
+        // 2️⃣ Insert parent into users table
+        const { error: parentUserError } = await supabase.from("users").insert([
+          {
+            id: parentId,
+            full_name: trimmedFullName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            user_type: "parent",
+            city,
+          },
+        ]);
+        if (parentUserError) throw parentUserError;
+
+        // 3️⃣ Insert child into users table (student, no auth)
+        const { data: childInsert, error: childError } = await supabase
+          .from("users")
+          .insert([
+            {
+              full_name: childName.trim(),
+              sex: childSex,
+              dob: childDob,
+              user_type: "student",
+              city,
+              parent_email: trimmedEmail, // ✅ reference to parent
+              phone: trimmedPhone,
+              level: "Nursery",
+              email: null, // ✅ avoids duplicate constraint
+            },
+          ])
+          .select()
+          .single();
+
+        if (childError) throw childError;
+
+        const childId = childInsert.id;
+
+        // 4️⃣ Link parent → child in parents table
+        const { error: parentError } = await supabase.from("parents").insert([
+          {
+            user_id: parentId,
+            full_name: trimmedFullName,
+            child_id: childId,
+          },
+        ]);
+        if (parentError) throw parentError;
+
+      } else {
+        // Regular student / teacher
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: trimmedPassword,
+        });
+        if (authError) throw authError;
+
+        const userId = authData.user.id;
+
+        const { error: insertError } = await supabase.from("users").insert([
+          {
+            id: userId,
+            full_name: trimmedFullName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            sex,
+            dob,
+            city,
+            user_type: trimmedUserType,
+          },
+        ]);
+        if (insertError) throw insertError;
+      }
+
+      alert("Registration successful. Redirecting...");
+      router.push("/student"); // parents + students
+    } catch (err) {
+      alert(err.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-lg mx-auto bg-white p-6 rounded shadow">
@@ -305,5 +305,3 @@ const { data: childInsert, error: childError } = await supabase
     </div>
   );
 }
-
-
