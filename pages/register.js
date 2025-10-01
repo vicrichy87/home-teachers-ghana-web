@@ -5,6 +5,9 @@ import { useRouter } from "next/router";
 import Banner from "../components/Banner";
 import Link from "next/link";
 
+// For generating unique child emails
+import crypto from "crypto";
+
 export default function RegisterPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
@@ -103,6 +106,10 @@ export default function RegisterPage() {
         if (parentUserError) throw parentUserError;
 
         // 3️⃣ Insert child into users table (student, no auth)
+        const uniqueChildEmail = `${childName
+          .replace(/\s+/g, "_")
+          .toLowerCase()}_${crypto.randomUUID()}@child.temp`;
+
         const { data: childInsert, error: childError } = await supabase
           .from("users")
           .insert([
@@ -115,7 +122,7 @@ export default function RegisterPage() {
               parent_email: trimmedEmail, // ✅ reference to parent
               phone: trimmedPhone,
               level: "Nursery",
-              email: null, // ✅ avoids duplicate constraint
+              email: uniqueChildEmail, // ✅ always unique
             },
           ])
           .select()
