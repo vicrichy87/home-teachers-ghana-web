@@ -16,56 +16,31 @@ export default function ParentPage() {
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Load parent profile on mount
-  useEffect(() => {
-    fetchParentProfile();
-  }, []);
-
-  // Load my child’s teachers when tab changes
-  useEffect(() => {
-    if (tab === "myChildTeachers" && parent) fetchMyChildTeachers();
-  }, [tab, parent]);
-
-  // Auto-detect location for search
+  useEffect(() => { fetchParentProfile(); }, []);
+  useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
     async function detectLocation() {
       try {
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
-        if (data && data.city) {
-          setSearchLocation(data.city);
-        }
-      } catch (err) {
-        console.error("Location detect error:", err);
-      }
+        if (data && data.city) setSearchLocation(data.city);
+      } catch (err) { console.error("Location detect error:", err); }
     }
     detectLocation();
   }, []);
 
-  // Fetch parent profile
   async function fetchParentProfile() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      if (!user) { router.push("/login"); return; }
+      const { data, error } = await supabase.from("users").select("*").eq("id", user.id).single();
       if (error) throw error;
       setParent(data);
-    } catch (err) {
-      alert(err.message || String(err));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert(err.message || String(err)); }
+    finally { setLoading(false); }
   }
 
-  // Fetch child’s registered teachers
   async function fetchMyChildTeachers() {
     try {
       const { data, error } = await supabase
@@ -83,9 +58,7 @@ export default function ParentPage() {
         .eq("parent_id", parent.id);
       if (error) throw error;
       setMyChildTeachers(data || []);
-    } catch (err) {
-      alert(err.message || String(err));
-    }
+    } catch (err) { alert(err.message || String(err)); }
   }
 
   // 🔍 Search functions
@@ -98,9 +71,7 @@ export default function ParentPage() {
         .eq("user_type", "teacher");
       if (error) throw error;
       setTeachers(data || []);
-    } catch (err) {
-      alert(err.message || String(err));
-    }
+    } catch (err) { alert(err.message || String(err)); }
   }
 
   async function handleSearchBySubjectOnly() {
@@ -114,9 +85,7 @@ export default function ParentPage() {
         .ilike("subject", searchSubject);
       if (error) throw error;
       setTeachers(data || []);
-    } catch (err) {
-      alert(err.message || String(err));
-    }
+    } catch (err) { alert(err.message || String(err)); }
   }
 
   async function handleSearchBySubjectAndLevel() {
@@ -131,52 +100,69 @@ export default function ParentPage() {
         .ilike("level", searchLevel);
       if (error) throw error;
       setTeachers(data || []);
-    } catch (err) {
-      alert(err.message || String(err));
-    }
+    } catch (err) { alert(err.message || String(err)); }
   }
 
-// ✅ Upload profile image (fixed for correct bucket + column)
-async function uploadProfileImage(file) {
-  try {
-    setUploading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
+  // ✅ Upload profile image
+  async function uploadProfileImage(file) {
+    try {
+      setUploading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-    const ext = file.name.split(".").pop();
-    const filePath = `profile-pictures/${user.id}_${Date.now()}.${ext}`;
+      const ext = file.name.split(".").pop();
+      const filePath = `profile-pictures/${user.id}_${Date.now()}.${ext}`;
 
-    // Upload to correct bucket
-    const { error: uploadError } = await supabase.storage
-      .from("profile-pictures") // ✅ your actual bucket
-      .upload(filePath, file, { contentType: file.type, upsert: true });
-    if (uploadError) throw uploadError;
+      const { error: uploadError } = await supabase.storage
+        .from("profile-pictures")
+        .upload(filePath, file, { contentType: file.type, upsert: true });
+      if (uploadError) throw uploadError;
 
-    // Get public URL
-    const { data: publicUrlData } = supabase
-      .storage
-      .from("profile-pictures") // ✅ correct bucket
-      .getPublicUrl(filePath);
+      const { data: publicUrlData } = await supabase
+        .storage
+        .from("profile-pictures")
+        .getPublicUrl(filePath);
 
-    const publicUrl = publicUrlData.publicUrl;
+      const publicUrl = publicUrlData.publicUrl;
 
-    // Update user profile with new picture
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ profile_image: publicUrl }) // ✅ correct column
-      .eq("id", user.id);
-    if (updateError) throw updateError;
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ profile_image: publicUrl })
+        .eq("id", user.id);
+      if (updateError) throw updateError;
 
-    // Update local state
-    setParent(prev => ({ ...prev, profile_image: publicUrl })); // or setStudent()
-    alert("Profile image updated!");
-  } catch (err) {
-    alert(err.message || String(err));
-  } finally {
-    setUploading(false);
+      setParent(prev => ({ ...prev, profile_image: publicUrl }));
+      alert("Profile image updated!");
+    } catch (err) { alert(err.message || String(err)); }
+    finally { setUploading(false); }
   }
-}
 
+  // ✅ New: Register child to teacher
+  async function handlePayToRegisterChild(teacherId, subject, level) {
+    try {
+      if (!parent) return alert("Parent not found");
+
+      const dateAdded = new Date();
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+      const { error } = await supabase.from("parent_child_teachers").insert([
+        {
+          parent_id: parent.id,
+          teacher_id: teacherId,
+          date_added: dateAdded.toISOString().split("T")[0],
+          expiry_date: expiryDate.toISOString().split("T")[0],
+          subject: subject || null,
+          level: level || null,
+        },
+      ]);
+      if (error) throw error;
+
+      alert("Successfully registered your child to teacher");
+      fetchMyChildTeachers();
+      setTab("myChildTeachers");
+    } catch (err) { alert(err.message || String(err)); }
+  }
 
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
@@ -185,7 +171,6 @@ async function uploadProfileImage(file) {
       <div className="bg-white p-6 rounded shadow">
         <Banner />
         <div className="mt-4">
-          {/* Tabs */}
           <div className="flex gap-3">
             {["profile", "searchTeacher", "myChildTeachers"].map(t => (
               <button
@@ -321,6 +306,10 @@ async function uploadProfileImage(file) {
                         <div>
                           <button
                             className="bg-green-600 text-white px-3 py-1 rounded"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent opening /teacher/[id]
+                              handlePayToRegisterChild(teacherObj.id, it.subject, it.level);
+                            }}
                           >
                             Pay to Register Child
                           </button>
