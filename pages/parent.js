@@ -348,8 +348,9 @@ export default function ParentPage() {
                         Subject: <span className="font-medium">{m.subject}</span> ({m.level})
                       </div>
                       <div className="text-xs text-slate-500">
-                        Date added: {m.date_added} — Expires: {m.expiry_date}
+                        Date added: {new Date(m.date_added).toLocaleDateString()} — Expires: {new Date(m.expiry_date).toLocaleDateString()}
                       </div>
+
                     </div>
                   </div>
                 ))}
