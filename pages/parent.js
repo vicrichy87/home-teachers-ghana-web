@@ -7,6 +7,7 @@ import Banner from "../components/Banner";
 export default function ParentPage() {
   const router = useRouter();
   const [parent, setParent] = useState(null);
+  const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile");
   const [teachers, setTeachers] = useState([]);
@@ -15,9 +16,9 @@ export default function ParentPage() {
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [showAddChildForm, setShowAddChildForm] = useState(false);
-  const [newChild, setNewChild] = useState({ full_name: "", sex: "", dob: "" });
+  const [selectedChildId, setSelectedChildId] = useState("");
 
+  // Fetch parent profile and children
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
@@ -25,35 +26,36 @@ export default function ParentPage() {
       try {
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
-        if (data && data.city) setSearchLocation(data.city);
+        if (data?.city) setSearchLocation(data.city);
       } catch (err) { console.error("Location detect error:", err); }
     }
     detectLocation();
   }, []);
 
-  // Fetch parent profile with children
   async function fetchParentProfile() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
-      const { data, error } = await supabase
+      const { data: parentData, error: parentError } = await supabase
         .from("users")
-        .select(`
-          *,
-          children:parents_children (*)
-        `)
+        .select("*")
         .eq("id", user.id)
         .single();
+      if (parentError) throw parentError;
+      setParent(parentData);
 
-      if (error) throw error;
-      setParent(data);
+      const { data: childrenData, error: childrenError } = await supabase
+        .from("parents_children")
+        .select("*")
+        .eq("parent_id", user.id);
+      if (childrenError) throw childrenError;
+      setChildren(childrenData || []);
     } catch (err) { alert(err.message || String(err)); }
     finally { setLoading(false); }
   }
 
-  // Fetch all child-teacher registrations
   async function fetchMyChildTeachers() {
     try {
       const { data, error } = await supabase
@@ -64,6 +66,7 @@ export default function ParentPage() {
           expiry_date,
           subject,
           level,
+          child_id,
           teacher:teacher_id (
             id, full_name, email, phone, city, profile_image
           )
@@ -74,7 +77,7 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // 🔍 Search functions
+  // Search functions
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
@@ -116,7 +119,7 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // ✅ Upload profile image
+  // Upload profile image
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -150,19 +153,21 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // ✅ Register child to teacher
+  // Register child to teacher
   async function handlePayToRegisterChild(teacherId, subject, level) {
+    if (!parent) return alert("Parent not found");
+    if (!selectedChildId) return alert("Please select a child");
+
+    const dateAdded = new Date();
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
+
     try {
-      if (!parent) return alert("Parent not found");
-
-      const dateAdded = new Date();
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-
       const { error } = await supabase.from("parent_child_teachers").insert([
         {
           parent_id: parent.id,
           teacher_id: teacherId,
+          child_id: selectedChildId,
           date_added: dateAdded.toISOString().split("T")[0],
           expiry_date: expiryDate.toISOString().split("T")[0],
           subject: subject || null,
@@ -177,39 +182,6 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // ✅ Add new child
-  async function handleAddChild() {
-    try {
-      if (!parent) return alert("Parent not found");
-      if (!newChild.full_name || !newChild.sex || !newChild.dob)
-        return alert("Please fill all fields");
-
-      const dateAdded = new Date().toISOString().split("T")[0];
-
-      const { data, error } = await supabase.from("parents_children").insert([
-        {
-          parent_id: parent.id,
-          full_name: newChild.full_name,
-          sex: newChild.sex,
-          dob: newChild.dob,
-          date_added: dateAdded,
-        },
-      ]).select();
-
-      if (error) throw error;
-
-      // Update parent state to immediately show new child
-      setParent(prev => ({
-        ...prev,
-        children: prev.children ? [...prev.children, data[0]] : [data[0]]
-      }));
-
-      alert("Child added successfully!");
-      setNewChild({ full_name: "", sex: "", dob: "" });
-      setShowAddChildForm(false);
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
   return (
@@ -217,7 +189,6 @@ export default function ParentPage() {
       <div className="bg-white p-6 rounded shadow">
         <Banner />
         <div className="mt-4">
-          {/* Tabs */}
           <div className="flex gap-3">
             {["profile", "searchTeacher", "myChildTeachers"].map(t => (
               <button
@@ -252,81 +223,13 @@ export default function ParentPage() {
                     </label>
                   </div>
                 </div>
-                <div className="flex-1">
+                <div>
                   <div><strong>Parent:</strong> {parent.full_name}</div>
                   <div><strong>Email:</strong> {parent.email}</div>
                   <div><strong>Phone:</strong> {parent.phone}</div>
                   <div><strong>City:</strong> {parent.city}</div>
                   <div><strong>Sex:</strong> {parent.sex}</div>
                   <div><strong>DOB:</strong> {parent.dob}</div>
-
-                  {/* Add New Child */}
-                  <div className="mt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddChildForm(prev => !prev)}
-                      className="bg-green-600 text-white px-4 py-2 rounded mb-2"
-                    >
-                      {showAddChildForm ? "Hide Add Child Form" : "Add New Child"}
-                    </button>
-
-                    {showAddChildForm && (
-                      <div className="p-3 border rounded bg-gray-50 mt-2">
-                        <h5 className="font-semibold mb-2">Add New Child</h5>
-                        <input
-                          type="text"
-                          placeholder="Full Name"
-                          value={newChild.full_name}
-                          onChange={e => setNewChild({...newChild, full_name: e.target.value})}
-                          className="w-full p-2 border rounded mb-2"
-                        />
-                        <select
-                          value={newChild.sex}
-                          onChange={e => setNewChild({...newChild, sex: e.target.value})}
-                          className="w-full p-2 border rounded mb-2"
-                        >
-                          <option value="">Select Sex</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                        </select>
-                        <input
-                          type="date"
-                          value={newChild.dob}
-                          onChange={e => setNewChild({...newChild, dob: e.target.value})}
-                          className="w-full p-2 border rounded mb-2"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddChild}
-                          className="bg-green-600 text-white px-4 py-2 rounded"
-                        >
-                          Add Child
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Live Children List */}
-                  <div className="mt-4">
-                    <h5 className="font-semibold mb-2">Your Children</h5>
-                    {parent.children && parent.children.length > 0 ? (
-                      <ul className="space-y-2">
-                        {parent.children.map(child => (
-                          <li
-                            key={child.id}
-                            className="p-2 border rounded bg-gray-100"
-                          >
-                            <div><strong>Name:</strong> {child.full_name}</div>
-                            <div><strong>Sex:</strong> {child.sex}</div>
-                            <div><strong>DOB:</strong> {child.dob}</div>
-                            <div className="text-xs text-slate-500">Added: {new Date(child.date_added).toLocaleDateString()}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-slate-600">No children added yet.</div>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
@@ -335,6 +238,25 @@ export default function ParentPage() {
           {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4 space-y-4">
+              {/* Select Child */}
+              {children.length > 0 && (
+                <div>
+                  <label className="block mb-1 font-medium">Select Child</label>
+                  <select
+                    value={selectedChildId}
+                    onChange={(e) => setSelectedChildId(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="">-- Choose Child --</option>
+                    {children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        {child.full_name} ({child.sex})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* By Location */}
               <div>
                 <input
@@ -419,7 +341,7 @@ export default function ParentPage() {
                           <button
                             className="bg-green-600 text-white px-3 py-1 rounded"
                             onClick={(e) => {
-                              e.stopPropagation();
+                              e.stopPropagation(); // Prevent opening /teacher/[id]
                               handlePayToRegisterChild(teacherObj.id, it.subject, it.level);
                             }}
                           >
