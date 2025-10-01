@@ -15,10 +15,15 @@ export default function CompleteRegistration() {
   const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
 
+  // 🔹 New child fields (only for parent)
+  const [childName, setChildName] = useState("");
+  const [childDob, setChildDob] = useState("");
+  const [childSex, setChildSex] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [acceptedTerms, setAcceptedTerms] = useState(false); // ✅ new state
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // ✅ Fetch user on mount
@@ -73,13 +78,11 @@ export default function CompleteRegistration() {
     e.preventDefault();
     if (!user) return;
 
-    // ✅ Require terms acceptance
     if (!acceptedTerms) {
       alert("You must accept the Privacy Policy & Terms before continuing.");
       return;
     }
 
-    // ✅ For email/password users, validate password
     if (user.app_metadata?.provider === "email") {
       if (password !== confirmPassword) {
         alert("Passwords do not match!");
@@ -88,8 +91,15 @@ export default function CompleteRegistration() {
     }
 
     if (!userType) {
-      alert("Please select whether you are a teacher or a student.");
+      alert("Please select whether you are a teacher, student, or parent.");
       return;
+    }
+
+    if (userType === "parent") {
+      if (!childName || !childDob || !childSex) {
+        alert("Please fill in your child's details.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -104,32 +114,37 @@ export default function CompleteRegistration() {
 
       if (fetchError) throw fetchError;
 
+      let userData = {
+        full_name: name,
+        email,
+        user_type: userType,
+        dob,
+        sex,
+        city,
+        phone,
+      };
+
+      if (userType === "parent") {
+        userData = {
+          ...userData,
+          child_name: childName,
+          child_dob: childDob,
+          child_sex: childSex,
+        };
+      }
+
       let dbError = null;
 
       if (existingUser) {
         const { error } = await supabase
           .from("users")
-          .update({
-            full_name: name,
-            email,
-            user_type: userType,
-            dob,
-            sex,
-            city,
-            phone,
-          })
+          .update(userData)
           .eq("id", user.id);
         dbError = error;
       } else {
         const { error } = await supabase.from("users").insert({
           id: user.id,
-          full_name: name,
-          email,
-          user_type: userType,
-          dob,
-          sex,
-          city,
-          phone,
+          ...userData,
         });
         dbError = error;
       }
@@ -141,8 +156,9 @@ export default function CompleteRegistration() {
         if (pwError) throw pwError;
       }
 
-      // Redirect based on role
+      // 🔹 Redirect based on role
       if (userType === "teacher") router.push("/teacher");
+      else if (userType === "parent") router.push("/parent");
       else router.push("/student");
     } catch (err) {
       alert("Error saving profile: " + (err.message || String(err)));
@@ -184,7 +200,43 @@ export default function CompleteRegistration() {
           <option value="">Select User Type</option>
           <option value="teacher">Teacher</option>
           <option value="student">Student</option>
+          <option value="parent">Parent</option>
         </select>
+
+        {/* ✅ Parent-only child fields */}
+        {userType === "parent" && (
+          <>
+            <input
+              type="text"
+              placeholder="Child's Full Name"
+              className="w-full border p-2 rounded"
+              value={childName}
+              onChange={(e) => setChildName(e.target.value)}
+              required
+            />
+            <label className="block text-gray-700 font-medium">
+              Child's Date of Birth
+            </label>
+            <input
+              type="date"
+              className="w-full border p-2 rounded"
+              value={childDob}
+              onChange={(e) => setChildDob(e.target.value)}
+              required
+            />
+            <select
+              className="w-full border p-2 rounded"
+              value={childSex}
+              onChange={(e) => setChildSex(e.target.value)}
+              required
+            >
+              <option value="">Select Child's Sex</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </>
+        )}
 
         <label className="block text-gray-700 font-medium">Date of Birth</label>
         <input
