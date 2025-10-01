@@ -6,6 +6,7 @@ export default function ParentPage() {
   const [profileImageUrl, setProfileImageUrl] = useState(null);
   const [childTeachers, setChildTeachers] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
+  const [teachers, setTeachers] = useState([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -24,7 +25,7 @@ export default function ParentPage() {
 
         if (userDetails?.profile_image) {
           const { data } = supabase.storage
-            .from("profile-pictures") // ✅ correct bucket
+            .from("profile-pictures")
             .getPublicUrl(userDetails.profile_image);
           setProfileImageUrl(data.publicUrl);
         }
@@ -36,22 +37,29 @@ export default function ParentPage() {
           .eq("parent_id", user.id);
 
         setChildTeachers(teachers || []);
+
+        // fetch all teachers (for search tab)
+        let { data: allTeachers } = await supabase
+          .from("users")
+          .select("id, full_name, city, profile_image")
+          .eq("user_type", "teacher");
+
+        setTeachers(allTeachers || []);
       }
     };
     fetchUser();
   }, []);
 
-  const uploadChildPicture = async (e) => {
+  const uploadProfilePicture = async (e) => {
     const file = e.target.files[0];
     if (!file || !user) return;
 
-    // unique path per user
     const fileExt = file.name.split(".").pop();
     const fileName = `${user.id}-${Date.now()}.${fileExt}`;
     const filePath = `${user.id}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("profile-pictures") // ✅ correct bucket
+      .from("profile-pictures")
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
@@ -59,7 +67,6 @@ export default function ParentPage() {
       return;
     }
 
-    // update user record
     await supabase.from("users").update({ profile_image: filePath }).eq("id", user.id);
 
     const { data } = supabase.storage.from("profile-pictures").getPublicUrl(filePath);
@@ -86,19 +93,19 @@ export default function ParentPage() {
             </button>
             <button
               className={`px-3 py-1 rounded ${
+                activeTab === "search" ? "bg-emerald-500 text-white" : "bg-gray-200"
+              }`}
+              onClick={() => setActiveTab("search")}
+            >
+              Search Teachers
+            </button>
+            <button
+              className={`px-3 py-1 rounded ${
                 activeTab === "teachers" ? "bg-emerald-500 text-white" : "bg-gray-200"
               }`}
               onClick={() => setActiveTab("teachers")}
             >
               My Child’s Teachers
-            </button>
-            <button
-              className={`px-3 py-1 rounded ${
-                activeTab === "payments" ? "bg-emerald-500 text-white" : "bg-gray-200"
-              }`}
-              onClick={() => setActiveTab("payments")}
-            >
-              Payments
             </button>
           </div>
 
@@ -108,44 +115,57 @@ export default function ParentPage() {
               <div className="mb-6">
                 <img
                   src={profileImageUrl || "/default-avatar.png"}
-                  alt="Child profile"
+                  alt="Profile"
                   className="w-32 h-32 rounded-full object-cover mb-3"
                 />
-                <input type="file" accept="image/*" onChange={uploadChildPicture} />
+                <input type="file" accept="image/*" onChange={uploadProfilePicture} />
               </div>
               <div className="space-y-2">
-                <p>
-                  <strong>Parent Name:</strong> {user.full_name}
-                </p>
-                <p>
-                  <strong>Email:</strong> {user.email}
-                </p>
-                <p>
-                  <strong>Phone:</strong> {user.phone}
-                </p>
-                <p>
-                  <strong>Location:</strong> {user.city}
-                </p>
-                <p>
-                  <strong>Sex:</strong> {user.sex}
-                </p>
-                <p>
-                  <strong>DOB:</strong> {user.dob}
-                </p>
-                <p>
-                  <strong>Child’s Name:</strong> {user.child_name}
-                </p>
-                <p>
-                  <strong>Child’s Sex:</strong> {user.child_sex}
-                </p>
-                <p>
-                  <strong>Child’s DOB:</strong> {user.child_dob}
-                </p>
+                <p><strong>Parent Name:</strong> {user.full_name}</p>
+                <p><strong>Email:</strong> {user.email}</p>
+                <p><strong>Phone:</strong> {user.phone}</p>
+                <p><strong>Location:</strong> {user.city}</p>
+                <p><strong>Sex:</strong> {user.sex}</p>
+                <p><strong>DOB:</strong> {user.dob}</p>
+                <p><strong>Child’s Name:</strong> {user.child_name}</p>
+                <p><strong>Child’s Sex:</strong> {user.child_sex}</p>
+                <p><strong>Child’s DOB:</strong> {user.child_dob}</p>
               </div>
             </div>
           )}
 
-          {/* Teachers Tab */}
+          {/* Search Teachers Tab */}
+          {activeTab === "search" && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Search Teachers</h3>
+              {teachers.length > 0 ? (
+                <ul>
+                  {teachers.map((t) => {
+                    const { data } = supabase.storage
+                      .from("profile-pictures")
+                      .getPublicUrl(t.profile_image || "");
+                    return (
+                      <li key={t.id} className="border p-3 rounded mb-2 flex items-center gap-3">
+                        <img
+                          src={t.profile_image ? data.publicUrl : "/default-avatar.png"}
+                          alt={t.full_name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                        <div>
+                          <p className="font-medium">{t.full_name}</p>
+                          <p className="text-sm text-gray-500">{t.city}</p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p>No teachers available.</p>
+              )}
+            </div>
+          )}
+
+          {/* My Child’s Teachers Tab */}
           {activeTab === "teachers" && (
             <div>
               <h3 className="text-lg font-semibold mb-3">My Child’s Teachers</h3>
@@ -160,16 +180,6 @@ export default function ParentPage() {
               ) : (
                 <p>No teachers registered yet.</p>
               )}
-            </div>
-          )}
-
-          {/* Payments Tab */}
-          {activeTab === "payments" && (
-            <div>
-              <h3 className="text-lg font-semibold mb-3">Payments</h3>
-              <button className="px-4 py-2 bg-green-500 text-white rounded-lg">
-                Pay to register Child
-              </button>
             </div>
           )}
         </>
