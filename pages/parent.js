@@ -15,6 +15,8 @@ export default function ParentPage() {
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [showAddChildForm, setShowAddChildForm] = useState(false);
+  const [newChild, setNewChild] = useState({ full_name: "", sex: "", dob: "" });
 
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
@@ -137,7 +139,7 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // ✅ New: Register child to teacher
+  // ✅ Register child to teacher
   async function handlePayToRegisterChild(teacherId, subject, level) {
     try {
       if (!parent) return alert("Parent not found");
@@ -164,6 +166,33 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
+  // ✅ Add new child
+  async function handleAddChild() {
+    try {
+      if (!parent) return alert("Parent not found");
+      if (!newChild.full_name || !newChild.sex || !newChild.dob)
+        return alert("Please fill all fields");
+
+      const dateAdded = new Date().toISOString().split("T")[0];
+
+      const { error } = await supabase.from("parents_children").insert([
+        {
+          parent_id: parent.id,
+          full_name: newChild.full_name,
+          sex: newChild.sex,
+          dob: newChild.dob,
+          date_added: dateAdded,
+        },
+      ]);
+      if (error) throw error;
+
+      alert("Child added successfully!");
+      setNewChild({ full_name: "", sex: "", dob: "" });
+      setShowAddChildForm(false);
+      fetchParentProfile(); // refresh parent data if needed
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
   return (
@@ -171,6 +200,7 @@ export default function ParentPage() {
       <div className="bg-white p-6 rounded shadow">
         <Banner />
         <div className="mt-4">
+          {/* Tabs */}
           <div className="flex gap-3">
             {["profile", "searchTeacher", "myChildTeachers"].map(t => (
               <button
@@ -212,9 +242,50 @@ export default function ParentPage() {
                   <div><strong>City:</strong> {parent.city}</div>
                   <div><strong>Sex:</strong> {parent.sex}</div>
                   <div><strong>DOB:</strong> {parent.dob}</div>
-                  <div><strong>Child Name:</strong> {parent.child_name}</div>
-                  <div><strong>Child Sex:</strong> {parent.child_sex}</div>
-                  <div><strong>Child DOB:</strong> {parent.child_dob}</div>
+
+                  {/* Add New Child */}
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowAddChildForm(prev => !prev)}
+                      className="bg-green-600 text-white px-4 py-2 rounded mb-2"
+                    >
+                      {showAddChildForm ? "Hide Add Child Form" : "Add New Child"}
+                    </button>
+
+                    {showAddChildForm && (
+                      <div className="p-3 border rounded bg-gray-50 mt-2">
+                        <h5 className="font-semibold mb-2">Add New Child</h5>
+                        <input
+                          type="text"
+                          placeholder="Full Name"
+                          value={newChild.full_name}
+                          onChange={e => setNewChild({...newChild, full_name: e.target.value})}
+                          className="w-full p-2 border rounded mb-2"
+                        />
+                        <select
+                          value={newChild.sex}
+                          onChange={e => setNewChild({...newChild, sex: e.target.value})}
+                          className="w-full p-2 border rounded mb-2"
+                        >
+                          <option value="">Select Sex</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                        </select>
+                        <input
+                          type="date"
+                          value={newChild.dob}
+                          onChange={e => setNewChild({...newChild, dob: e.target.value})}
+                          className="w-full p-2 border rounded mb-2"
+                        />
+                        <button
+                          onClick={handleAddChild}
+                          className="bg-green-600 text-white px-4 py-2 rounded"
+                        >
+                          Add Child
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -307,7 +378,7 @@ export default function ParentPage() {
                           <button
                             className="bg-green-600 text-white px-3 py-1 rounded"
                             onClick={(e) => {
-                              e.stopPropagation(); // Prevent opening /teacher/[id]
+                              e.stopPropagation();
                               handlePayToRegisterChild(teacherObj.id, it.subject, it.level);
                             }}
                           >
@@ -350,7 +421,6 @@ export default function ParentPage() {
                       <div className="text-xs text-slate-500">
                         Date added: {new Date(m.date_added).toLocaleDateString()} — Expires: {new Date(m.expiry_date).toLocaleDateString()}
                       </div>
-
                     </div>
                   </div>
                 ))}
