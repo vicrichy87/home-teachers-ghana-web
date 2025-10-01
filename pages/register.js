@@ -90,22 +90,23 @@ const handleRegister = async (e) => {
       const parentId = parentAuth.user.id;
 
       // 2️⃣ Insert child into users table (student)
-      const { data: childInsert, error: childError } = await supabase
-        .from("users")
-        .insert([
-          {
-            full_name: childName.trim(),
-            sex: childSex,
-            dob: childDob,
-            user_type: "student",
-            city,
-            email: trimmedEmail, // child inherits parent's email
-            phone: trimmedPhone,
-            level: "Nursery",
-          },
-        ])
-        .select()
-        .single();
+const { data: childInsert, error: childError } = await supabase
+  .from("users")
+  .insert([
+    {
+      full_name: childName.trim(),
+      sex: childSex,
+      dob: childDob,
+      user_type: "student",
+      city,
+      parent_email: trimmedEmail, // ✅ Save parent’s email here
+      phone: trimmedPhone,
+      level: "Nursery",
+      email: null, // ✅ leave NULL so uniqueness isn’t violated
+    },
+  ])
+  .select()
+  .single();
 
       if (childError) throw childError;
 
@@ -304,4 +305,5 @@ const handleRegister = async (e) => {
     </div>
   );
 }
+
 
