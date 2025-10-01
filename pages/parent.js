@@ -255,18 +255,61 @@ export default function ParentPage() {
               </div>
 
               {/* List of children */}
-              {children.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <h4 className="font-semibold">My Children</h4>
-                  {children.map(c => (
-                    <div key={c.id} className="p-2 border rounded bg-gray-50">
-                      {c.full_name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+{children.length > 0 && (
+  <div className="mt-4 space-y-2">
+    <h4 className="font-semibold">My Children</h4>
+    {children.map(c => (
+      <div key={c.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center">
+        <span>{c.full_name}</span>
+        <div className="flex gap-2">
+          {/* Edit child */}
+          <button
+            className="bg-blue-600 text-white px-2 py-1 rounded"
+            onClick={async () => {
+              const newName = prompt("Edit child's full name", c.full_name);
+              if (!newName) return;
+              try {
+                const { error } = await supabase
+                  .from("parents_children")
+                  .update({ full_name: newName })
+                  .eq("id", c.id);
+                if (error) throw error;
+                setChildren(prev => prev.map(child => child.id === c.id ? { ...child, full_name: newName } : child));
+                alert("Child name updated successfully");
+              } catch (err) {
+                alert(err.message || String(err));
+              }
+            }}
+          >
+            Edit
+          </button>
+
+          {/* Delete child */}
+          <button
+            className="bg-red-600 text-white px-2 py-1 rounded"
+            onClick={async () => {
+              if (!confirm(`Are you sure you want to delete ${c.full_name}?`)) return;
+              try {
+                const { error } = await supabase
+                  .from("parents_children")
+                  .delete()
+                  .eq("id", c.id);
+                if (error) throw error;
+                setChildren(prev => prev.filter(child => child.id !== c.id));
+                alert("Child deleted successfully");
+              } catch (err) {
+                alert(err.message || String(err));
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
 
           {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
