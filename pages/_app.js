@@ -73,6 +73,12 @@ export default function MyApp({ Component, pageProps }) {
         userType !== "student"
       ) {
         router.push("/403");
+      } 
+      else if (
+        router.pathname.startsWith("/parent") &&
+        userType !== "parent"
+      ) {
+        router.push("/403");
       }
 
       // 🔹 4. Redirect logged-in users away from login/register/complete-registration
@@ -83,7 +89,8 @@ export default function MyApp({ Component, pageProps }) {
       ) {
         if (userType === "admin") router.push("/admin");
         else if (userType === "teacher") router.push("/teacher");
-        else router.push("/student");
+        else if (userType === "student") router.push("/student");
+        else if (userType === "parent") router.push("/parent"); // ✅ redirect parents
       }
 
       setChecking(false);
