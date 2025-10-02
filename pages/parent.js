@@ -108,14 +108,13 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // Open Add Child Modal
+  // Modal functions
   function openAddChildModal() {
     setEditingChild(null);
     setChildForm({ full_name: "", sex: "", dob: "" });
     setShowChildModal(true);
   }
 
-  // Open Edit Child Modal
   function openEditChildModal(child) {
     setEditingChild(child);
     setChildForm({ full_name: child.full_name, sex: child.sex, dob: child.dob });
@@ -129,7 +128,6 @@ export default function ParentPage() {
 
     try {
       if (editingChild) {
-        // Update child
         const { error } = await supabase
           .from("parents_children")
           .update({ full_name, sex, dob })
@@ -138,7 +136,6 @@ export default function ParentPage() {
         setChildren(prev => prev.map(c => c.id === editingChild.id ? { ...c, full_name, sex, dob } : c));
         alert("Child updated successfully");
       } else {
-        // Add new child
         const { data, error } = await supabase
           .from("parents_children")
           .insert([{ parent_id: parent.id, full_name, sex, dob }])
@@ -165,6 +162,75 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
+  // SEARCH FUNCTIONS
+  async function handleSearchByLocation() {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, full_name, city, profile_image")
+        .ilike("city", `%${searchLocation}%`)
+        .eq("user_type", "teacher");
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  async function handleSearchBySubjectOnly() {
+    try {
+      const { data, error } = await supabase
+        .from("teacher_rates")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
+        .ilike("subject", `%${searchSubject}%`);
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  async function handleSearchBySubjectAndLevel() {
+    try {
+      const { data, error } = await supabase
+        .from("teacher_rates")
+        .select(`
+          id, subject, level, rate,
+          teacher:teacher_id ( id, full_name, city, profile_image )
+        `)
+        .ilike("subject", `%${searchSubject}%`)
+        .ilike("level", `%${searchLevel}%`);
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
+  async function handlePayToRegisterChild(childId, teacherId, subject, level) {
+    if (!childId) return alert("Please select a child first");
+
+    try {
+      const dateAdded = new Date();
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+      const { error } = await supabase.from("parent_child_teachers").insert([
+        {
+          parent_id: parent.id,
+          child_id: childId,
+          teacher_id: teacherId,
+          date_added: dateAdded.toISOString().split("T")[0],
+          expiry_date: expiryDate.toISOString().split("T")[0],
+          subject: subject || null,
+          level: level || null,
+        },
+      ]);
+      if (error) throw error;
+
+      alert("Successfully registered your child to teacher");
+      fetchMyChildTeachers();
+      setTab("myChildTeachers");
+    } catch (err) { alert(err.message || String(err)); }
+  }
+
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
   return (
@@ -172,6 +238,7 @@ export default function ParentPage() {
       <div className="bg-white p-6 rounded shadow">
         <Banner />
         <div className="mt-4">
+          {/* Tabs */}
           <div className="flex gap-3">
             {["profile", "searchTeacher", "myChildTeachers"].map(t => (
               <button
@@ -225,6 +292,7 @@ export default function ParentPage() {
                 </button>
               </div>
 
+              {/* Children List */}
               {children.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <h4 className="font-semibold">My Children</h4>
@@ -252,7 +320,7 @@ export default function ParentPage() {
             </div>
           )}
 
-          {/* Modal */}
+          {/* Child Modal */}
           {showChildModal && (
             <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
               <div className="bg-white p-6 rounded shadow-lg w-80">
@@ -292,7 +360,7 @@ export default function ParentPage() {
             </div>
           )}
 
-         {/* Search Teachers Tab */}
+          {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4 space-y-4">
               {/* By Location */}
@@ -397,7 +465,6 @@ export default function ParentPage() {
                             className="bg-green-600 text-white px-3 py-1 rounded"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!selectedChildId) return alert("Please select a child first");
                               handlePayToRegisterChild(selectedChildId, teacherObj.id, it.subject, it.level);
                             }}
                           >
@@ -449,6 +516,7 @@ export default function ParentPage() {
               </div>
             </div>
           )}
+
         </div>
       </div>
     </div>
