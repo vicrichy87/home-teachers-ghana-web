@@ -144,13 +144,13 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // Add new child with sex and dob
+  // Add new child with sex & dob
   async function handleAddNewChild() {
     const full_name = prompt("Enter child's full name");
     if (!full_name) return alert("Child name is required");
 
-    const sex = prompt("Enter child's sex (Male/Female)").toLowerCase();
-    if (!sex || (sex !== "male" && sex !== "female")) return alert("Child sex must be Male or Female");
+    const sex = prompt("Enter child's sex (Male/Female)");
+    if (!sex || (sex.toLowerCase() !== "male" && sex.toLowerCase() !== "female")) return alert("Child sex must be Male or Female");
 
     const dob = prompt("Enter child's date of birth (YYYY-MM-DD)");
     if (!dob) return alert("Child date of birth is required");
@@ -166,6 +166,7 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
+  // Edit child with sex & dob
   async function handleEditChild(childId) {
     const child = children.find(c => c.id === childId);
     const newName = prompt("Edit child's full name", child.full_name);
@@ -316,7 +317,7 @@ export default function ParentPage() {
             </div>
           )}
 
-         {/* Search Teachers Tab */}
+          {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4 space-y-4">
               {/* By Location */}
@@ -473,7 +474,6 @@ export default function ParentPage() {
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>
