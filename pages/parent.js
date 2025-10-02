@@ -302,7 +302,7 @@ export default function ParentPage() {
 
           {/* Profile Tab */}
           {tab==="profile" && (
-            <div className="mt-4 max-w-2xl mx-auto">
+            <div className="mt-4">
               <div className="flex gap-4">
                 <div>
                   <img
@@ -569,7 +569,7 @@ export default function ParentPage() {
 
           {/* NEW: Requests Tab */}
           {tab==="requests" && (
-           <div className="mt-4 max-w-2xl mx-auto">
+           <div className="mt-4">
              <h4 className="font-semibold mb-2">All Requests</h4>
 
              {/* Request Form */}
