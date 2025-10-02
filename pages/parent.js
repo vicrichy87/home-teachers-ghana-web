@@ -18,7 +18,6 @@ export default function ParentPage() {
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Initial fetches
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
@@ -32,7 +31,6 @@ export default function ParentPage() {
     detectLocation();
   }, []);
 
-  // Fetch parent profile and children
   async function fetchParentProfile() {
     setLoading(true);
     try {
@@ -43,7 +41,6 @@ export default function ParentPage() {
       if (error) throw error;
       setParent(data);
 
-      // Fetch all children for this parent
       const { data: childrenData, error: childrenError } = await supabase
         .from("parents_children")
         .select("*")
@@ -54,7 +51,6 @@ export default function ParentPage() {
     finally { setLoading(false); }
   }
 
-  // Fetch teachers registered to any child
   async function fetchMyChildTeachers() {
     try {
       const { data, error } = await supabase
@@ -74,7 +70,6 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // Search functions
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
@@ -116,7 +111,6 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // Upload profile image
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -150,14 +144,21 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // Add new child
+  // Add new child with sex and dob
   async function handleAddNewChild() {
     const full_name = prompt("Enter child's full name");
-    if (!full_name) return;
+    if (!full_name) return alert("Child name is required");
+
+    const sex = prompt("Enter child's sex (Male/Female)").toLowerCase();
+    if (!sex || (sex !== "male" && sex !== "female")) return alert("Child sex must be Male or Female");
+
+    const dob = prompt("Enter child's date of birth (YYYY-MM-DD)");
+    if (!dob) return alert("Child date of birth is required");
+
     try {
       const { data, error } = await supabase
         .from("parents_children")
-        .insert([{ parent_id: parent.id, full_name }])
+        .insert([{ parent_id: parent.id, full_name, sex, dob }])
         .select();
       if (error) throw error;
       alert("Child added successfully");
@@ -165,23 +166,26 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // Edit child inline
   async function handleEditChild(childId) {
     const child = children.find(c => c.id === childId);
     const newName = prompt("Edit child's full name", child.full_name);
     if (!newName) return;
+    const newSex = prompt("Edit child's sex (Male/Female)", child.sex);
+    if (!newSex || (newSex.toLowerCase() !== "male" && newSex.toLowerCase() !== "female")) return;
+    const newDob = prompt("Edit child's date of birth (YYYY-MM-DD)", child.dob);
+    if (!newDob) return;
+
     try {
       const { error } = await supabase
         .from("parents_children")
-        .update({ full_name: newName })
+        .update({ full_name: newName, sex: newSex, dob: newDob })
         .eq("id", childId);
       if (error) throw error;
-      setChildren(prev => prev.map(c => c.id === childId ? { ...c, full_name: newName } : c));
+      setChildren(prev => prev.map(c => c.id === childId ? { ...c, full_name: newName, sex: newSex, dob: newDob } : c));
       alert("Child updated successfully");
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // Delete child inline
   async function handleDeleteChild(childId) {
     const child = children.find(c => c.id === childId);
     if (!confirm(`Are you sure you want to delete ${child.full_name}?`)) return;
@@ -196,7 +200,6 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  // Register selected child to teacher
   async function handlePayToRegisterChild(childId, teacherId, subject, level) {
     try {
       if (!childId) return alert("Please select a child first");
@@ -285,13 +288,17 @@ export default function ParentPage() {
                 </button>
               </div>
 
-              {/* List of children with Edit/Delete */}
+              {/* List of children with sex & dob */}
               {children.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <h4 className="font-semibold">My Children</h4>
                   {children.map(c => (
                     <div key={c.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center">
-                      <span>{c.full_name}</span>
+                      <div>
+                        <div><strong>Name:</strong> {c.full_name}</div>
+                        <div><strong>Sex:</strong> {c.sex}</div>
+                        <div><strong>DOB:</strong> {c.dob}</div>
+                      </div>
                       <div className="flex gap-2">
                         <button
                           className="bg-blue-600 text-white px-2 py-1 rounded"
@@ -309,7 +316,7 @@ export default function ParentPage() {
             </div>
           )}
 
-          {/* Search Teachers Tab */}
+         {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4 space-y-4">
               {/* By Location */}
