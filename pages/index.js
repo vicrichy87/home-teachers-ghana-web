@@ -102,12 +102,12 @@ export default function Home() {
 
       {/* 🔹 Scroll Bar with Requests */}
       <div className="bg-blue-100 py-2 overflow-x-auto">
-        <div className="flex space-x-6 px-4 whitespace-nowrap">
+        <div className="flex animate-marquee hover:[animation-play-state:paused] space-x-8 px-4 cursor-pointer">
           {requests.length > 0 ? (
             requests.map((req) => (
               <button
                 key={req.id}
-                className="inline-flex items-center space-x-2 text-sm text-blue-700 hover:underline"
+                className="inline-flex items-center space-x-2 text-sm text-blue-700"
                 onClick={() => setSelectedRequest(req)}
               >
                 <span className="text-red-500">⚠️</span>
