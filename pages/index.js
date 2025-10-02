@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Banner from "../components/Banner";
 import Link from "next/link";
-import { ExclamationTriangleIcon } from "@heroicons/react/24/solid";
+
 
 
 export default function Home() {
@@ -110,7 +110,7 @@ export default function Home() {
                 className="flex items-center space-x-2 text-sm text-blue-700 hover:underline truncate max-w-xs"
                 onClick={() => setSelectedRequest(req)}
               >
-                <ExclamationTriangleIcon className="w-4 h-4 text-red-500 flex-shrink-0" />
+                <span className="text-red-500">⚠️</span>
                 <span>{req.request_text || "No request text"}</span>
               </button>
             ))
