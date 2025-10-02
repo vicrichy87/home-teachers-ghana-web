@@ -10,6 +10,7 @@ export default function Home() {
 
   // 🔹 Requests
   const [requests, setRequests] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]); // 🔹 only valid for teacher
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [applicationForm, setApplicationForm] = useState({ monthly_rate: "" });
 
@@ -69,6 +70,15 @@ export default function Home() {
 
         if (reqError) throw reqError;
         setRequests(requestsData || []);
+
+        // 🔹 Filter requests only for teachers
+        if (isTeacher) {
+          // For teachers, show only requests with a valid id (prevents foreign key issues)
+          const validRequests = requestsData?.filter((r) => r.id);
+          setFilteredRequests(validRequests || []);
+        } else {
+          setFilteredRequests(requestsData || []);
+        }
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -77,7 +87,7 @@ export default function Home() {
     };
 
     fetchData();
-  }, []);
+  }, [isTeacher]); // 🔹 add isTeacher dependency so filtering happens after we know user type
 
   // 🔹 Teacher applies for request safely
   const handleApplyForRequest = async () => {
@@ -114,10 +124,10 @@ export default function Home() {
         .from("request_applications")
         .insert([
           {
-            request_id: selectedRequest.id, // must match existing request
+            request_id: selectedRequest.id,
             teacher_id: user.id,
             monthly_rate: parseFloat(applicationForm.monthly_rate),
-            status: "pending",              // ensure this column exists
+            status: "pending",
             date_applied: new Date().toISOString(),
           },
         ]);
@@ -140,8 +150,8 @@ export default function Home() {
       {/* 🔹 Scroll Bar with Requests */}
       <div className="bg-blue-100 py-2 marquee-container">
         <div className="marquee-content">
-          {requests.length > 0 ? (
-            requests.concat(requests).map((req, index) => (
+          {filteredRequests.length > 0 ? (
+            filteredRequests.concat(filteredRequests).map((req, index) => (
               <button
                 key={`${req.id}-${index}`}
                 className="text-sm text-blue-700 hover:underline flex items-center mr-8"
