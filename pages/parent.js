@@ -18,6 +18,7 @@ export default function ParentPage() {
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
   const [requests, setRequests] = useState([]);
+  const [requestForm, setRequestForm] = useState({ request_text: "", city: "" });
 
   // Modal states
   const [showChildModal, setShowChildModal] = useState(false);
@@ -92,6 +93,33 @@ export default function ParentPage() {
       alert(err.message || String(err));
     }
   }
+
+  async function handleSubmitRequest() {
+  if (!requestForm.request_text) {
+    alert("Please enter your request");
+    return;
+  }
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/login"); return; }
+
+    const { error } = await supabase.from("requests").insert([
+      {
+        user_id: user.id,
+        request_text: requestForm.request_text,
+        city: requestForm.city
+      }
+    ]);
+    if (error) throw error;
+
+    alert("Request created successfully");
+    setRequestForm({ request_text: "", city: "" });
+    fetchRequests();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+ }
 
   async function uploadProfileImage(file) {
     try {
@@ -541,25 +569,53 @@ export default function ParentPage() {
 
           {/* NEW: Requests Tab */}
           {tab==="requests" && (
-            <div className="mt-4">
-              <h4 className="font-semibold mb-2">All Requests</h4>
-              <div className="max-h-96 overflow-y-scroll border rounded p-3 bg-gray-50 space-y-3">
-                {requests.length === 0 && <div className="text-slate-600">No requests available.</div>}
-                {requests.map((r) => (
-                  <div key={r.id} className="p-3 border bg-white rounded">
-                    <div><strong>Student:</strong> {r.student?.full_name}</div>
-                    <div><strong>Subject:</strong> {r.subject}</div>
-                    <div><strong>Level:</strong> {r.level}</div>
-                    <div><strong>City:</strong> {r.city}</div>
-                    <div className="text-xs text-slate-500">Posted: {new Date(r.created_at).toLocaleString()}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+           <div className="mt-4">
+             <h4 className="font-semibold mb-2">All Requests</h4>
 
-        </div>
-      </div>
-    </div>
-  );
+             {/* Request Form */}
+             <div className="p-4 mb-4 border rounded bg-white">
+               <h5 className="font-semibold mb-2">Create a Request</h5>
+               <textarea
+                 placeholder="Type what kind of teacher or classes you are looking for..."
+                 className="w-full p-2 mb-2 border rounded"
+                 rows={3}
+                 value={requestForm.request_text}
+                 onChange={(e)=>setRequestForm({...requestForm, request_text:e.target.value})}
+             />
+             <input
+               type="text"
+               placeholder="City / Location"
+               className="w-full p-2 mb-2 border rounded"
+               value={requestForm.city}
+               onChange={(e)=>setRequestForm({...requestForm, city:e.target.value})}
+             />
+             <button
+               className="bg-green-600 text-white px-4 py-2 rounded"
+               onClick={handleSubmitRequest}
+             >
+               Submit Request
+             </button>
+           </div>
+
+           {/* Requests List */}
+           <div className="max-h-96 overflow-y-scroll border rounded p-3 bg-gray-50 space-y-3">
+             {requests.length === 0 && <div className="text-slate-600">No requests available.</div>}
+             {requests.map((r) => (
+               <div key={r.id} className="p-3 border bg-white rounded">
+               <div className="text-gray-800">{r.request_text}</div>
+               <div className="text-sm text-slate-600">Location: {r.city || "N/A"}</div>
+               <div className="text-xs text-slate-500">
+                 Posted: {new Date(r.created_at).toLocaleString()}
+           </div>
+         </div>
+       ))}
+     </div>
+   </div>
+ )}
+
+
+</div>
+</div>
+</div>
+);
 }
