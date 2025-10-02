@@ -1,10 +1,7 @@
-// pages/index.js
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import Banner from "../components/Banner";
 import Link from "next/link";
-
-
 
 export default function Home() {
   const [teachers, setTeachers] = useState([]);
@@ -14,6 +11,7 @@ export default function Home() {
   // 🔹 Special requests
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [applicationForm, setApplicationForm] = useState({ monthly_rate: "" });
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -51,7 +49,7 @@ export default function Home() {
         const { data: authData } = await supabase.auth.getUser();
         setUser(authData?.user || null);
 
-        // 📝 Fetch latest special requests
+        // 📝 Fetch latest requests
         const { data: requestsData, error: reqError } = await supabase
           .from("requests")
           .select("id, request_text, user_id, city, created_at")
@@ -71,28 +69,35 @@ export default function Home() {
   }, []);
 
   // 🔹 Teacher applies for request
-  const handleApplyRequest = async (requestId) => {
-    if (!user) {
-      alert("You must be logged in as a teacher to apply.");
-      return;
-    }
-
-    if (user.user_metadata?.user_type !== "teacher") {
+  const handleApplyForRequest = async () => {
+    if (!user || user.user_metadata?.user_type !== "teacher") {
       alert("Only teachers can apply for requests.");
       return;
     }
 
-    const { error } = await supabase.from("request_applications").insert({
-      request_id: requestId,
-      teacher_id: user.id,
-    });
+    if (!applicationForm.monthly_rate) {
+      alert("Please enter your monthly rate.");
+      return;
+    }
 
-    if (error) {
-      console.error("Error applying for request:", error);
-      alert("Error applying: " + error.message);
-    } else {
+    try {
+      const { error } = await supabase.from("request_applications").insert([
+        {
+          request_id: selectedRequest.id,
+          teacher_id: user.id,
+          monthly_rate: parseFloat(applicationForm.monthly_rate),
+          status: "pending",
+          applied_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) throw error;
+
       alert("Application submitted successfully!");
-      setSelectedRequest(null); // close modal
+      setSelectedRequest(null);
+      setApplicationForm({ monthly_rate: "" });
+    } catch (err) {
+      alert("Error submitting application: " + (err.message || err));
     }
   };
 
@@ -108,7 +113,10 @@ export default function Home() {
               <button
                 key={`${req.id}-${index}`}
                 className="text-sm text-blue-700 hover:underline flex items-center mr-8"
-                onClick={() => setSelectedRequest(req)}
+                onClick={() => {
+                  setSelectedRequest(req);
+                  setApplicationForm({ monthly_rate: "" }); // reset monthly rate
+                }}
               >
                 <span className="mr-1">⚠️</span>
                 <span>{req.request_text || "No request text"}</span>
@@ -125,10 +133,30 @@ export default function Home() {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h2 className="text-lg font-bold mb-2">Special Request</h2>
-            <p className="mb-2 text-gray-700">
-              <strong>Location:</strong> {selectedRequest.city}
-            </p>
             <p className="mb-4">{selectedRequest.request_text}</p>
+
+            {/* Only show input if user is a teacher */}
+            {user?.user_metadata?.user_type === "teacher" && (
+              <div className="mb-4">
+                <label className="block mb-1 font-medium">
+                  Your Monthly Rate (GHC)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  className="w-full p-2 border rounded"
+                  value={applicationForm.monthly_rate}
+                  onChange={(e) =>
+                    setApplicationForm({
+                      ...applicationForm,
+                      monthly_rate: e.target.value,
+                    })
+                  }
+                  placeholder="Enter your monthly rate"
+                />
+              </div>
+            )}
+
             <div className="flex justify-end space-x-3">
               <button
                 className="bg-gray-400 px-4 py-2 rounded text-white"
@@ -136,12 +164,13 @@ export default function Home() {
               >
                 Close
               </button>
+
               {user?.user_metadata?.user_type === "teacher" && (
                 <button
                   className="bg-green-600 px-4 py-2 rounded text-white"
-                  onClick={() => handleApplyRequest(selectedRequest.id)}
+                  onClick={handleApplyForRequest}
                 >
-                  Apply
+                  Apply for Request
                 </button>
               )}
             </div>
