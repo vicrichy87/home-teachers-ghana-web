@@ -18,6 +18,11 @@ export default function ParentPage() {
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  // Modal states
+  const [showChildModal, setShowChildModal] = useState(false);
+  const [editingChild, setEditingChild] = useState(null);
+  const [childForm, setChildForm] = useState({ full_name: "", sex: "", dob: "" });
+
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
@@ -70,47 +75,6 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
-  async function handleSearchByLocation() {
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, full_name, city, profile_image")
-        .ilike("city", searchLocation)
-        .eq("user_type", "teacher");
-      if (error) throw error;
-      setTeachers(data || []);
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
-  async function handleSearchBySubjectOnly() {
-    try {
-      const { data, error } = await supabase
-        .from("teacher_rates")
-        .select(`
-          id, subject, level, rate,
-          teacher:teacher_id ( id, full_name, city, profile_image )
-        `)
-        .ilike("subject", searchSubject);
-      if (error) throw error;
-      setTeachers(data || []);
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
-  async function handleSearchBySubjectAndLevel() {
-    try {
-      const { data, error } = await supabase
-        .from("teacher_rates")
-        .select(`
-          id, subject, level, rate,
-          teacher:teacher_id ( id, full_name, city, profile_image )
-        `)
-        .ilike("subject", searchSubject)
-        .ilike("level", searchLevel);
-      if (error) throw error;
-      setTeachers(data || []);
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -144,47 +108,47 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // Add new child with sex & dob
-  async function handleAddNewChild() {
-    const full_name = prompt("Enter child's full name");
-    if (!full_name) return alert("Child name is required");
-
-    const sex = prompt("Enter child's sex (Male/Female)");
-    if (!sex || (sex.toLowerCase() !== "male" && sex.toLowerCase() !== "female")) return alert("Child sex must be Male or Female");
-
-    const dob = prompt("Enter child's date of birth (YYYY-MM-DD)");
-    if (!dob) return alert("Child date of birth is required");
-
-    try {
-      const { data, error } = await supabase
-        .from("parents_children")
-        .insert([{ parent_id: parent.id, full_name, sex, dob }])
-        .select();
-      if (error) throw error;
-      alert("Child added successfully");
-      setChildren(prev => [...prev, data[0]]);
-    } catch (err) { alert(err.message || String(err)); }
+  // Open Add Child Modal
+  function openAddChildModal() {
+    setEditingChild(null);
+    setChildForm({ full_name: "", sex: "", dob: "" });
+    setShowChildModal(true);
   }
 
-  // Edit child with sex & dob
-  async function handleEditChild(childId) {
-    const child = children.find(c => c.id === childId);
-    const newName = prompt("Edit child's full name", child.full_name);
-    if (!newName) return;
-    const newSex = prompt("Edit child's sex (Male/Female)", child.sex);
-    if (!newSex || (newSex.toLowerCase() !== "male" && newSex.toLowerCase() !== "female")) return;
-    const newDob = prompt("Edit child's date of birth (YYYY-MM-DD)", child.dob);
-    if (!newDob) return;
+  // Open Edit Child Modal
+  function openEditChildModal(child) {
+    setEditingChild(child);
+    setChildForm({ full_name: child.full_name, sex: child.sex, dob: child.dob });
+    setShowChildModal(true);
+  }
+
+  async function handleSubmitChild() {
+    const { full_name, sex, dob } = childForm;
+    if (!full_name || !sex || !dob) return alert("All fields are required");
+    if (!["male","female"].includes(sex.toLowerCase())) return alert("Sex must be Male or Female");
 
     try {
-      const { error } = await supabase
-        .from("parents_children")
-        .update({ full_name: newName, sex: newSex, dob: newDob })
-        .eq("id", childId);
-      if (error) throw error;
-      setChildren(prev => prev.map(c => c.id === childId ? { ...c, full_name: newName, sex: newSex, dob: newDob } : c));
-      alert("Child updated successfully");
+      if (editingChild) {
+        // Update child
+        const { error } = await supabase
+          .from("parents_children")
+          .update({ full_name, sex, dob })
+          .eq("id", editingChild.id);
+        if (error) throw error;
+        setChildren(prev => prev.map(c => c.id === editingChild.id ? { ...c, full_name, sex, dob } : c));
+        alert("Child updated successfully");
+      } else {
+        // Add new child
+        const { data, error } = await supabase
+          .from("parents_children")
+          .insert([{ parent_id: parent.id, full_name, sex, dob }])
+          .select();
+        if (error) throw error;
+        setChildren(prev => [...prev, data[0]]);
+        alert("Child added successfully");
+      }
     } catch (err) { alert(err.message || String(err)); }
+    finally { setShowChildModal(false); }
   }
 
   async function handleDeleteChild(childId) {
@@ -198,33 +162,6 @@ export default function ParentPage() {
       if (error) throw error;
       setChildren(prev => prev.filter(c => c.id !== childId));
       alert("Child deleted successfully");
-    } catch (err) { alert(err.message || String(err)); }
-  }
-
-  async function handlePayToRegisterChild(childId, teacherId, subject, level) {
-    try {
-      if (!childId) return alert("Please select a child first");
-
-      const dateAdded = new Date();
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-
-      const { error } = await supabase.from("parent_child_teachers").insert([
-        {
-          parent_id: parent.id,
-          child_id: childId,
-          teacher_id: teacherId,
-          date_added: dateAdded.toISOString().split("T")[0],
-          expiry_date: expiryDate.toISOString().split("T")[0],
-          subject: subject || null,
-          level: level || null,
-        },
-      ]);
-      if (error) throw error;
-
-      alert("Successfully registered your child to teacher");
-      fetchMyChildTeachers();
-      setTab("myChildTeachers");
     } catch (err) { alert(err.message || String(err)); }
   }
 
@@ -279,17 +216,15 @@ export default function ParentPage() {
                 </div>
               </div>
 
-              {/* Add New Child Button */}
               <div className="mt-4">
                 <button
                   className="bg-green-600 text-white px-4 py-2 rounded"
-                  onClick={handleAddNewChild}
+                  onClick={openAddChildModal}
                 >
                   Add New Child
                 </button>
               </div>
 
-              {/* List of children with sex & dob */}
               {children.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <h4 className="font-semibold">My Children</h4>
@@ -303,7 +238,7 @@ export default function ParentPage() {
                       <div className="flex gap-2">
                         <button
                           className="bg-blue-600 text-white px-2 py-1 rounded"
-                          onClick={() => handleEditChild(c.id)}
+                          onClick={() => openEditChildModal(c)}
                         >Edit</button>
                         <button
                           className="bg-red-600 text-white px-2 py-1 rounded"
@@ -317,7 +252,47 @@ export default function ParentPage() {
             </div>
           )}
 
-          {/* Search Teachers Tab */}
+          {/* Modal */}
+          {showChildModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded shadow-lg w-80">
+                <h4 className="font-semibold mb-3">{editingChild ? "Edit Child" : "Add New Child"}</h4>
+                <input
+                  className="w-full p-2 mb-2 border rounded"
+                  placeholder="Full Name"
+                  value={childForm.full_name}
+                  onChange={e => setChildForm({...childForm, full_name: e.target.value})}
+                />
+                <select
+                  className="w-full p-2 mb-2 border rounded"
+                  value={childForm.sex}
+                  onChange={e => setChildForm({...childForm, sex: e.target.value})}
+                >
+                  <option value="">Select Sex</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+                <input
+                  type="date"
+                  className="w-full p-2 mb-2 border rounded"
+                  value={childForm.dob}
+                  onChange={e => setChildForm({...childForm, dob: e.target.value})}
+                />
+                <div className="flex justify-end gap-2 mt-3">
+                  <button
+                    className="px-3 py-1 rounded bg-gray-300"
+                    onClick={() => setShowChildModal(false)}
+                  >Cancel</button>
+                  <button
+                    className="px-3 py-1 rounded bg-green-600 text-white"
+                    onClick={handleSubmitChild}
+                  >Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+         {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4 space-y-4">
               {/* By Location */}
