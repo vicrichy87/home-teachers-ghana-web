@@ -103,7 +103,8 @@ export default function Home() {
       {/* 🔹 Scroll Bar with Requests */}
       <div className="bg-blue-100 py-2 marquee-container">
         <div className="marquee-content">
-          {requests.concat(requests).map((req, index) => (
+          {requests && requests.length > 0 ? (
+            requests.concat(requests).map((req, index) => (
               <button
                 key={`${req.id}-${index}`}
                 className="text-sm text-blue-700 hover:underline flex items-center mr-8"
