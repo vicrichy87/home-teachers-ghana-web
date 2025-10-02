@@ -27,34 +27,38 @@ export default function Home() {
         setUserLocation(location);
 
         // 📚 Fetch teachers nearby
-        const { data: teachersData, error } = await supabase
+        const { data: teachersData, error: teachersError } = await supabase
           .from("users")
           .select("id, full_name, profile_image, city, user_type")
           .eq("user_type", "teacher")
           .eq("city", location);
-        if (error) throw error;
 
-        const teachersWithUrls = teachersData?.map((t) => ({
-          ...t,
-          image_url: t.profile_image || "/placeholder.png",
-        })) || [];
-        setTeachers(teachersWithUrls);
+        if (teachersError) throw teachersError;
 
-        // 👤 Get auth user
+        setTeachers(
+          teachersData?.map((t) => ({
+            ...t,
+            image_url: t.profile_image || "/placeholder.png",
+          })) || []
+        );
+
+        // 👤 Get logged-in user
         const { data: authData } = await supabase.auth.getUser();
         const loggedUser = authData?.user || null;
         setUser(loggedUser);
 
-        // 🔹 Fetch user profile from users table to get user_type
         if (loggedUser) {
+          // 🔹 Fetch user profile to get user_type
           const { data: profileData, error: profileError } = await supabase
             .from("users")
             .select("id, full_name, user_type")
             .eq("id", loggedUser.id)
             .single();
+
           if (profileError) throw profileError;
 
           setIsTeacher(profileData.user_type?.toLowerCase() === "teacher");
+          console.log("Logged-in user:", profileData);
         }
 
         // 📝 Fetch latest requests
@@ -63,6 +67,7 @@ export default function Home() {
           .select("id, request_text, user_id, city, created_at")
           .order("created_at", { ascending: false })
           .limit(20);
+
         if (reqError) throw reqError;
         setRequests(requestsData || []);
       } catch (err) {
@@ -87,6 +92,11 @@ export default function Home() {
       return;
     }
 
+    if (!selectedRequest?.id) {
+      alert("Invalid request selected.");
+      return;
+    }
+
     try {
       const { error } = await supabase.from("request_applications").insert([
         {
@@ -97,6 +107,7 @@ export default function Home() {
           date_applied: new Date().toISOString(),
         },
       ]);
+
       if (error) throw error;
 
       alert("Application submitted successfully!");
@@ -104,6 +115,7 @@ export default function Home() {
       setApplicationForm({ monthly_rate: "" });
     } catch (err) {
       alert("Error submitting application: " + (err.message || err));
+      console.error(err);
     }
   };
 
