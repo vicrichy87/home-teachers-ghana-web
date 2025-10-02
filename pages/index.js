@@ -9,22 +9,26 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
 
+  // 🔹 Special requests
+  const [requests, setRequests] = useState([]);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [user, setUser] = useState(null);
+
   useEffect(() => {
-    const fetchLocationAndTeachers = async () => {
+    const fetchData = async () => {
       try {
         // 🌍 Detect location
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
         let location = data?.city || data?.region || data?.country_name;
 
-        // ✅ Normalize Accra → Greater Accra
         if (location?.toLowerCase() === "accra") {
           location = "Greater Accra";
         }
 
         setUserLocation(location);
 
-        // 📚 Fetch teachers from Supabase
+        // 📚 Fetch teachers
         const { data: teachersData, error } = await supabase
           .from("users")
           .select("id, full_name, profile_image, city, user_type")
@@ -33,7 +37,6 @@ export default function Home() {
 
         if (error) throw error;
 
-        // 🖼️ Use profile_image directly (already public URL) or fallback
         const teachersWithUrls =
           teachersData?.map((t) => ({
             ...t,
@@ -41,26 +44,110 @@ export default function Home() {
           })) || [];
 
         setTeachers(teachersWithUrls);
+
+        // 👤 Fetch logged-in user
+        const { data: authData } = await supabase.auth.getUser();
+        setUser(authData?.user || null);
+
+        // 📝 Fetch latest special requests
+        const { data: requestsData, error: reqError } = await supabase
+          .from("special_requests")
+          .select("id, request_text, user_id, date_submitted")
+          .order("date_submitted", { ascending: false })
+          .limit(20);
+
+        if (reqError) throw reqError;
+        setRequests(requestsData || []);
       } catch (err) {
-        console.error("Error fetching teachers:", err);
+        console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLocationAndTeachers();
+    fetchData();
   }, []);
+
+  // 🔹 Teacher applies for request
+  const handleApplyRequest = async (requestId) => {
+    if (!user) {
+      alert("You must be logged in as a teacher to apply.");
+      return;
+    }
+
+    if (user.user_metadata?.user_type !== "teacher") {
+      alert("Only teachers can apply for requests.");
+      return;
+    }
+
+    const { error } = await supabase.from("request_applications").insert({
+      request_id: requestId,
+      teacher_id: user.id,
+    });
+
+    if (error) {
+      console.error("Error applying for request:", error);
+      alert("Error applying: " + error.message);
+    } else {
+      alert("Application submitted successfully!");
+      setSelectedRequest(null); // close modal
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Banner />
+
+      {/* 🔹 Scroll Bar with Requests */}
+      <div className="bg-blue-100 py-2 overflow-x-auto whitespace-nowrap">
+        <div className="flex space-x-6 px-4">
+          {requests.map((req) => (
+            <button
+              key={req.id}
+              className="text-sm text-blue-700 hover:underline"
+              onClick={() => setSelectedRequest(req)}
+            >
+              {req.request_text}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 🔹 Modal for Request Details */}
+      {selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h2 className="text-lg font-bold mb-2">Special Request</h2>
+            <p className="mb-4">{selectedRequest.request_text}</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                className="bg-gray-400 px-4 py-2 rounded text-white"
+                onClick={() => setSelectedRequest(null)}
+              >
+                Close
+              </button>
+              {user?.user_metadata?.user_type === "teacher" && (
+                <button
+                  className="bg-green-600 px-4 py-2 rounded text-white"
+                  onClick={() => handleApplyRequest(selectedRequest.id)}
+                >
+                  Apply
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
       <div className="p-8 text-center">
         <h1 className="text-4xl font-bold text-blue-600 mb-4">
           Welcome to Home Teachers Ghana
         </h1>
         <p className="text-lg text-gray-700 mb-6">
-          Connecting students with qualified teachers across Ghana. 
-          Search by subject, level, and location to find the perfect teacher for your needs.
+          Connecting students with qualified teachers across Ghana. Search by
+          subject, level, and location to find the perfect teacher for your
+          needs.
         </p>
 
         {/* Teachers Nearby Section */}
