@@ -19,11 +19,6 @@ export default function RegisterPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // child info (only for parent)
-  const [childName, setChildName] = useState("");
-  const [childSex, setChildSex] = useState("");
-  const [childDob, setChildDob] = useState("");
-
   // Auto-detect city
   useEffect(() => {
     const fetchCity = async () => {
@@ -31,9 +26,7 @@ export default function RegisterPage() {
         try {
           const res = await fetch("https://ipapi.co/json/");
           const data = await res.json();
-          if (data?.city) {
-            setCity(data.city === "Accra" ? "Greater Accra" : data.city);
-          }
+          if (data?.city) setCity(data.city === "Accra" ? "Greater Accra" : data.city);
         } catch (err) {
           console.error("City fetch failed:", err);
         }
@@ -47,11 +40,6 @@ export default function RegisterPage() {
 
     if (!fullName.trim() || !email.trim() || !phone.trim() || !sex || !dob || !userType || !password) {
       alert("Please fill all required fields");
-      return;
-    }
-
-    if (userType === "parent" && (!childName.trim() || !childSex || !childDob)) {
-      alert("Please fill your child’s information");
       return;
     }
 
@@ -88,9 +76,6 @@ export default function RegisterPage() {
           dob,
           city,
           user_type: userType,
-          child_name: userType === "parent" ? childName.trim() : null,
-          child_sex: userType === "parent" ? childSex : null,
-          child_dob: userType === "parent" ? childDob : null,
         },
       ]);
       if (insertError) throw insertError;
@@ -138,19 +123,6 @@ export default function RegisterPage() {
           <option value="student">Student</option>
           <option value="parent">Parent</option>
         </select>
-
-        {userType === "parent" && (
-          <div className="p-4 border rounded bg-gray-50 space-y-3">
-            <h3 className="font-semibold">Child Information</h3>
-            <input placeholder="Child's Name" value={childName} onChange={(e) => setChildName(e.target.value)} className="w-full p-2 border rounded" />
-            <select value={childSex} onChange={(e) => setChildSex(e.target.value)} className="w-full p-2 border rounded">
-              <option value="">Select child sex</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-            <input type="date" value={childDob} onChange={(e) => setChildDob(e.target.value)} className="w-full p-2 border rounded" />
-          </div>
-        )}
 
         <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2 border rounded" />
         <input type="password" placeholder="Confirm Password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-full p-2 border rounded" />
