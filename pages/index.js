@@ -51,8 +51,8 @@ export default function Home() {
 
         // 📝 Fetch latest special requests
         const { data: requestsData, error: reqError } = await supabase
-          .from("special_requests")
-          .select("id, request_text, user_id, date_submitted")
+          .from("requests")
+          .select("id, request_text, user_id, created_at")
           .order("date_submitted", { ascending: false })
           .limit(20);
 
@@ -101,15 +101,19 @@ export default function Home() {
       {/* 🔹 Scroll Bar with Requests */}
       <div className="bg-blue-100 py-2 overflow-x-auto whitespace-nowrap">
         <div className="flex space-x-6 px-4">
-          {requests.map((req) => (
-            <button
-              key={req.id}
-              className="text-sm text-blue-700 hover:underline"
-              onClick={() => setSelectedRequest(req)}
-            >
-              {req.request_text}
-            </button>
-          ))}
+          {requests.length > 0 ? (
+            requests.map((req) => (
+              <button
+                key={req.id}
+                className="text-sm text-blue-700 hover:underline"
+                onClick={() => setSelectedRequest(req)}
+              >
+                {req.request_text || "No request text"}
+              </button>
+            ))
+          ) : (
+            <p className="text-gray-500 text-sm">No requests yet.</p>
+          )}
         </div>
       </div>
 
@@ -118,6 +122,9 @@ export default function Home() {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h2 className="text-lg font-bold mb-2">Special Request</h2>
+            <p className="mb-2 text-gray-700">
+              <strong>Location:</strong> {selectedRequest.location}
+            </p>
             <p className="mb-4">{selectedRequest.request_text}</p>
             <div className="flex justify-end space-x-3">
               <button
