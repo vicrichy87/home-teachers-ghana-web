@@ -13,6 +13,7 @@ export default function Home() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [applicationForm, setApplicationForm] = useState({ monthly_rate: "" });
   const [user, setUser] = useState(null);
+  const [isTeacher, setIsTeacher] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -22,10 +23,7 @@ export default function Home() {
         const data = await res.json();
         let location = data?.city || data?.region || data?.country_name;
 
-        if (location?.toLowerCase() === "accra") {
-          location = "Greater Accra";
-        }
-
+        if (location?.toLowerCase() === "accra") location = "Greater Accra";
         setUserLocation(location);
 
         // 📚 Fetch teachers
@@ -42,12 +40,19 @@ export default function Home() {
             ...t,
             image_url: t.profile_image || "/placeholder.png",
           })) || [];
-
         setTeachers(teachersWithUrls);
 
         // 👤 Fetch logged-in user
         const { data: authData } = await supabase.auth.getUser();
-        setUser(authData?.user || null);
+        const loggedUser = authData?.user || null;
+        setUser(loggedUser);
+
+        // 🔹 Detect if teacher
+        const userType =
+          loggedUser?.user_metadata?.user_type ||
+          loggedUser?.app_metadata?.user_type ||
+          "";
+        setIsTeacher(userType.toLowerCase() === "teacher");
 
         // 📝 Fetch latest requests
         const { data: requestsData, error: reqError } = await supabase
@@ -70,7 +75,7 @@ export default function Home() {
 
   // 🔹 Teacher applies for request
   const handleApplyForRequest = async () => {
-    if (!user || user.user_metadata?.user_type !== "teacher") {
+    if (!isTeacher) {
       alert("Only teachers can apply for requests.");
       return;
     }
@@ -136,7 +141,7 @@ export default function Home() {
             <p className="mb-4">{selectedRequest.request_text}</p>
 
             {/* Only show input if user is a teacher */}
-            {user?.user_metadata?.user_type === "teacher" && (
+            {isTeacher && (
               <div className="mb-4">
                 <label className="block mb-1 font-medium">
                   Your Monthly Rate (GHC)
@@ -165,7 +170,7 @@ export default function Home() {
                 Close
               </button>
 
-              {user?.user_metadata?.user_type === "teacher" && (
+              {isTeacher && (
                 <button
                   className="bg-green-600 px-4 py-2 rounded text-white"
                   onClick={handleApplyForRequest}
