@@ -52,8 +52,8 @@ export default function Home() {
         // 📝 Fetch latest special requests
         const { data: requestsData, error: reqError } = await supabase
           .from("requests")
-          .select("id, request_text, user_id, created_at")
-          .order("date_submitted", { ascending: false })
+          .select("id, request_text, user_id, city, created_at")
+          .order("created_at", { ascending: false })
           .limit(20);
 
         if (reqError) throw reqError;
@@ -123,7 +123,7 @@ export default function Home() {
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
             <h2 className="text-lg font-bold mb-2">Special Request</h2>
             <p className="mb-2 text-gray-700">
-              <strong>Location:</strong> {selectedRequest.location}
+              <strong>Location:</strong> {selectedRequest.city}
             </p>
             <p className="mb-4">{selectedRequest.request_text}</p>
             <div className="flex justify-end space-x-3">
