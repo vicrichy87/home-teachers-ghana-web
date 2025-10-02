@@ -8,10 +8,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
 
-  // 🔹 Special requests
+  // 🔹 Requests
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [applicationForm, setApplicationForm] = useState({ monthly_rate: "" });
+
   const [user, setUser] = useState(null);
   const [isTeacher, setIsTeacher] = useState(false);
 
@@ -22,37 +23,39 @@ export default function Home() {
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
         let location = data?.city || data?.region || data?.country_name;
-
         if (location?.toLowerCase() === "accra") location = "Greater Accra";
         setUserLocation(location);
 
-        // 📚 Fetch teachers
+        // 📚 Fetch teachers nearby
         const { data: teachersData, error } = await supabase
           .from("users")
           .select("id, full_name, profile_image, city, user_type")
           .eq("user_type", "teacher")
           .eq("city", location);
-
         if (error) throw error;
 
-        const teachersWithUrls =
-          teachersData?.map((t) => ({
-            ...t,
-            image_url: t.profile_image || "/placeholder.png",
-          })) || [];
+        const teachersWithUrls = teachersData?.map((t) => ({
+          ...t,
+          image_url: t.profile_image || "/placeholder.png",
+        })) || [];
         setTeachers(teachersWithUrls);
 
-        // 👤 Fetch logged-in user
+        // 👤 Get auth user
         const { data: authData } = await supabase.auth.getUser();
         const loggedUser = authData?.user || null;
         setUser(loggedUser);
 
-        // 🔹 Detect if teacher
-        const userType =
-          loggedUser?.user_metadata?.user_type ||
-          loggedUser?.app_metadata?.user_type ||
-          "";
-        setIsTeacher(userType.toLowerCase() === "teacher");
+        // 🔹 Fetch user profile from users table to get user_type
+        if (loggedUser) {
+          const { data: profileData, error: profileError } = await supabase
+            .from("users")
+            .select("id, full_name, user_type")
+            .eq("id", loggedUser.id)
+            .single();
+          if (profileError) throw profileError;
+
+          setIsTeacher(profileData.user_type?.toLowerCase() === "teacher");
+        }
 
         // 📝 Fetch latest requests
         const { data: requestsData, error: reqError } = await supabase
@@ -60,7 +63,6 @@ export default function Home() {
           .select("id, request_text, user_id, city, created_at")
           .order("created_at", { ascending: false })
           .limit(20);
-
         if (reqError) throw reqError;
         setRequests(requestsData || []);
       } catch (err) {
@@ -95,7 +97,6 @@ export default function Home() {
           applied_at: new Date().toISOString(),
         },
       ]);
-
       if (error) throw error;
 
       alert("Application submitted successfully!");
@@ -113,14 +114,14 @@ export default function Home() {
       {/* 🔹 Scroll Bar with Requests */}
       <div className="bg-blue-100 py-2 marquee-container">
         <div className="marquee-content">
-          {requests && requests.length > 0 ? (
+          {requests.length > 0 ? (
             requests.concat(requests).map((req, index) => (
               <button
                 key={`${req.id}-${index}`}
                 className="text-sm text-blue-700 hover:underline flex items-center mr-8"
                 onClick={() => {
                   setSelectedRequest(req);
-                  setApplicationForm({ monthly_rate: "" }); // reset monthly rate
+                  setApplicationForm({ monthly_rate: "" });
                 }}
               >
                 <span className="mr-1">⚠️</span>
@@ -140,7 +141,6 @@ export default function Home() {
             <h2 className="text-lg font-bold mb-2">Special Request</h2>
             <p className="mb-4">{selectedRequest.request_text}</p>
 
-            {/* Only show input if user is a teacher */}
             {isTeacher && (
               <div className="mb-4">
                 <label className="block mb-1 font-medium">
