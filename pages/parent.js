@@ -343,7 +343,7 @@ export default function ParentPage() {
 
               {/* Children List */}
               {children.length > 0 && (
-                <div className="mt-8 w-full max-w-md space-y-4">
+                <div className="mt-4 w-full max-w-md space-y-4">
                   <h4 className="font-semibold">My Children</h4>
                   {children.map(c => (
                     <div key={c.id} className="p-3 border rounded bg-gray-50">
@@ -411,7 +411,7 @@ export default function ParentPage() {
 
           {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
-            <div className="mt-8 w-full max-w-xl space-y-4">
+            <div className="mt-4 w-full max-w-xl space-y-4">
               {/* By Location */}
               <div>
                 <input
@@ -530,7 +530,7 @@ export default function ParentPage() {
 
           {/* My Child’s Teachers Tab */}
           {tab==="myChildTeachers" && (
-            <div className="mt-4">
+            <div className="mt-4 w-full max-w-md space-y-4">
               <h4 className="font-semibold">My Child’s Teachers</h4>
               <div className="space-y-3 mt-3">
                 {myChildTeachers.length === 0 && <div className="text-slate-600">No registered teachers yet.</div>}
@@ -569,7 +569,7 @@ export default function ParentPage() {
 
           {/* NEW: Requests Tab */}
           {tab==="requests" && (
-           <div className="mt-4">
+           <div className="mt-4 w-full max-w-md space-y-4">
              <h4 className="font-semibold mb-2">All Requests</h4>
 
              {/* Request Form */}
