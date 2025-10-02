@@ -94,7 +94,7 @@ export default function Home() {
           teacher_id: user.id,
           monthly_rate: parseFloat(applicationForm.monthly_rate),
           status: "pending",
-          applied_at: new Date().toISOString(),
+          date_applied: new Date().toISOString(),
         },
       ]);
       if (error) throw error;
