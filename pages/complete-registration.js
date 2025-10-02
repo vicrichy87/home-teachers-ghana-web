@@ -15,11 +15,6 @@ export default function CompleteRegistration() {
   const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
 
-  // 🔹 New child fields (only for parent)
-  const [childName, setChildName] = useState("");
-  const [childDob, setChildDob] = useState("");
-  const [childSex, setChildSex] = useState("");
-
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -95,13 +90,6 @@ export default function CompleteRegistration() {
       return;
     }
 
-    if (userType === "parent") {
-      if (!childName || !childDob || !childSex) {
-        alert("Please fill in your child's details.");
-        return;
-      }
-    }
-
     setLoading(true);
 
     try {
@@ -114,7 +102,7 @@ export default function CompleteRegistration() {
 
       if (fetchError) throw fetchError;
 
-      let userData = {
+      const userData = {
         full_name: name,
         email,
         user_type: userType,
@@ -123,15 +111,6 @@ export default function CompleteRegistration() {
         city,
         phone,
       };
-
-      if (userType === "parent") {
-        userData = {
-          ...userData,
-          child_name: childName,
-          child_dob: childDob,
-          child_sex: childSex,
-        };
-      }
 
       let dbError = null;
 
@@ -202,41 +181,6 @@ export default function CompleteRegistration() {
           <option value="student">Student</option>
           <option value="parent">Parent</option>
         </select>
-
-        {/* ✅ Parent-only child fields */}
-        {userType === "parent" && (
-          <>
-            <input
-              type="text"
-              placeholder="Child's Full Name"
-              className="w-full border p-2 rounded"
-              value={childName}
-              onChange={(e) => setChildName(e.target.value)}
-              required
-            />
-            <label className="block text-gray-700 font-medium">
-              Child's Date of Birth
-            </label>
-            <input
-              type="date"
-              className="w-full border p-2 rounded"
-              value={childDob}
-              onChange={(e) => setChildDob(e.target.value)}
-              required
-            />
-            <select
-              className="w-full border p-2 rounded"
-              value={childSex}
-              onChange={(e) => setChildSex(e.target.value)}
-              required
-            >
-              <option value="">Select Child's Sex</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </>
-        )}
 
         <label className="block text-gray-700 font-medium">Date of Birth</label>
         <input
