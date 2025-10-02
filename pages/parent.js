@@ -411,7 +411,7 @@ export default function ParentPage() {
 
           {/* Search Teachers Tab */}
           {tab==="searchTeacher" && (
-            <div className="w-full max-w-xl space-y-4">
+            <div className="mt-8 w-full max-w-xl space-y-4">
               {/* By Location */}
               <div>
                 <input
