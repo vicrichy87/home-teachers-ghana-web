@@ -17,6 +17,7 @@ export default function ParentPage() {
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [requests, setRequests] = useState([]);
 
   // Modal states
   const [showChildModal, setShowChildModal] = useState(false);
@@ -25,6 +26,7 @@ export default function ParentPage() {
 
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
+  useEffect(() => { if (tab === "requests") fetchRequests(); }, [tab]);
   useEffect(() => {
     async function detectLocation() {
       try {
@@ -75,6 +77,22 @@ export default function ParentPage() {
     } catch (err) { alert(err.message || String(err)); }
   }
 
+  async function fetchRequests() {
+    try {
+      const { data, error } = await supabase
+        .from("requests")
+        .select(`
+          id, created_at, subject, level, city,
+          student:student_id ( full_name )
+        `)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (err) {
+      alert(err.message || String(err));
+    }
+  }
+
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -108,7 +126,7 @@ export default function ParentPage() {
     finally { setUploading(false); }
   }
 
-  // Modal functions
+   // Modal functions
   function openAddChildModal() {
     setEditingChild(null);
     setChildForm({ full_name: "", sex: "", dob: "" });
@@ -230,7 +248,7 @@ export default function ParentPage() {
       setTab("myChildTeachers");
     } catch (err) { alert(err.message || String(err)); }
   }
-
+  
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
   return (
@@ -239,14 +257,17 @@ export default function ParentPage() {
         <Banner />
         <div className="mt-4">
           {/* Tabs */}
-          <div className="flex gap-3">
-            {["profile", "searchTeacher", "myChildTeachers"].map(t => (
+          <div className="flex gap-3 flex-wrap">
+            {["profile", "searchTeacher", "myChildTeachers", "requests"].map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className={`px-3 py-1 rounded ${tab===t? "bg-sky-600 text-white":"bg-sky-50"}`}
               >
-                {t==="profile" ? "Profile" : t==="searchTeacher"? "Search Teachers" : "My Child’s Teachers"}
+                {t==="profile" ? "Profile" 
+                 : t==="searchTeacher"? "Search Teachers" 
+                 : t==="myChildTeachers"? "My Child’s Teachers" 
+                 : "Requests"}
               </button>
             ))}
           </div>
@@ -511,6 +532,26 @@ export default function ParentPage() {
                         Date added: {new Date(m.date_added).toLocaleDateString()} — Expires: {new Date(m.expiry_date).toLocaleDateString()}
                       </div>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+
+          {/* NEW: Requests Tab */}
+          {tab==="requests" && (
+            <div className="mt-4">
+              <h4 className="font-semibold mb-2">All Requests</h4>
+              <div className="max-h-96 overflow-y-scroll border rounded p-3 bg-gray-50 space-y-3">
+                {requests.length === 0 && <div className="text-slate-600">No requests available.</div>}
+                {requests.map((r) => (
+                  <div key={r.id} className="p-3 border bg-white rounded">
+                    <div><strong>Student:</strong> {r.student?.full_name}</div>
+                    <div><strong>Subject:</strong> {r.subject}</div>
+                    <div><strong>Level:</strong> {r.level}</div>
+                    <div><strong>City:</strong> {r.city}</div>
+                    <div className="text-xs text-slate-500">Posted: {new Date(r.created_at).toLocaleString()}</div>
                   </div>
                 ))}
               </div>
