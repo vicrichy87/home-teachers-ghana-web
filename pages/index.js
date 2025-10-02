@@ -101,13 +101,13 @@ export default function Home() {
       <Banner />
 
       {/* 🔹 Scroll Bar with Requests */}
-      <div className="bg-blue-100 py-2 overflow-x-auto whitespace-nowrap">
-        <div className="flex space-x-6 px-4">
+      <div className="bg-blue-100 py-2 overflow-x-auto">
+        <div className="flex space-x-6 px-4 whitespace-nowrap">
           {requests.length > 0 ? (
             requests.map((req) => (
               <button
                 key={req.id}
-                className="flex items-center space-x-2 text-sm text-blue-700 hover:underline truncate max-w-xs"
+                className="inline-flex items-center space-x-2 text-sm text-blue-700 hover:underline"
                 onClick={() => setSelectedRequest(req)}
               >
                 <span className="text-red-500">⚠️</span>
