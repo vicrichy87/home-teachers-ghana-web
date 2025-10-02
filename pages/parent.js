@@ -346,7 +346,7 @@ export default function ParentPage() {
                 <div className="mt-4 space-y-2">
                   <h4 className="font-semibold">My Children</h4>
                   {children.map(c => (
-                    <div key={c.id} className="p-2 border rounded bg-gray-50 flex justify-between items-center gap-4">
+                    <div key={c.id} className="p-2 border rounded bg-gray-50 flex justify-start items-center">
                       <div>
                         <div><strong>Name:</strong> {c.full_name}</div>
                         <div><strong>Sex:</strong> {c.sex}</div>
