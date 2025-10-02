@@ -569,7 +569,7 @@ export default function ParentPage() {
 
           {/* NEW: Requests Tab */}
           {tab==="requests" && (
-           <div className="mt-4">
+           <div className="mt-4 max-w-2xl mx-auto">
              <h4 className="font-semibold mb-2">All Requests</h4>
 
              {/* Request Form */}
