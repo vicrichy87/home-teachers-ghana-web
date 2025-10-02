@@ -81,24 +81,42 @@ export default function Home() {
   }, []);
 
   // 🔹 Teacher applies for request
-  const handleApplyForRequest = async () => {
+const handleApplyForRequest = async () => {
+  try {
+    // ✅ Check if user is a teacher
     if (!isTeacher) {
       alert("Only teachers can apply for requests.");
       return;
     }
 
-    if (!applicationForm.monthly_rate) {
-      alert("Please enter your monthly rate.");
-      return;
-    }
-
+    // ✅ Check if a request is selected
     if (!selectedRequest?.id) {
-      alert("Invalid request selected.");
+      alert("No valid request selected.");
       return;
     }
 
-    try {
-      const { error } = await supabase.from("request_applications").insert([
+    // ✅ Check if monthly rate is entered
+    if (!applicationForm.monthly_rate || isNaN(applicationForm.monthly_rate)) {
+      alert("Please enter a valid monthly rate.");
+      return;
+    }
+
+    // 🔹 Verify the request exists in the 'requests' table
+    const { data: requestCheck, error: checkError } = await supabase
+      .from("requests")
+      .select("id")
+      .eq("id", selectedRequest.id)
+      .single();
+
+    if (checkError || !requestCheck) {
+      alert("This request no longer exists.");
+      return;
+    }
+
+    // 🔹 Insert application safely
+    const { error: insertError } = await supabase
+      .from("request_applications")
+      .insert([
         {
           request_id: selectedRequest.id,
           teacher_id: user.id,
@@ -108,16 +126,17 @@ export default function Home() {
         },
       ]);
 
-      if (error) throw error;
+    if (insertError) throw insertError;
 
-      alert("Application submitted successfully!");
-      setSelectedRequest(null);
-      setApplicationForm({ monthly_rate: "" });
-    } catch (err) {
-      alert("Error submitting application: " + (err.message || err));
-      console.error(err);
-    }
-  };
+    alert("Application submitted successfully!");
+    setSelectedRequest(null);
+    setApplicationForm({ monthly_rate: "" });
+  } catch (err) {
+    console.error("Error applying for request:", err);
+    alert("Error submitting application: " + (err.message || err));
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-50">
