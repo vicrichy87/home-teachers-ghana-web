@@ -58,7 +58,6 @@ export default function Home() {
           if (profileError) throw profileError;
 
           setIsTeacher(profileData.user_type?.toLowerCase() === "teacher");
-          console.log("Logged-in user:", profileData);
         }
 
         // 📝 Fetch latest requests
@@ -80,63 +79,59 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // 🔹 Teacher applies for request
-const handleApplyForRequest = async () => {
-  try {
-    // ✅ Check if user is a teacher
-    if (!isTeacher) {
-      alert("Only teachers can apply for requests.");
-      return;
+  // 🔹 Teacher applies for request safely
+  const handleApplyForRequest = async () => {
+    try {
+      if (!isTeacher) {
+        alert("Only teachers can apply for requests.");
+        return;
+      }
+
+      if (!selectedRequest?.id) {
+        alert("No valid request selected.");
+        return;
+      }
+
+      if (!applicationForm.monthly_rate || isNaN(applicationForm.monthly_rate)) {
+        alert("Please enter a valid monthly rate.");
+        return;
+      }
+
+      // ✅ Check if request exists
+      const { data: requestCheck, error: checkError } = await supabase
+        .from("requests")
+        .select("id")
+        .eq("id", selectedRequest.id)
+        .single();
+
+      if (checkError || !requestCheck) {
+        alert("This request no longer exists.");
+        return;
+      }
+
+      // 🔹 Insert application safely
+      const { error: insertError } = await supabase
+        .from("request_applications")
+        .insert([
+          {
+            request_id: selectedRequest.id, // must match existing request
+            teacher_id: user.id,
+            monthly_rate: parseFloat(applicationForm.monthly_rate),
+            status: "pending",              // ensure this column exists
+            date_applied: new Date().toISOString(),
+          },
+        ]);
+
+      if (insertError) throw insertError;
+
+      alert("Application submitted successfully!");
+      setSelectedRequest(null);
+      setApplicationForm({ monthly_rate: "" });
+    } catch (err) {
+      console.error("Error applying for request:", err);
+      alert("Error submitting application: " + (err.message || err));
     }
-
-    // ✅ Check if a request is selected
-    if (!selectedRequest?.id) {
-      alert("No valid request selected.");
-      return;
-    }
-
-    // ✅ Check if monthly rate is entered
-    if (!applicationForm.monthly_rate || isNaN(applicationForm.monthly_rate)) {
-      alert("Please enter a valid monthly rate.");
-      return;
-    }
-
-    // 🔹 Verify the request exists in the 'requests' table
-    const { data: requestCheck, error: checkError } = await supabase
-      .from("requests")
-      .select("id")
-      .eq("id", selectedRequest.id)
-      .single();
-
-    if (checkError || !requestCheck) {
-      alert("This request no longer exists.");
-      return;
-    }
-
-    // 🔹 Insert application safely
-    const { error: insertError } = await supabase
-      .from("request_applications")
-      .insert([
-        {
-          request_id: selectedRequest.id,
-          teacher_id: user.id,
-          monthly_rate: parseFloat(applicationForm.monthly_rate),
-          status: "pending",
-          date_applied: new Date().toISOString(),
-        },
-      ]);
-
-    if (insertError) throw insertError;
-
-    alert("Application submitted successfully!");
-    setSelectedRequest(null);
-    setApplicationForm({ monthly_rate: "" });
-  } catch (err) {
-    console.error("Error applying for request:", err);
-    alert("Error submitting application: " + (err.message || err));
-  }
-};
-
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
