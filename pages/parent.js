@@ -343,7 +343,7 @@ export default function ParentPage() {
 
               {/* Children List */}
               {children.length > 0 && (
-                <div className="w-full max-w-md space-y-4">
+                <div className="mt-8 w-full max-w-md space-y-4">
                   <h4 className="font-semibold">My Children</h4>
                   {children.map(c => (
                     <div key={c.id} className="p-3 border rounded bg-gray-50">
