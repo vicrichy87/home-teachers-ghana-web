@@ -82,10 +82,7 @@ export default function ParentPage() {
     try {
       const { data, error } = await supabase
         .from("requests")
-        .select(`
-          id, created_at, city, request_text, user_id,
-          student:student_id ( full_name )
-        `)
+        .select("id, created_at, city, request_text, user_id")    
         .order("created_at", { ascending: false });
       if (error) throw error;
       setRequests(data || []);
