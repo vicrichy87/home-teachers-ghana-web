@@ -302,7 +302,7 @@ export default function ParentPage() {
 
           {/* Profile Tab */}
           {tab==="profile" && (
-            <div className="mt-4">
+            <div className="mt-4 max-w-2xl mx-auto">
               <div className="flex gap-4">
                 <div>
                   <img
