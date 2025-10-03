@@ -159,7 +159,7 @@ export default function ParentPage() {
   const { data, error } = await supabase
     .from("request_applications")
     .select(`
-      id, status, created_at,
+      id, status, created_at, monthly_rate, date_applied
       teacher:profiles(full_name, email)
     `)
     .eq("request_id", requestId);
@@ -168,7 +168,7 @@ export default function ParentPage() {
     console.error("Error fetching applications:", error.message);
   } else {
     setApplications(data || []);
-    setShowModal(true);
+    setShowApplicationsModal(true);
   }
  };
 
