@@ -779,7 +779,7 @@ export default function ParentPage() {
            <div className="max-h-96 overflow-y-scroll border rounded p-3 bg-gray-50 space-y-3">
              {requests.length === 0 && <div className="text-slate-600">No requests available.</div>}
              {requests.map((r) => (
-               <div key={r.id} className="p-3 border bg-white rounded">
+               <div key={r.id} className={`p-3 border rounded ${r.status==="fulfilled" ? "bg-purple-100 border-purple-600" : "bg-white"}`}>
                <div className="text-gray-800">{r.request_text}</div>
                <div className="text-sm text-slate-600">Location: {r.city || "N/A"}</div>
                <div className="text-xs text-slate-500">
