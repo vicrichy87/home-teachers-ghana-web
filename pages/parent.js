@@ -691,6 +691,50 @@ export default function ParentPage() {
      </div>
    </div>
  )}
+       {/* Applications Modal */}
+       {showApplicationsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+        <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
+         <h4 className="font-semibold mb-3">Applications</h4>
+          {applications.length === 0 ? (
+           <p>No applications yet.</p>
+      ) : (
+            applications.map((app) => (
+          <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
+            <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
+            <p><strong>Rate:</strong> {app.monthly_rate}</p>
+            <p><strong>Status:</strong> {app.status}</p>
+            <p className="text-xs text-gray-500">
+              Applied: {new Date(app.date_applied).toLocaleString()}
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button
+                className="px-3 py-1 rounded bg-green-600 text-white"
+                onClick={() => handleUpdateApplicationStatus(app.id, "accepted")}
+              >
+                Accept
+              </button>
+              <button
+                className="px-3 py-1 rounded bg-red-600 text-white"
+                onClick={() => handleUpdateApplicationStatus(app.id, "rejected")}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+      <div className="mt-3 text-right">
+        <button
+          className="px-3 py-1 rounded bg-gray-400 text-white"
+          onClick={() => setShowApplicationsModal(false)}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 
 </div>
