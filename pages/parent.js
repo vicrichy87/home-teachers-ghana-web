@@ -19,6 +19,9 @@ export default function ParentPage() {
   const [uploading, setUploading] = useState(false);
   const [requests, setRequests] = useState([]);
   const [requestForm, setRequestForm] = useState({ request_text: "", city: "" });
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [selectedRequestStatus, setSelectedRequestStatus] = useState(null);
+
 
   // Modal states
   const [showChildModal, setShowChildModal] = useState(false);
@@ -149,22 +152,25 @@ export default function ParentPage() {
   }
  }
 
-  async function handleViewApplications(requestId) {
-  try {
-    const { data, error } = await supabase
-      .from("request_applications")
-      .select(
-        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
-      )
-      .eq("request_id", requestId);
-    if (error) throw error;
+  const handleViewApplications = async (requestId, status) => {
+  setSelectedRequestId(requestId);
+  setSelectedRequestStatus(status); // 👈 store parent request status
+
+  const { data, error } = await supabase
+    .from("request_applications")
+    .select(`
+      id, status, created_at,
+      teacher:profiles(full_name, email)
+    `)
+    .eq("request_id", requestId);
+
+  if (error) {
+    console.error("Error fetching applications:", error.message);
+  } else {
     setApplications(data || []);
-    setCurrentRequestId(requestId);
-    setShowApplicationsModal(true);
-  } catch (err) {
-    alert(err.message || String(err));
+    setShowModal(true);
   }
- }
+ };
 
   async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
   try {
@@ -714,7 +720,7 @@ export default function ParentPage() {
          )}
            <button
              className="px-3 py-1 rounded bg-green-600 text-white"
-             onClick={() => handleViewApplications(r.id)}
+             onClick={() => handleViewApplications(r.id, r.status)}
            >
              View Applications
            </button>
@@ -733,26 +739,32 @@ export default function ParentPage() {
            <p>No applications yet.</p>
           ) : (
               applications.map((app) => (
-            <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
-            <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
-            <p><strong>Rate:</strong> {app.monthly_rate}</p>
-            <p><strong>Status:</strong> {app.status}</p>
-            <p className="text-xs text-gray-500">
-              Applied: {new Date(app.date_applied).toLocaleString()}
-            </p>
-            <div className="flex gap-2 mt-2">
-              <button
-                className="px-3 py-1 rounded bg-green-600 text-white"
-                onClick={() => handleUpdateApplicationStatus(app.id, "accepted", app.request_id)}
-              >
-                Accept
-              </button>
-              <button
-                className="px-3 py-1 rounded bg-red-600 text-white"
-                onClick={() => handleUpdateApplicationStatus(app.id, "rejected")}
-              >
-                Reject
-              </button>
+                <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
+                 <div>
+                   <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
+                   <p><strong>Rate:</strong> {app.monthly_rate}</p>
+                   <p><strong>Status:</strong> {app.status}</p>
+                   <p className="text-xs text-gray-500">Applied: {new Date(app.date_applied).toLocaleString()}</p>
+                 </div>
+                 <div className="flex gap-2 mt-2">
+                   {selectedRequestStatus !== "fulfilled" ? (
+                     <>
+                       <button
+                         className="px-3 py-1 rounded bg-green-600 text-white"
+                         onClick={() => handleUpdateApplicationStatus(app.id, "accepted", selectedRequestID)}
+                       >
+                         Accept
+                       </button>
+                       <button
+                         className="px-3 py-1 rounded bg-red-600 text-white"
+                         onClick={() => handleUpdateApplicationStatus(app.id, "rejected", selectedRequestID")}
+                       >
+                         Reject
+                       </button>
+                     </>
+                   ) : (
+                     <span className="text-gray-500 italic">Request fulfilled</span>
+                   )}
             </div>
           </div>
         ))
