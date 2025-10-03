@@ -214,15 +214,13 @@ export default function ParentPage() {
   }
  }
 
-  async function handleViewApplications(requestId, requestStatus) {
+  async function handleViewApplications(requestId, requestStatus, childId) {
   try {
     const { data, error } = await supabase
       .from("request_applications")
-      .select(`
-        id, monthly_rate, status, date_applied, request_id,
-        teacher:teacher_id (id, full_name, email),
-        request:request_id (child_id)
-      `)
+      .select(
+        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
+      )
       .eq("request_id", requestId);
 
     if (error) throw error;
@@ -230,6 +228,7 @@ export default function ParentPage() {
     setApplications(data || []);
     setCurrentRequestId(requestId);
     setSelectedRequestStatus(requestStatus);  // ✅ Track the status of the parent request
+    setSelectedChildId(childId);
     setShowApplicationsModal(true);
   } catch (err) {
     alert(err.message || String(err));
@@ -839,7 +838,7 @@ export default function ParentPage() {
          )}
            <button
              className="px-3 py-1 rounded bg-green-600 text-white"
-             onClick={() => handleViewApplications(r.id, r.status)}
+             onClick={() => handleViewApplications(r.id, r.status, r.child_id)}
            >
              View Applications
            </button>
