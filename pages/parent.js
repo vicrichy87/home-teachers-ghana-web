@@ -166,19 +166,49 @@ export default function ParentPage() {
   }
  }
 
-  async function handleUpdateApplicationStatus(appId, newStatus) {
+  async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
   try {
-    const { error } = await supabase
-      .from("request_applications")
-      .update({ status: newStatus })
-      .eq("id", appId);
-    if (error) throw error;
-    // Refresh applications list
-    handleViewApplications(currentRequestId);
+    if (newStatus === "accepted") {
+      // ✅ Accept chosen teacher
+      const { error: acceptError } = await supabase
+        .from("request_applications")
+        .update({ status: "accepted" })
+        .eq("id", appId);
+
+      if (acceptError) throw acceptError;
+
+      // ✅ Reject all other applications for the same request
+      const { error: rejectError } = await supabase
+        .from("request_applications")
+        .update({ status: "rejected" })
+        .eq("request_id", requestId)
+        .neq("id", appId);
+
+      if (rejectError) throw rejectError;
+
+      // ✅ Update the request itself to mark it fulfilled
+      const { error: requestUpdateError } = await supabase
+        .from("requests")
+        .update({ status: "fulfilled" })
+        .eq("id", requestId);
+
+      if (requestUpdateError) throw requestUpdateError;
+    } else {
+      // 🔹 If rejecting individually, just update that record
+      const { error } = await supabase
+        .from("request_applications")
+        .update({ status: newStatus })
+        .eq("id", appId);
+
+      if (error) throw error;
+    }
+
+    // Refresh applications modal
+    handleViewApplications(requestId);
   } catch (err) {
-    alert(err.message || String(err));
+    alert("Error updating application: " + (err.message || err));
   }
- }
+}
 
   async function uploadProfileImage(file) {
     try {
