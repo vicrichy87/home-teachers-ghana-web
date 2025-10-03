@@ -745,48 +745,47 @@ export default function ParentPage() {
       ) : (
           <ul className="space-y-3">
             applications.map((app) => (
-                 <li
-      key={app.id}
-      className={`p-3 border rounded flex justify-between items-center
-        ${app.status === "accepted" ? "border-green-500 bg-green-50" : ""}
-        ${app.status === "rejected" ? "border-red-500 bg-red-50" : ""}
-      `}
-    >
-      <div>
-        <p><strong>Teacher:</strong> {app.teacher?.full_name || "Unknown"}</p>
-        <p><strong>Rate:</strong> GHC {app.monthly_rate}</p>
-        <p><strong>Status:</strong>{" "}
-          {app.status === "accepted" ? (
-            <span className="text-green-600 font-semibold">✅ Accepted</span>
-          ) : app.status === "rejected" ? (
-            <span className="text-red-600 font-semibold">❌ Rejected</span>
-          ) : (
-            <span className="text-yellow-600 font-semibold capitalize">⏳ Pending</span>
-          )}
-        </p>
-      </div>
+              <li
+                key={app.id}
+                className={`p-3 border rounded flex justify-between items-center
+                ${app.status === "accepted" ? "border-green-500 bg-green-50" : ""}
+                ${app.status === "rejected" ? "border-red-500 bg-red-50" : ""}
+                `}
+              >
+               <div>
+                 <p><strong>Teacher:</strong> {app.teacher?.full_name || "Unknown"}</p>
+                 <p><strong>Rate:</strong> GHC {app.monthly_rate}</p>
+                 <p><strong>Status:</strong>{" "}
+                   {app.status === "accepted" ? (
+                     <span className="text-green-600 font-semibold">✅ Accepted</span>
+                   ) : app.status === "rejected" ? (
+                     <span className="text-red-600 font-semibold">❌ Rejected</span>
+                   ) : (
+                     <span className="text-yellow-600 font-semibold capitalize">⏳ Pending</span>
+                   )}
+                 </p>
+               </div>
 
-      {/* Hide buttons if request fulfilled */}
-      {selectedRequest?.status !== "fulfilled" && app.status === "pending" && (
-        <div className="flex gap-2">
-          <button
-            className="bg-green-600 text-white px-3 py-1 rounded"
-            onClick={() => handleAcceptApplication(app.id, selectedRequest.id)}
-          >
-            Accept
-          </button>
-          <button
-            className="bg-red-600 text-white px-3 py-1 rounded"
-            onClick={() => handleRejectApplication(app.id)}
-          >
-            Reject
-          </button>
-        </div>
-      )}
-    </li>
-  ))}
-</ul>
-
+               {/* Hide buttons if request fulfilled */}
+               {selectedRequest?.status !== "fulfilled" && app.status === "pending" && (
+                 <div className="flex gap-2">
+                   <button
+                     className="bg-green-600 text-white px-3 py-1 rounded"
+                     onClick={() => handleAcceptApplication(app.id, selectedRequest.id)}
+                 >
+                     Accept
+                   </button>
+                   <button
+                     className="bg-red-600 text-white px-3 py-1 rounded"
+                     onClick={() => handleRejectApplication(app.id)}
+                 >
+                     Reject
+                 </button>
+               </div>
+             )}
+           </li>
+         ))}
+       </ul>
 
 </div>
 </div>
