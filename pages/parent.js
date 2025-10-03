@@ -21,6 +21,8 @@ export default function ParentPage() {
   const [requestForm, setRequestForm] = useState({ request_text: "", city: "" });
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [selectedRequestStatus, setSelectedRequestStatus] = useState(null);
+  const [user, setUser] = useState(null);
+
 
 
   // Modal states
@@ -31,9 +33,68 @@ export default function ParentPage() {
   const [showApplicationsModal, setShowApplicationsModal] = useState(false);
   const [currentRequestId, setCurrentRequestId] = useState(null);
 
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) {
+        router.push("/login");
+        return;
+      }
+      setUser(authData.user);
+    };
+    getUser();
+  }, []);
+  
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
-  useEffect(() => { if (tab === "requests") fetchRequests(); }, [tab]);
+  useEffect(() => {
+  const fetchRequests = async () => {
+    try {
+      const { data: requestsData, error: reqError } = await supabase
+        .from("requests")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (reqError) throw reqError;
+
+      // Sort: fulfilled first
+      const sortedRequests = (requestsData || []).sort((a, b) => {
+        if (a.status === "fulfilled" && b.status !== "fulfilled") return -1;
+        if (a.status !== "fulfilled" && b.status === "fulfilled") return 1;
+        return 0;
+      });
+
+      setRequests(sortedRequests);
+    } catch (err) {
+      console.error("Error fetching requests:", err);
+    }
+  };
+
+  if (user && tab === "requests") {
+    fetchRequests();
+
+    // Real-time subscription
+    const channel = supabase
+      .channel("requests-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "requests",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          fetchRequests(); // re-fetch & re-sort
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }
+}, [user, tab]);
+
   useEffect(() => {
     async function detectLocation() {
       try {
