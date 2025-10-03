@@ -690,29 +690,43 @@ export default function ParentPage() {
            <div className="max-h-96 overflow-y-scroll border rounded p-3 bg-gray-50 space-y-3">
              {requests.length === 0 && <div className="text-slate-600">No requests available.</div>}
              {requests.map((r) => (
-               <div key={r.id} className="p-3 border bg-white rounded">
-               <div className="text-gray-800">{r.request_text}</div>
-               <div className="text-sm text-slate-600">Location: {r.city || "N/A"}</div>
-               <div className="text-xs text-slate-500">
-                 Posted: {new Date(r.created_at).toLocaleString()}
-           </div>
-           <div className="flex gap-2 mt-2">
-             <button
-               className="px-3 py-1 rounded bg-blue-500 text-white"
-               onClick={() => handleEditRequest(r.id, r.request_text)}  
-             >
-               Edit 
-             </button>
-             <button 
-               className="px-3 py-1 rounded bg-red-500 text-white"
-               onClick={() => handleDeleteRequest(r.id)}
-             >
-               Delete
-             </button>
-             <button
-               className="px-3 py-1 rounded bg-green-600 text-white"
-               onClick={() => handleViewApplications(r.id)}
-             >
+               <div key={r.id} 
+                 className={`border p-3 rounded mb-3 ${
+      req.status === "fulfilled" ? "border-green-500 bg-green-50" : "border-gray-300"
+    }`}
+  >
+    <p><strong>Request:</strong> {req.request_text}</p>
+    <p><strong>City:</strong> {req.city}</p>
+    <p>
+      <strong>Status:</strong>{" "}
+      {req.status === "fulfilled" ? (
+        <span className="text-green-600 font-semibold">Fulfilled</span>
+      ) : (
+        <span className="text-yellow-600 font-semibold">Pending</span>
+      )}
+    </p>
+
+    <div className="flex gap-2 mt-2">
+      {req.status !== "fulfilled" && (
+        <>
+          <button
+            className="bg-blue-500 text-white px-2 py-1 rounded"
+            onClick={() => handleEditRequest(req.id, req.request_text)}
+          >
+            Edit
+          </button>
+          <button
+            className="bg-red-500 text-white px-2 py-1 rounded"
+            onClick={() => handleDeleteRequest(req.id)}
+          >
+            Delete
+          </button>
+        </>
+      )}
+      <button
+        className="bg-green-500 text-white px-2 py-1 rounded"
+        onClick={() => handleViewApplications(req.id)}
+      >
                View Applications
              </button>
             </div>
@@ -729,42 +743,49 @@ export default function ParentPage() {
           {applications.length === 0 ? (
            <p>No applications yet.</p>
       ) : (
+          <ul className="space-y-3">
             applications.map((app) => (
-          <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
-            <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
-            <p><strong>Rate:</strong> {app.monthly_rate}</p>
-            <p><strong>Status:</strong> {app.status}</p>
-            <p className="text-xs text-gray-500">
-              Applied: {new Date(app.date_applied).toLocaleString()}
-            </p>
-            <div className="flex gap-2 mt-2">
-              <button
-                className="px-3 py-1 rounded bg-green-600 text-white"
-                onClick={() => handleUpdateApplicationStatus(app.id, "accepted", app.request_id)}
-              >
-                Accept
-              </button>
-              <button
-                className="px-3 py-1 rounded bg-red-600 text-white"
-                onClick={() => handleUpdateApplicationStatus(app.id, "rejected")}
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        ))
-      )}
-      <div className="mt-3 text-right">
-        <button
-          className="px-3 py-1 rounded bg-gray-400 text-white"
-          onClick={() => setShowApplicationsModal(false)}
-        >
-          Close
-        </button>
+                 <li
+      key={app.id}
+      className={`p-3 border rounded flex justify-between items-center
+        ${app.status === "accepted" ? "border-green-500 bg-green-50" : ""}
+        ${app.status === "rejected" ? "border-red-500 bg-red-50" : ""}
+      `}
+    >
+      <div>
+        <p><strong>Teacher:</strong> {app.teacher?.full_name || "Unknown"}</p>
+        <p><strong>Rate:</strong> GHC {app.monthly_rate}</p>
+        <p><strong>Status:</strong>{" "}
+          {app.status === "accepted" ? (
+            <span className="text-green-600 font-semibold">✅ Accepted</span>
+          ) : app.status === "rejected" ? (
+            <span className="text-red-600 font-semibold">❌ Rejected</span>
+          ) : (
+            <span className="text-yellow-600 font-semibold capitalize">⏳ Pending</span>
+          )}
+        </p>
       </div>
-    </div>
-  </div>
-)}
+
+      {/* Hide buttons if request fulfilled */}
+      {selectedRequest?.status !== "fulfilled" && app.status === "pending" && (
+        <div className="flex gap-2">
+          <button
+            className="bg-green-600 text-white px-3 py-1 rounded"
+            onClick={() => handleAcceptApplication(app.id, selectedRequest.id)}
+          >
+            Accept
+          </button>
+          <button
+            className="bg-red-600 text-white px-3 py-1 rounded"
+            onClick={() => handleRejectApplication(app.id)}
+          >
+            Reject
+          </button>
+        </div>
+      )}
+    </li>
+  ))}
+</ul>
 
 
 </div>
