@@ -751,13 +751,13 @@ export default function ParentPage() {
                      <>
                        <button
                          className="px-3 py-1 rounded bg-green-600 text-white"
-                         onClick={() => handleUpdateApplicationStatus(app.id, "accepted", selectedRequestID)}
+                         onClick={() => handleUpdateApplicationStatus(app.id, "accepted", selectedRequestId)}
                        >
                          Accept
                        </button>
                        <button
                          className="px-3 py-1 rounded bg-red-600 text-white"
-                         onClick={() => handleUpdateApplicationStatus(app.id, "rejected", selectedRequestID)}
+                         onClick={() => handleUpdateApplicationStatus(app.id, "rejected", selectedRequestId)}
                        >
                          Reject
                        </button>
