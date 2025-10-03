@@ -152,25 +152,26 @@ export default function ParentPage() {
   }
  }
 
-  const handleViewApplications = async (requestId, status) => {
-  setSelectedRequestId(requestId);
-  setSelectedRequestStatus(status); // 👈 store parent request status
+  async function handleViewApplications(requestId, requestStatus) {
+  try {
+    const { data, error } = await supabase
+      .from("request_applications")
+      .select(
+        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
+      )
+      .eq("request_id", requestId);
 
-  const { data, error } = await supabase
-    .from("request_applications")
-    .select(`
-      id, status, created_at, monthly_rate, date_applied,
-      teacher:teacher_id(full_name, email)
-    `)
-    .eq("request_id", requestId);
+    if (error) throw error;
 
-  if (error) {
-    console.error("Error fetching applications:", error.message);
-  } else {
     setApplications(data || []);
+    setCurrentRequestId(requestId);
+    setSelectedRequestStatus(requestStatus);  // ✅ Track the status of the parent request
     setShowApplicationsModal(true);
+  } catch (err) {
+    alert(err.message || String(err));
   }
- };
+}
+
 
   async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
   try {
