@@ -218,9 +218,11 @@ export default function ParentPage() {
   try {
     const { data, error } = await supabase
       .from("request_applications")
-      .select(
-        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
-      )
+      .select(`
+        id, monthly_rate, status, date_applied, request_id,
+        teacher:teacher_id (id, full_name, email),
+        request:request_id (child_id)
+      `)
       .eq("request_id", requestId);
 
     if (error) throw error;
@@ -238,7 +240,7 @@ export default function ParentPage() {
     try {
       const acceptedApplication = applications.find(a => a.id === appId);
       const teacherId = acceptedApplication?.teacher?.id;
-      const childId = acceptedApplication?.request?.child_id || selectedChildId; // child from request
+      const childId = acceptedApplication?.request?.child_id; // child from request
 
     if (newStatus === "accepted") {
       // ✅ Accept chosen teacher
