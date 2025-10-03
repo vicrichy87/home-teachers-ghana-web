@@ -172,7 +172,8 @@ export default function ParentPage() {
       {
         user_id: user.id,
         request_text: requestForm.request_text,
-        city: requestForm.city
+        city: requestForm.city,
+        child_id: selectedChildId || null
       }
     ]);
     if (error) throw error;
@@ -731,6 +732,27 @@ export default function ParentPage() {
           {/* Request Form */}
             <div className="p-4 mb-4 border rounded bg-white">
               <h5 className="font-semibold mb-2">Create a Request</h5>
+                <label className="flex items-center gap-2 mb-2">
+                  <input 
+                    type="checkbox"
+                    checked={!!selectedChildId}
+                    onChange={(e) => setSelectedChildId(e.target.checked ? children[0]?.id || "" : "")}
+                  />
+                    This request is for one of my children
+                </label>
+                    {selectedChildId !== "" && (
+                     <select
+                       className="w-full p-2 mb-2 border rounded"
+                       value={selectedChildId}
+                       onChange={(e) => setSelectedChildId(e.target.value)}
+                     >
+                     <option value="">-- Select Child --</option>
+                       {children.map(c => (
+                         <option key={c.id} value={c.id}>{c.full_name}</option>
+                     ))}
+                   </select>
+                 )}
+
                 <textarea
                   placeholder="Type what kind of teacher or classes you are looking for..."
                   className="w-full p-2 mb-2 border rounded"
@@ -762,6 +784,11 @@ export default function ParentPage() {
                <div className="text-sm text-slate-600">Location: {r.city || "N/A"}</div>
                <div className="text-xs text-slate-500">
                  Posted: {new Date(r.created_at).toLocaleString()}
+               {r.child_id && (
+                 <div className="text-sm text-slate-600">
+                   For Child: {children.find(c => c.id === r.child_id)?.full_name || "Unknown"}
+                 </div>
+               )}
            </div>
            <div className="flex gap-2 mt-2">
               {r.status !== "fulfilled" && (
