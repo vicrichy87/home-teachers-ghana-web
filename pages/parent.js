@@ -24,6 +24,9 @@ export default function ParentPage() {
   const [showChildModal, setShowChildModal] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
   const [childForm, setChildForm] = useState({ full_name: "", sex: "", dob: "" });
+  const [applications, setApplications] = useState([]);
+  const [showApplicationsModal, setShowApplicationsModal] = useState(false);
+  const [currentRequestId, setCurrentRequestId] = useState(null);
 
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
@@ -113,6 +116,65 @@ export default function ParentPage() {
     alert("Request created successfully");
     setRequestForm({ request_text: "", city: "" });
     fetchRequests();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+ }
+
+  async function handleDeleteRequest(id) {
+  if (!confirm("Are you sure you want to delete this request?")) return;
+  try {
+    const { error } = await supabase.from("requests").delete().eq("id", id);
+    if (error) throw error;
+    alert("Request deleted successfully");
+    fetchRequests();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+ }
+
+  async function handleEditRequest(id, oldText) {
+  const newText = prompt("Edit your request:", oldText);
+  if (!newText) return;
+  try {
+    const { error } = await supabase
+      .from("requests")
+      .update({ request_text: newText })
+      .eq("id", id);
+    if (error) throw error;
+    alert("Request updated successfully");
+    fetchRequests();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+ }
+
+  async function handleViewApplications(requestId) {
+  try {
+    const { data, error } = await supabase
+      .from("request_applications")
+      .select(
+        "id, monthly_rate, status, date_applied, teacher:teacher_id (id, full_name, email)"
+      )
+      .eq("request_id", requestId);
+    if (error) throw error;
+    setApplications(data || []);
+    setCurrentRequestId(requestId);
+    setShowApplicationsModal(true);
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+ }
+
+  async function handleUpdateApplicationStatus(appId, newStatus) {
+  try {
+    const { error } = await supabase
+      .from("request_applications")
+      .update({ status: newStatus })
+      .eq("id", appId);
+    if (error) throw error;
+    // Refresh applications list
+    handleViewApplications(currentRequestId);
   } catch (err) {
     alert(err.message || String(err));
   }
@@ -604,6 +666,26 @@ export default function ParentPage() {
                <div className="text-xs text-slate-500">
                  Posted: {new Date(r.created_at).toLocaleString()}
            </div>
+           <div className="flex gap-2 mt-2">
+             <button
+               className="px-3 py-1 rounded bg-blue-500 text-white"
+               onClick={() => handleEditRequest(r.id, r.request_text)}  
+             >
+               Edit 
+             </button>
+             <button 
+               className="px-3 py-1 rounded bg-red-500 text-white"
+               onClick={() => handleDeleteRequest(r.id)}
+             >
+               Delete
+             </button>
+             <button
+               className="px-3 py-1 rounded bg-green-600 text-white"
+               onClick={() => handleViewApplications(r.id)}
+             >
+               View Applications
+             </button>
+            </div>
          </div>
        ))}
      </div>
