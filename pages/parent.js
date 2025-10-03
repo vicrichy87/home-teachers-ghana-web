@@ -799,3 +799,5 @@ export default function ParentPage() {
          </div>
        </div>
      </div>
+  );
+}
