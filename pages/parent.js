@@ -85,7 +85,7 @@ export default function ParentPage() {
     try {
       const { data, error } = await supabase
         .from("requests")
-        .select("id, created_at, city, request_text, user_id")    
+        .select("id, created_at, city, request_text, user_id, status")    
         .order("created_at", { ascending: false });
       if (error) throw error;
       setRequests(data || []);
@@ -655,29 +655,28 @@ export default function ParentPage() {
             </div>
           )}
           
-
-          {/* NEW: Requests Tab */}
-          {tab==="requests" && (
+         {/* NEW: Requests Tab */}
+         {tab==="requests" && (
            <div className="mt-4 w-full max-w-md space-y-4">
              <h4 className="font-semibold mb-2">All Requests</h4>
 
-             {/* Request Form */}
-             <div className="p-4 mb-4 border rounded bg-white">
-               <h5 className="font-semibold mb-2">Create a Request</h5>
-               <textarea
-                 placeholder="Type what kind of teacher or classes you are looking for..."
-                 className="w-full p-2 mb-2 border rounded"
-                 rows={3}
-                 value={requestForm.request_text}
-                 onChange={(e)=>setRequestForm({...requestForm, request_text:e.target.value})}
-             />
-             <input
-               type="text"
-               placeholder="City / Location"
-               className="w-full p-2 mb-2 border rounded"
-               value={requestForm.city}
-               onChange={(e)=>setRequestForm({...requestForm, city:e.target.value})}
-             />
+          {/* Request Form */}
+            <div className="p-4 mb-4 border rounded bg-white">
+              <h5 className="font-semibold mb-2">Create a Request</h5>
+                <textarea
+                  placeholder="Type what kind of teacher or classes you are looking for..."
+                  className="w-full p-2 mb-2 border rounded"
+                  rows={3}
+                  value={requestForm.request_text}
+                  onChange={(e)=>setRequestForm({...requestForm, request_text:e.target.value})}
+               />
+                <input
+                  type="text"
+                  placeholder="City / Location"
+                  className="w-full p-2 mb-2 border rounded"
+                  value={requestForm.city}
+                  onChange={(e)=>setRequestForm({...requestForm, city:e.target.value})}
+               />
              <button
                className="bg-green-600 text-white px-4 py-2 rounded"
                onClick={handleSubmitRequest}
@@ -697,6 +696,8 @@ export default function ParentPage() {
                  Posted: {new Date(r.created_at).toLocaleString()}
            </div>
            <div className="flex gap-2 mt-2">
+              {r.status !== "fulfilled" && (
+                <>
              <button
                className="px-3 py-1 rounded bg-blue-500 text-white"
                onClick={() => handleEditRequest(r.id, r.request_text)}  
@@ -709,28 +710,30 @@ export default function ParentPage() {
              >
                Delete
              </button>
-             <button
-               className="px-3 py-1 rounded bg-green-600 text-white"
-               onClick={() => handleViewApplications(r.id)}
-             >
-               View Applications
-             </button>
-            </div>
+           </>
+         )}
+           <button
+             className="px-3 py-1 rounded bg-green-600 text-white"
+             onClick={() => handleViewApplications(r.id)}
+           >
+             View Applications
+           </button>
          </div>
-       ))}
-     </div>
-   </div>
- )}
+       </div>
+    ))}
+  </div>
+</div>
+)}
        {/* Applications Modal */}
        {showApplicationsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-        <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
-         <h4 className="font-semibold mb-3">Applications</h4>
-          {applications.length === 0 ? (
+         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+           <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
+             <h4 className="font-semibold mb-3">Applications</h4>
+           {applications.length === 0 ? (
            <p>No applications yet.</p>
-      ) : (
-            applications.map((app) => (
-          <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
+          ) : (
+              applications.map((app) => (
+            <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
             <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
             <p><strong>Rate:</strong> {app.monthly_rate}</p>
             <p><strong>Status:</strong> {app.status}</p>
