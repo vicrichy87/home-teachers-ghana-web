@@ -10,7 +10,7 @@ export default function Home() {
 
   // 🔹 Requests
   const [requests, setRequests] = useState([]);
-  const [filteredRequests, setFilteredRequests] = useState([]); // 🔹 only valid for teacher
+  const [filteredRequests, setFilteredRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [applicationForm, setApplicationForm] = useState({ monthly_rate: "" });
 
@@ -49,7 +49,6 @@ export default function Home() {
         setUser(loggedUser);
 
         if (loggedUser) {
-          // 🔹 Fetch user profile to get user_type
           const { data: profileData, error: profileError } = await supabase
             .from("users")
             .select("id, full_name, user_type")
@@ -57,28 +56,23 @@ export default function Home() {
             .single();
 
           if (profileError) throw profileError;
-
           setIsTeacher(profileData.user_type?.toLowerCase() === "teacher");
         }
 
         // 📝 Fetch latest requests
         const { data: requestsData, error: reqError } = await supabase
           .from("requests")
-          .select("id, request_text, user_id, city, created_at")
+          .select("id, request_text, user_id, city, created_at, status")
           .order("created_at", { ascending: false })
           .limit(20);
 
         if (reqError) throw reqError;
-        setRequests(requestsData || []);
 
-        // 🔹 Filter requests only for teachers
-        if (isTeacher) {
-          // For teachers, show only requests with a valid id (prevents foreign key issues)
-          const validRequests = requestsData?.filter((r) => r.id);
-          setFilteredRequests(validRequests || []);
-        } else {
-          setFilteredRequests(requestsData || []);
-        }
+        // ✅ Only show pending requests
+        const pendingRequests = requestsData?.filter(r => r.status !== "fulfilled") || [];
+        setRequests(pendingRequests);
+
+        setFilteredRequests(isTeacher ? pendingRequests.filter(r => r.id) : pendingRequests);
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -87,63 +81,102 @@ export default function Home() {
     };
 
     fetchData();
-  }, [isTeacher]); // 🔹 add isTeacher dependency so filtering happens after we know user type
 
-  // 🔹 Teacher applies for request safely
+    // 🔹 Real-time subscription for requests
+    const channel = supabase
+      .channel("requests-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "requests" },
+        (payload) => {
+          console.log("Realtime request change:", payload);
+
+          if (payload.eventType === "INSERT") {
+            // Add new request if not fulfilled
+            if (payload.new.status !== "fulfilled") {
+              setRequests((prev) => [payload.new, ...prev]);
+              setFilteredRequests((prev) => [payload.new, ...prev]);
+            }
+          }
+
+          if (payload.eventType === "UPDATE") {
+            if (payload.new.status === "fulfilled") {
+              // Remove from list if fulfilled
+              setRequests((prev) => prev.filter((r) => r.id !== payload.new.id));
+              setFilteredRequests((prev) => prev.filter((r) => r.id !== payload.new.id));
+            } else {
+              // Otherwise update text/status if edited
+              setRequests((prev) =>
+                prev.map((r) => (r.id === payload.new.id ? payload.new : r))
+              );
+              setFilteredRequests((prev) =>
+                prev.map((r) => (r.id === payload.new.id ? payload.new : r))
+              );
+            }
+          }
+
+          if (payload.eventType === "DELETE") {
+            setRequests((prev) => prev.filter((r) => r.id !== payload.old.id));
+            setFilteredRequests((prev) => prev.filter((r) => r.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isTeacher]);
+
+  // 🔹 Teacher applies for request
   const handleApplyForRequest = async () => {
-  try {
-    if (!isTeacher) {
-      alert("Only teachers can apply for requests.");
-      return;
+    try {
+      if (!isTeacher) {
+        alert("Only teachers can apply for requests.");
+        return;
+      }
+      if (!selectedRequest?.id) {
+        alert("No request selected.");
+        return;
+      }
+      if (!applicationForm.monthly_rate || isNaN(applicationForm.monthly_rate)) {
+        alert("Please enter a valid monthly rate.");
+        return;
+      }
+
+      const { data: requestExists, error: checkError } = await supabase
+        .from("requests")
+        .select("id")
+        .eq("id", selectedRequest.id)
+        .single();
+
+      if (checkError || !requestExists) {
+        alert("This request no longer exists.");
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from("request_applications")
+        .insert([
+          {
+            request_id: selectedRequest.id,
+            teacher_id: user.id,
+            monthly_rate: parseFloat(applicationForm.monthly_rate),
+            status: "pending",
+            date_applied: new Date().toISOString(),
+          },
+        ]);
+
+      if (insertError) throw insertError;
+
+      alert("Application submitted successfully!");
+      setSelectedRequest(null);
+      setApplicationForm({ monthly_rate: "" });
+    } catch (err) {
+      console.error("Error applying for request:", err);
+      alert("Error submitting application: " + (err.message || err));
     }
-
-    if (!selectedRequest?.id) {
-      alert("No request selected.");
-      return;
-    }
-
-    if (!applicationForm.monthly_rate || isNaN(applicationForm.monthly_rate)) {
-      alert("Please enter a valid monthly rate.");
-      return;
-    }
-
-    // ✅ Verify the request exists in the requests table
-    const { data: requestExists, error: checkError } = await supabase
-      .from("requests")
-      .select("id")
-      .eq("id", selectedRequest.id)
-      .single();
-
-    if (checkError || !requestExists) {
-      alert("This request no longer exists.");
-      return;
-    }
-
-    // ✅ Insert application safely
-    const { error: insertError } = await supabase
-      .from("request_applications")
-      .insert([
-        {
-          request_id: selectedRequest.id , // Must match UUID
-          teacher_id: user.id,
-          monthly_rate: parseFloat(applicationForm.monthly_rate),
-          status: "pending",
-          date_applied: new Date().toISOString(),
-        },
-      ]);
-
-    if (insertError) throw insertError;
-
-    alert("Application submitted successfully!");
-    setSelectedRequest(null);
-    setApplicationForm({ monthly_rate: "" });
-
-  } catch (err) {
-    console.error("Error applying for request:", err);
-    alert("Error submitting application: " + (err.message || err));
-  }
-};
-
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -221,7 +254,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Teachers Section */}
       <div className="p-8 text-center">
         <h1 className="text-4xl font-bold text-blue-600 mb-4">
           Welcome to Home Teachers Ghana
@@ -232,7 +265,6 @@ export default function Home() {
           needs.
         </p>
 
-        {/* Teachers Nearby Section */}
         <div className="mt-12">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             Teachers Nearby {userLocation && `in ${userLocation}`}
