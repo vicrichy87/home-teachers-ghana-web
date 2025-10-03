@@ -740,7 +740,7 @@ export default function ParentPage() {
             <div className="flex gap-2 mt-2">
               <button
                 className="px-3 py-1 rounded bg-green-600 text-white"
-                onClick={() => handleUpdateApplicationStatus(app.id, "accepted")}
+                onClick={() => handleUpdateApplicationStatus(app.id, "accepted", app.request_id)}
               >
                 Accept
               </button>
