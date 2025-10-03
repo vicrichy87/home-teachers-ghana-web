@@ -160,7 +160,7 @@ export default function ParentPage() {
     .from("request_applications")
     .select(`
       id, status, created_at, monthly_rate, date_applied,
-      teacher:profiles(full_name, email)
+      teacher:teacher_id(full_name, email)
     `)
     .eq("request_id", requestId);
 
