@@ -670,18 +670,18 @@ export default function ParentPage() {
                  rows={3}
                  value={requestForm.request_text}
                  onChange={(e)=>setRequestForm({...requestForm, request_text:e.target.value})}
-             />
-             <input
-               type="text"
-               placeholder="City / Location"
-               className="w-full p-2 mb-2 border rounded"
-               value={requestForm.city}
-               onChange={(e)=>setRequestForm({...requestForm, city:e.target.value})}
-             />
-             <button
+              />
+               <input
+                 type="text"
+                 placeholder="City / Location"
+                 className="w-full p-2 mb-2 border rounded"
+                 value={requestForm.city}
+                 onChange={(e)=>setRequestForm({...requestForm, city:e.target.value})}
+              />
+              <button
                className="bg-green-600 text-white px-4 py-2 rounded"
                onClick={handleSubmitRequest}
-             >
+              >
                Submit Request
              </button>
            </div>
@@ -692,103 +692,112 @@ export default function ParentPage() {
              {requests.map((r) => (
                <div key={r.id} 
                  className={`border p-3 rounded mb-3 ${
-      req.status === "fulfilled" ? "border-green-500 bg-green-50" : "border-gray-300"
-    }`}
-  >
-    <p><strong>Request:</strong> {req.request_text}</p>
-    <p><strong>City:</strong> {req.city}</p>
-    <p>
-      <strong>Status:</strong>{" "}
-      {req.status === "fulfilled" ? (
-        <span className="text-green-600 font-semibold">Fulfilled</span>
-      ) : (
-        <span className="text-yellow-600 font-semibold">Pending</span>
-      )}
-    </p>
+                  r.status === "fulfilled" ? "border-green-500 bg-green-50" : "border-gray-300"
+                }`}
+               >
+                 <p><strong>Request:</strong> {r.request_text}</p>
+                 <p><strong>City:</strong> {r.city}</p>
+                 <p>
+                 <strong>Status:</strong>{" "}
+                 {r.status === "fulfilled" ? (
+                   <span className="text-green-600 font-semibold">Fulfilled</span>
+                 ) : (
+                   <span className="text-yellow-600 font-semibold">Pending</span>
+                 )}
+                </p>
 
-    <div className="flex gap-2 mt-2">
-      {req.status !== "fulfilled" && (
-        <>
-          <button
-            className="bg-blue-500 text-white px-2 py-1 rounded"
-            onClick={() => handleEditRequest(req.id, req.request_text)}
-          >
-            Edit
-          </button>
-          <button
-            className="bg-red-500 text-white px-2 py-1 rounded"
-            onClick={() => handleDeleteRequest(req.id)}
-          >
-            Delete
-          </button>
-        </>
-      )}
-      <button
-        className="bg-green-500 text-white px-2 py-1 rounded"
-        onClick={() => handleViewApplications(req.id)}
-      >
-               View Applications
-             </button>
+                <div className="flex gap-2 mt-2">
+                {r.status !== "fulfilled" && (
+                  <>
+                    <button
+                      className="bg-blue-500 text-white px-2 py-1 rounded"
+                      onClick={() => handleEditRequest(req.id, req.request_text)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="bg-red-500 text-white px-2 py-1 rounded"
+                      onClick={() => handleDeleteRequest(req.id)}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+                <button
+                  className="bg-green-500 text-white px-2 py-1 rounded"
+                  onClick={() => handleViewApplications(req.id)}
+                >
+                  View Applications
+                </button>
+              </div>
             </div>
-         </div>
-       ))}
-     </div>
-   </div>
- )}
-       {/* Applications Modal */}
-       {showApplicationsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+          ))}
+        </div>
+      </div>
+     )}
+      
+     {/* Applications Modal */}
+     {showApplicationsModal && (
+       <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
         <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
          <h4 className="font-semibold mb-3">Applications</h4>
-          {applications.length === 0 ? (
+         {applications.length === 0 ? (
            <p>No applications yet.</p>
-      ) : (
-          <ul className="space-y-3">
-            applications.map((app) => (
-              <li
-                key={app.id}
-                className={`p-3 border rounded flex justify-between items-center
-                ${app.status === "accepted" ? "border-green-500 bg-green-50" : ""}
-                ${app.status === "rejected" ? "border-red-500 bg-red-50" : ""}
-                `}
-              >
-               <div>
-                 <p><strong>Teacher:</strong> {app.teacher?.full_name || "Unknown"}</p>
-                 <p><strong>Rate:</strong> GHC {app.monthly_rate}</p>
-                 <p><strong>Status:</strong>{" "}
-                   {app.status === "accepted" ? (
-                     <span className="text-green-600 font-semibold">✅ Accepted</span>
-                   ) : app.status === "rejected" ? (
-                     <span className="text-red-600 font-semibold">❌ Rejected</span>
-                   ) : (
-                     <span className="text-yellow-600 font-semibold capitalize">⏳ Pending</span>
-                   )}
-                 </p>
-               </div>
+         ) : (
+           <ul className="space-y-3">
+             {applications.map((app) => (
+               <li
+                 key={app.id}
+                 className={`p-3 border rounded flex justify-between items-center
+                   ${app.status === "accepted" ? "border-green-500 bg-green-50" : ""}
+                   ${app.status === "rejected" ? "border-red-500 bg-red-50" : ""}
+                 `}
+               >
+                 <div>
+                   <p><strong>Teacher:</strong> {app.teacher?.full_name || "Unknown"}</p>
+                   <p><strong>Rate:</strong> GHC {app.monthly_rate}</p>
+                   <p><strong>Status:</strong>{" "}
+                     {app.status === "accepted" ? (
+                       <span className="text-green-600 font-semibold">✅ Accepted</span>
+                     ) : app.status === "rejected" ? (
+                       <span className="text-red-600 font-semibold">❌ Rejected</span>
+                     ) : (
+                       <span className="text-yellow-600 font-semibold capitalize">⏳ Pending</span>
+                     )}
+                   </p>
+                 </div>
 
-               {/* Hide buttons if request fulfilled */}
-               {selectedRequest?.status !== "fulfilled" && app.status === "pending" && (
-                 <div className="flex gap-2">
-                   <button
-                     className="bg-green-600 text-white px-3 py-1 rounded"
-                     onClick={() => handleAcceptApplication(app.id, selectedRequest.id)}
-                 >
-                     Accept
-                   </button>
-                   <button
-                     className="bg-red-600 text-white px-3 py-1 rounded"
-                     onClick={() => handleRejectApplication(app.id)}
-                 >
-                     Reject
-                 </button>
-               </div>
-             )}
-           </li>
-         ))}
-       </ul>
-
-</div>
-</div>
-</div>
+                 {/* Hide buttons if request fulfilled */}
+                 {requests.find(r => r.id === currentRequestId)?.status !== "fulfilled" &&
+                   app.status === "pending" && (
+                   <div className="flex gap-2">
+                     <button
+                       className="bg-green-600 text-white px-3 py-1 rounded"
+                       onClick={() => handleAcceptApplication(app.id, selectedRequest.id)}
+                     >
+                       Accept
+                     </button>
+                     <button
+                       className="bg-red-600 text-white px-3 py-1 rounded"
+                       onClick={() => handleRejectApplication(app.id)}
+                     >
+                       Reject
+                     </button>
+                   </div>
+                 )}
+               </li>
+             ))}
+           </ul>
+         )}
+         <div className="mt-4 text-right">
+           <button
+             className="px-4 py-2 bg-gray-500 text-white rounded"
+             onClick={() => setShowApplicationsModal(false)}
+           >
+             Close
+           </button>
+         </div>
+       </div>
+     </div>
 );
 }
