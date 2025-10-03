@@ -741,25 +741,21 @@ export default function ParentPage() {
                 {applications.length === 0 ? (
                   <p>No applications yet.</p>
                 ) : (
-               <ul className="space-y-3">
-                  {applications.map((app) => (
-               <li
-                 key={app.id}
-                 className={`p-3 border rounded flex justify-between items-center
-                   ${app.status === "accepted" ? "border-green-500 bg-green-50" : ""}
-                   ${app.status === "rejected" ? "border-red-500 bg-red-50" : ""}
-                 `}
-               >
-                 <div>
-                   <p><strong>Teacher:</strong> {app.teacher?.full_name || "Unknown"}</p>
-                   <p><strong>Rate:</strong> GHC {app.monthly_rate}</p>
-                   <p><strong>Status:</strong>{" "}
-                     {app.status === "accepted" ? (
-                       <span className="text-green-600 font-semibold">✅ Accepted</span>
+                  applications.map((app) => (
+                    <div
+                      key={app.id}
+                      className="border p-3 rounded mb-2 flex justify-between"
+                    >
+                      <div>
+                        <p><strong>Teacher:</strong> {app.teacher?.full_name || "Unknown"}</p>
+                        <p><strong>Rate:</strong> GHC {app.monthly_rate}</p>
+                        <p><strong>Status:</strong>{" "}
+                        {app.status === "accepted" ? (
+                          <span className="text-green-600 font-semibold">✅ Accepted</span>
                      ) : app.status === "rejected" ? (
-                       <span className="text-red-600 font-semibold">❌ Rejected</span>
+                         <span className="text-red-600 font-semibold">❌ Rejected</span>
                      ) : (
-                       <span className="text-yellow-600 font-semibold capitalize">⏳ Pending</span>
+                         <span className="text-yellow-600 font-semibold capitalize">⏳ Pending</span>
                      )}
                    </p>
                  </div>
@@ -770,31 +766,34 @@ export default function ParentPage() {
                    <div className="flex gap-2">
                      <button
                        className="bg-green-600 text-white px-3 py-1 rounded"
-                       onClick={() => handleAcceptApplication(app.id, selectedRequest.id)}
+                       onClick={() => handleAcceptApplication(app.id, "accepted", currentRequestId)}
                      >
                        Accept
                      </button>
                      <button
                        className="bg-red-600 text-white px-3 py-1 rounded"
-                       onClick={() => handleRejectApplication(app.id)}
+                       onClick={() => handleRejectApplication(app.id, "rejected", currentRequestId)}
                      >
                        Reject
                      </button>
                    </div>
                  )}
-               </li>
-             ))}
-           </ul>
-         )}
-         <div className="mt-4 text-right">
-           <button
-             className="px-4 py-2 bg-gray-500 text-white rounded"
-             onClick={() => setShowApplicationsModal(false)}
-           >
-             Close
-           </button>
-         </div>
-       </div>
-     </div>
-  );
-  }
+               </div>
+              ))
+            )} 
+            <div className="mt-4 text-right">
+              <button
+                className="px-4 py-2 bg-gray-500 text-white rounded"
+                onClick={() => setShowApplicationsModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+ );
+}
+  
