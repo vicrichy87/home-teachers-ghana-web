@@ -711,13 +711,13 @@ export default function ParentPage() {
                   <>
                     <button
                       className="bg-blue-500 text-white px-2 py-1 rounded"
-                      onClick={() => handleEditRequest(req.id, req.request_text)}
+                      onClick={() => handleEditRequest(r.id, r.request_text)}
                     >
                       Edit
                     </button>
                     <button
                       className="bg-red-500 text-white px-2 py-1 rounded"
-                      onClick={() => handleDeleteRequest(req.id)}
+                      onClick={() => handleDeleteRequest(r.id)}
                     >
                       Delete
                     </button>
@@ -725,27 +725,24 @@ export default function ParentPage() {
                 )}
                 <button
                   className="bg-green-500 text-white px-2 py-1 rounded"
-                  onClick={() => handleViewApplications(req.id)}
+                  onClick={() => handleViewApplications(r.id)}
                 >
                   View Applications
                 </button>
               </div>
             </div>
           ))}
-        </div>
-      </div>
-     )}
-      
-     {/* Applications Modal */}
-     {showApplicationsModal && (
-       <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-        <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
-         <h4 className="font-semibold mb-3">Applications</h4>
-         {applications.length === 0 ? (
-           <p>No applications yet.</p>
-         ) : (
-           <ul className="space-y-3">
-             {applications.map((app) => (
+              
+          {/* Applications Modal */}
+          {showApplicationsModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
+                <h2 className="font-semibold mb-3">Applications</h2>
+                {applications.length === 0 ? (
+                  <p>No applications yet.</p>
+                ) : (
+               <ul className="space-y-3">
+                  {applications.map((app) => (
                <li
                  key={app.id}
                  className={`p-3 border rounded flex justify-between items-center
