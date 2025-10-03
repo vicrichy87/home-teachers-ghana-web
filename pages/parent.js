@@ -154,7 +154,7 @@ export default function ParentPage() {
     const { data, error } = await supabase
       .from("request_applications")
       .select(
-        "id, monthly_rate, status, date_applied, teacher:teacher_id (id, full_name, email)"
+        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
       )
       .eq("request_id", requestId);
     if (error) throw error;
