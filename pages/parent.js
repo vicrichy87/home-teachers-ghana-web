@@ -234,16 +234,18 @@ export default function ParentPage() {
   }
 }
 
-
   async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
-  try {
+    try {
+      const acceptedApplication = applications.find(a => a.id === appId);
+      const teacherId = acceptedApplication?.teacher?.id;
+      const childId = acceptedApplication?.request?.child_id || selectedChildId; // child from request
+
     if (newStatus === "accepted") {
       // ✅ Accept chosen teacher
       const { error: acceptError } = await supabase
         .from("request_applications")
         .update({ status: "accepted" })
         .eq("id", appId);
-
       if (acceptError) throw acceptError;
 
       // ✅ Reject all other applications for the same request
@@ -252,23 +254,49 @@ export default function ParentPage() {
         .update({ status: "rejected" })
         .eq("request_id", requestId)
         .neq("id", appId);
-
       if (rejectError) throw rejectError;
 
-      // ✅ Update the request itself to mark it fulfilled
+      // ✅ Mark the request itself as fulfilled
       const { error: requestUpdateError } = await supabase
         .from("requests")
         .update({ status: "fulfilled" })
         .eq("id", requestId);
-
       if (requestUpdateError) throw requestUpdateError;
+
+      // ✅ Insert into parent_child_teachers (same logic as Pay to Register Child)
+      if (teacherId && childId) {
+        const { data: existsData } = await supabase
+          .from("parent_child_teachers")
+          .select("*")
+          .eq("parent_id", parent.id)
+          .eq("child_id", childId)
+          .eq("teacher_id", teacherId);
+
+        if (!existsData?.length) {
+          const dateAdded = new Date();
+          const expiryDate = new Date();
+          expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+          const { error: insertError } = await supabase.from("parent_child_teachers").insert([
+            {
+              parent_id: parent.id,
+              child_id: childId,
+              teacher_id: teacherId,
+              date_added: dateAdded.toISOString().split("T")[0],
+              expiry_date: expiryDate.toISOString().split("T")[0],
+              subject: acceptedApplication?.subject || null,
+              level: acceptedApplication?.level || null,
+            },
+          ]);
+          if (insertError) throw insertError;
+        }
+      }
     } else {
       // 🔹 If rejecting individually, just update that record
       const { error } = await supabase
         .from("request_applications")
         .update({ status: newStatus })
         .eq("id", appId);
-
       if (error) throw error;
     }
 
@@ -278,7 +306,7 @@ export default function ParentPage() {
     alert("Error updating application: " + (err.message || err));
   }
 }
-
+   
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
