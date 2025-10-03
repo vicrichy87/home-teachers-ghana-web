@@ -163,7 +163,7 @@ export default function Home() {
                 }}
               >
                 <span className="mr-1">⚠️</span>
-                <span>{req.id || "No request text"}</span>
+                <span>{req.request_text || "No request text"}</span>
               </button>
             ))
           ) : (
