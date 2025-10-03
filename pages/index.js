@@ -31,6 +31,7 @@ export default function Home() {
         const { data: teachersData, error: teachersError } = await supabase
           .from("users")
           .select("id, full_name, profile_image, city, user_type")
+          .eq("id", insert_id)
           .eq("user_type", "teacher")
           .eq("city", location);
 
@@ -124,7 +125,7 @@ export default function Home() {
       .from("request_applications")
       .insert([
         {
-          request_id: selectedRequest.id, // Must match UUID
+          request_id: insert_id, // Must match UUID
           teacher_id: user.id,
           monthly_rate: parseFloat(applicationForm.monthly_rate),
           status: "pending",
