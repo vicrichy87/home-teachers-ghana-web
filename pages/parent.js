@@ -45,6 +45,25 @@ export default function ParentPage() {
     getUser();
   }, []);
   
+  useEffect(() => {
+    const fetchChildren = async () => {
+      if (!parent?.id) return;
+
+      const { data, error } = await supabase
+        .from("parents_children") // ✅ adjust if your table is named differently
+        .select("*")
+        .eq("parent_id", parent.id);
+
+      if (error) {
+        console.error("Error fetching children:", error.message);
+      } else {
+        setChildren(data || []);
+      }
+    };
+
+    fetchChildren();
+  }, [parent]);
+  
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
@@ -853,7 +872,7 @@ const handleUpdateApplicationStatus = async (applicationId, status, teacherId) =
         <option value="">-- Select a Child --</option>
         {children.map((child) => (
           <option key={child.id} value={child.id}>
-            {child.name}
+            {child.full_name}
           </option>
         ))}
       </select>
