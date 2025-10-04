@@ -877,9 +877,11 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) =
                    {selectedRequestStatus !== "fulfilled" ? (
                      <>
                        <button
-                         className="px-3 py-1 rounded bg-green-600 text-white"
+                         className={`px-3 py-1 rounded text-white ${
+                            selectedChildId ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 cursor-not-allowed"
+                         }`}
                          onClick={() =>
-                         handleUpdateApplicationStatus(app.id, "accepted", selectedRequestId, app)
+                         handleUpdateApplicationStatus(app.id, "accepted", selectedRequest?.Id, app)
                          }
                       >
                        Accept
