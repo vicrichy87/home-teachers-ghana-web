@@ -264,6 +264,15 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) =
       if (requestError) throw requestError;
 
       const childId = selectedChildId; // pulled from parent’s request
+      if (!appId || !requestId) {
+       alert("Missing application or request ID");
+      return;
+      }
+      const childId = selectedChildId;
+       if (!childId) {
+       alert("Please select a child before accepting this application.");
+      return;
+      }
       const teacherId = acceptedApplication?.teacher?.id;          // pulled from applications query
       const parentId = user?.id;
 
