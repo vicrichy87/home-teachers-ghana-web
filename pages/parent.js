@@ -268,7 +268,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) =
        alert("Missing application or request ID");
       return;
       }
-      const childId = selectedChildId;
+      
        if (!childId) {
        alert("Please select a child before accepting this application.");
       return;
