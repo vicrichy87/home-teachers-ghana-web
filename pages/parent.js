@@ -871,7 +871,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) =
                        <button
                          className="px-3 py-1 rounded bg-green-600 text-white"
                          onClick={() =>
-                         handleUpdateApplicationStatus(app.id, "accepted", selectedRequest.id, app)
+                         handleUpdateApplicationStatus(app.id, "accepted", selectedRequestId, app)
                          }
                       >
                        Accept
@@ -879,7 +879,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) =
                        <button
                          className="px-3 py-1 rounded bg-red-600 text-white"
                          onClick={() =>
-                         handleUpdateApplicationStatus(app.id, "rejected", selectedRequest.id, app)
+                         handleUpdateApplicationStatus(app.id, "rejected", selectedRequestId, app)
                          }
                        >
                          Reject
