@@ -45,6 +45,9 @@ export default function ParentPage() {
     getUser();
   }, []);
   
+  useEffect(() => {
+    if (children.length === 1) setSelectedChildId(children[0].id);
+  }, [children]);
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
@@ -255,14 +258,19 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) =
     if (newStatus === "accepted") {
       const { error: requestError } = await supabase
         .from("requests")
-        .update({ status: "fulfilled" })
+        .update({ status: "fulfilled", child_id: childId })
         .eq("id", requestId);
 
       if (requestError) throw requestError;
 
-      const childId = selectedRequest?.child_id; // pulled from parent’s request
-      const teacherId = app.teacher_id;          // pulled from applications query
+      const childId = selectedChildId; // pulled from parent’s request
+      const teacherId = acceptedApplication?.teacher?.id;          // pulled from applications query
       const parentId = user?.id;
+
+      if (!childId || !teacherId) {
+        alert("Please select a child before accepting an application");
+      return;
+     }
 
       console.log("DEBUG INSERT:", { parentId, childId, teacherId });
 
