@@ -236,82 +236,61 @@ async function handleViewApplications(requestId, requestStatus, childId) {
   }
 }
 
-// Update application status (accept/reject)
-async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
+const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) => {
   try {
-    const acceptedApplication = applications.find(a => a.id === appId);
-    const teacherId = acceptedApplication?.teacher?.id;
-    const childId = selectedChildId; // ✅ always set from modal
-
-    if (!childId) return alert("Please select a child before accepting an application");    
-    if (!teacherId || !childId) {
-      alert("Error: Missing teacher or child info.");
+    if (!appId || !requestId) {
+      alert("Missing application or request ID");
       return;
     }
 
+    // 1. Update the application status
+    const { error: updateError } = await supabase
+      .from("request_applications")
+      .update({ status: newStatus })
+      .eq("id", appId);
+
+    if (updateError) throw updateError;
+
+    // 2. If accepted → also update requests + insert into parent_child_teachers
     if (newStatus === "accepted") {
-      // 1️⃣ Accept chosen application
-      const { error: acceptError } = await supabase
-        .from("request_applications")
-        .update({ status: "accepted" })
-        .eq("id", appId);
-      if (acceptError) throw acceptError;
-
-      // 2️⃣ Reject other applications for the same request
-      const { error: rejectError } = await supabase
-        .from("request_applications")
-        .update({ status: "rejected" })
-        .eq("request_id", requestId)
-        .neq("id", appId);
-      if (rejectError) throw rejectError;
-
-      // 3️⃣ Mark the request itself as fulfilled
-      const { error: requestUpdateError } = await supabase
+      const { error: requestError } = await supabase
         .from("requests")
         .update({ status: "fulfilled" })
         .eq("id", requestId);
-      if (requestUpdateError) throw requestUpdateError;
 
-      // 4️⃣ Insert into parent_child_teachers (like Pay to Register)
-      const { data: existsData } = await supabase
+      if (requestError) throw requestError;
+
+      const childId = selectedRequest?.child_id; // pulled from parent’s request
+      const teacherId = app.teacher_id;          // pulled from applications query
+      const parentId = user?.id;
+
+      console.log("DEBUG INSERT:", { parentId, childId, teacherId });
+
+      if (!childId || !teacherId || !parentId) {
+        alert("Missing required relationship values.");
+        return;
+      }
+
+      const { error: insertError } = await supabase
         .from("parent_child_teachers")
-        .select("*")
-        .eq("parent_id", parent.id)
-        .eq("child_id", childId)
-        .eq("teacher_id", teacherId);
-
-      if (!existsData?.length) {
-        const dateAdded = new Date();
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
-
-        const { error: insertError } = await supabase.from("parent_child_teachers").insert([
+        .insert([
           {
-            parent_id: parent.id,
+            parent_id: parentId,
             child_id: childId,
             teacher_id: teacherId,
-            date_added: dateAdded.toISOString().split("T")[0],
-            expiry_date: expiryDate.toISOString().split("T")[0],
-            
           },
         ]);
-        if (insertError) throw insertError;
-      }
-    } else {
-      // Reject individually
-      const { error } = await supabase
-        .from("request_applications")
-        .update({ status: newStatus })
-        .eq("id", appId);
-      if (error) throw error;
+
+      if (insertError) throw insertError;
     }
 
-    // Refresh modal
-    handleViewApplications(requestId, selectedRequestStatus, childId);
+    alert("Application updated successfully!");
   } catch (err) {
-    alert("Error updating application: " + (err.message || String(err)));
+    console.error("Error updating application:", err);
+    alert("Error updating application: " + (err.message || err));
   }
-}
+};
+
    
   async function uploadProfileImage(file) {
     try {
@@ -891,16 +870,21 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
                      <>
                        <button
                          className="px-3 py-1 rounded bg-green-600 text-white"
-                         onClick={() => handleUpdateApplicationStatus(app.id, "accepted", selectedRequestId)}
-                       >
-                         Accept
+                         onClick={() =>
+                         handleUpdateApplicationStatus(app.id, "accepted", selectedRequest.id, app)
+                         }
+                      >
+                       Accept
                        </button>
                        <button
                          className="px-3 py-1 rounded bg-red-600 text-white"
-                         onClick={() => handleUpdateApplicationStatus(app.id, "rejected", selectedRequestId)}
+                         onClick={() =>
+                         handleUpdateApplicationStatus(app.id, "rejected", selectedRequest.id, app)
+                         }
                        >
                          Reject
                        </button>
+
                      </>
                    ) : (
                      <span className="text-gray-500 italic">Request fulfilled</span>
