@@ -239,7 +239,7 @@ export default function ParentPage() {
     try {
       const acceptedApplication = applications.find(a => a.id === appId);
       const teacherId = acceptedApplication?.teacher?.id;
-      const childId = acceptedApplication?.request?.child_id; // child from request
+      const childId = selectedChildId; // child from request
 
     if (newStatus === "accepted") {
       // ✅ Accept chosen teacher
