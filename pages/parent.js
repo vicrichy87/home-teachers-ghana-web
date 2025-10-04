@@ -220,7 +220,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     const { data, error } = await supabase
       .from("request_applications")
       .select(
-        "id, monthly_rate, status, date_applied, request_id, subject, level, teacher:teacher_id (id, full_name, email)"
+        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
       )
       .eq("request_id", requestId);
 
@@ -298,8 +298,7 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
             teacher_id: teacherId,
             date_added: dateAdded.toISOString().split("T")[0],
             expiry_date: expiryDate.toISOString().split("T")[0],
-            subject: acceptedApplication?.subject || null,
-            level: acceptedApplication?.level || null,
+            
           },
         ]);
         if (insertError) throw insertError;
