@@ -261,51 +261,89 @@ export default function ParentPage() {
 
 
 // Update application status (accept/reject)
-const handleUpdateApplicationStatus = async (applicationId, status, teacherId) => {
-    if (!selectedChildId) {
-      alert("Please select a child before accepting an application");
+  const handleUpdateApplicationStatus = async (applicationId, newStatus, teacherId) => {
+  try {
+    console.log("🔹 handleUpdateApplicationStatus called with:", {
+      applicationId,
+      newStatus,
+      teacherId,
+      selectedChildId,
+      userId: user?.id,
+    });
+
+    if (!selectedChildId || !teacherId || !user?.id) {
+      console.error("❌ Missing IDs for insert:", {
+        parent_id: user?.id,
+        child_id: selectedChildId,
+        teacher_id: teacherId,
+      });
+      alert("Please make sure you selected a child before accepting.");
       return;
     }
 
-    const dateAdded = new Date();
-    const expiryDate = new Date();
-    expiryDate.setMonth(expiryDate.getMonth() + 1);
+    // 1. Update application status
+    const { error: updateError } = await supabase
+      .from("request_applications")
+      .update({ status: newStatus })
+      .eq("id", applicationId);
 
-    try {
-      // 1. Update chosen application
-      await supabase.from("request_applications").update({ status }).eq("id", applicationId);
+    if (updateError) {
+      console.error("❌ Error updating application:", updateError);
+      throw updateError;
+    }
 
-      if (status === "accepted") {
-        // 2. Reject others
-        await supabase
-          .from("request_applications")
-          .update({ status: "rejected" })
-          .eq("request_id", currentRequestId) // ✅ fixed reference
-          .neq("id", applicationId);
+    // 2. If accepted → reject others, update request, insert into parent_child_teachers
+    if (newStatus === "accepted") {
+      // Reject all other applications for this request
+      const { error: rejectError } = await supabase
+        .from("request_applications")
+        .update({ status: "rejected" })
+        .eq("request_id", selectedRequestId)
+        .neq("id", applicationId);
 
-        // 3. Mark request as fulfilled
-        await supabase.from("requests").update({ status: "fulfilled" }).eq("id", currentRequestId);
-
-        // 4. Insert teacher-child link
-        await supabase.from("parent_child_teachers").insert([
-          {
-            parent_id: parent.id,
-            child_id: selectedChildId,
-            teacher_id: teacherId,
-            date_added: dateAdded.toISOString().split("T")[0],
-            expiry_date: expiryDate.toISOString().split("T")[0],
-          },
-        ]);
+      if (rejectError) {
+        console.error("❌ Error rejecting other apps:", rejectError);
       }
 
-      alert("Status updated successfully");
-      setShowApplicationsModal(false);
-      fetchMyChildTeachers();
-    } catch (err) {
-      console.error("Error updating application status:", err);
-      alert("Error: " + err.message);
+      // Update the request as fulfilled
+      const { error: reqError } = await supabase
+        .from("requests")
+        .update({ status: "fulfilled" })
+        .eq("id", selectedRequestId);
+
+      if (reqError) {
+        console.error("❌ Error updating request:", reqError);
+      }
+
+      // Insert into parent_child_teachers
+      const newEntry = {
+        parent_id: user.id,
+        child_id: selectedChildId,
+        teacher_id: teacherId,
+        date_added: new Date().toISOString(),
+      };
+
+      console.log("🟢 Inserting into parent_child_teachers:", newEntry);
+
+      const { error: insertError } = await supabase
+        .from("parent_child_teachers")
+        .insert([newEntry]);
+
+      if (insertError) {
+        console.error("❌ Insert error:", insertError);
+        throw insertError;
+      }
+
+      console.log("✅ Successfully inserted into parent_child_teachers");
     }
-  };
+
+    alert("Application updated successfully!");
+  } catch (err) {
+    console.error("❌ General error in handleUpdateApplicationStatus:", err);
+    alert("Error updating application: " + (err.message || err));
+  }
+};
+
 
    
   async function uploadProfileImage(file) {
