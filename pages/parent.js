@@ -214,42 +214,56 @@ export default function ParentPage() {
   }
  }
 
-  async function handleViewApplications(requestId, requestStatus, childId) {
+  // Open applications modal and set current request
+async function handleViewApplications(requestId, requestStatus, childId) {
   try {
     const { data, error } = await supabase
       .from("request_applications")
       .select(
-        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
+        "id, monthly_rate, status, date_applied, request_id, subject, level, teacher:teacher_id (id, full_name, email)"
       )
       .eq("request_id", requestId);
 
     if (error) throw error;
 
+    // Ensure we have a valid child_id
+    const validChildId = childId || children[0]?.id;
+    if (!validChildId) {
+      alert("This request has no child associated. Please select a child first.");
+      return;
+    }
+
     setApplications(data || []);
     setCurrentRequestId(requestId);
-    setSelectedRequestStatus(requestStatus);  // ✅ Track the status of the parent request
-    setSelectedChildId(childId);
+    setSelectedRequestStatus(requestStatus);
+    setSelectedChildId(validChildId); // ✅ always valid
     setShowApplicationsModal(true);
   } catch (err) {
     alert(err.message || String(err));
   }
 }
 
-  async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
-    try {
-      const acceptedApplication = applications.find(a => a.id === appId);
-      const teacherId = acceptedApplication?.teacher?.id;
-      const childId = selectedChildId; // child from request
+// Update application status (accept/reject)
+async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
+  try {
+    const acceptedApplication = applications.find(a => a.id === appId);
+    const teacherId = acceptedApplication?.teacher?.id;
+    const childId = selectedChildId; // ✅ always set from modal
+
+    if (!teacherId || !childId) {
+      alert("Error: Missing teacher or child info.");
+      return;
+    }
 
     if (newStatus === "accepted") {
-      // ✅ Accept chosen teacher
+      // 1️⃣ Accept chosen application
       const { error: acceptError } = await supabase
         .from("request_applications")
         .update({ status: "accepted" })
         .eq("id", appId);
       if (acceptError) throw acceptError;
 
-      // ✅ Reject all other applications for the same request
+      // 2️⃣ Reject other applications for the same request
       const { error: rejectError } = await supabase
         .from("request_applications")
         .update({ status: "rejected" })
@@ -257,43 +271,41 @@ export default function ParentPage() {
         .neq("id", appId);
       if (rejectError) throw rejectError;
 
-      // ✅ Mark the request itself as fulfilled
+      // 3️⃣ Mark the request itself as fulfilled
       const { error: requestUpdateError } = await supabase
         .from("requests")
         .update({ status: "fulfilled" })
         .eq("id", requestId);
       if (requestUpdateError) throw requestUpdateError;
 
-      // ✅ Insert into parent_child_teachers (same logic as Pay to Register Child)
-      if (teacherId && childId) {
-        const { data: existsData } = await supabase
-          .from("parent_child_teachers")
-          .select("*")
-          .eq("parent_id", parent.id)
-          .eq("child_id", childId)
-          .eq("teacher_id", teacherId);
+      // 4️⃣ Insert into parent_child_teachers (like Pay to Register)
+      const { data: existsData } = await supabase
+        .from("parent_child_teachers")
+        .select("*")
+        .eq("parent_id", parent.id)
+        .eq("child_id", childId)
+        .eq("teacher_id", teacherId);
 
-        if (!existsData?.length) {
-          const dateAdded = new Date();
-          const expiryDate = new Date();
-          expiryDate.setMonth(expiryDate.getMonth() + 1);
+      if (!existsData?.length) {
+        const dateAdded = new Date();
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
 
-          const { error: insertError } = await supabase.from("parent_child_teachers").insert([
-            {
-              parent_id: parent.id,
-              child_id: childId,
-              teacher_id: teacherId,
-              date_added: dateAdded.toISOString().split("T")[0],
-              expiry_date: expiryDate.toISOString().split("T")[0],
-              subject: acceptedApplication?.subject || null,
-              level: acceptedApplication?.level || null,
-            },
-          ]);
-          if (insertError) throw insertError;
-        }
+        const { error: insertError } = await supabase.from("parent_child_teachers").insert([
+          {
+            parent_id: parent.id,
+            child_id: childId,
+            teacher_id: teacherId,
+            date_added: dateAdded.toISOString().split("T")[0],
+            expiry_date: expiryDate.toISOString().split("T")[0],
+            subject: acceptedApplication?.subject || null,
+            level: acceptedApplication?.level || null,
+          },
+        ]);
+        if (insertError) throw insertError;
       }
     } else {
-      // 🔹 If rejecting individually, just update that record
+      // Reject individually
       const { error } = await supabase
         .from("request_applications")
         .update({ status: newStatus })
@@ -301,10 +313,10 @@ export default function ParentPage() {
       if (error) throw error;
     }
 
-    // Refresh applications modal
-    handleViewApplications(requestId);
+    // Refresh modal
+    handleViewApplications(requestId, selectedRequestStatus, childId);
   } catch (err) {
-    alert("Error updating application: " + (err.message || err));
+    alert("Error updating application: " + (err.message || String(err)));
   }
 }
    
