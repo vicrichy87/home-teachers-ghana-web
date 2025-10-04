@@ -881,7 +881,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId, app) =
                             selectedChildId ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 cursor-not-allowed"
                          }`}
                          onClick={() =>
-                         handleUpdateApplicationStatus(app.id, "accepted", selectedRequest?.Id, app)
+                         handleUpdateApplicationStatus(app.id, "accepted", selectedRequestId, app)
                          }
                       >
                        Accept
