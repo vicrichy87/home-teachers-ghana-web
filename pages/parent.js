@@ -220,23 +220,16 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     const { data, error } = await supabase
       .from("request_applications")
       .select(
-        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
+        "id, monthly_rate, status, date_applied, request_id, subject, level, teacher:teacher_id (id, full_name, email)"
       )
       .eq("request_id", requestId);
 
     if (error) throw error;
 
-    // Ensure we have a valid child_id
-    const validChildId = childId || children[0]?.id;
-    if (!validChildId) {
-      alert("This request has no child associated. Please select a child first.");
-      return;
-    }
-
     setApplications(data || []);
     setCurrentRequestId(requestId);
     setSelectedRequestStatus(requestStatus);
-    setSelectedChildId(validChildId); // ✅ always valid
+    setSelectedChildId(childId || ""); // ✅ prefill child if available
     setShowApplicationsModal(true);
   } catch (err) {
     alert(err.message || String(err));
@@ -250,6 +243,7 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
     const teacherId = acceptedApplication?.teacher?.id;
     const childId = selectedChildId; // ✅ always set from modal
 
+    if (!childId) return alert("Please select a child before accepting an application");    
     if (!teacherId || !childId) {
       alert("Error: Missing teacher or child info.");
       return;
@@ -870,6 +864,23 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
               applications.map((app) => (
                 <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
                  <div>
+                   {/* Child selection */}
+                   {children.length > 0 && (
+                     <div className="mb-3">
+                      <label className="block mb-1 font-semibold">Select Child for this request:</label>
+                      <select
+                        className="w-full p-2 border rounded"
+                        value={selectedChildId}
+                        onChange={(e) => setSelectedChildId(e.target.value)}
+                      >
+                        <option value="">-- Select Child --</option>
+                        {children.map(c => (
+                          <option key={c.id} value={c.id}>{c.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                    <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
                    <p><strong>Rate:</strong> {app.monthly_rate}</p>
                    <p><strong>Status:</strong> {app.status}</p>
