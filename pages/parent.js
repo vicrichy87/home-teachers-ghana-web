@@ -234,84 +234,78 @@ export default function ParentPage() {
  }
 
   // Open applications modal and set current request
-async function handleViewApplications(requestId, requestStatus, childId) {
-  try {
-    const { data, error } = await supabase
-      .from("request_applications")
-      .select(
-        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
-      )
-      .eq("request_id", requestId);
+  async function handleViewApplications(requestId, requestStatus, childId) {
+    try {
+      const { data, error } = await supabase
+        .from("request_applications")
+        .select(`
+          id,
+          monthly_rate,
+          status,
+          date_applied,
+          teacher:teacher_id ( id, full_name, email )
+        `)
+        .eq("request_id", requestId);
 
-    if (error) throw error;
+      if (error) throw error;
 
-    setApplications(data || []);
-    setCurrentRequestId(requestId);
-    setSelectedRequestStatus(requestStatus);
-    setSelectedChildId(childId || null); // ✅ prefill child if available
-    setShowApplicationsModal(true);
-  } catch (err) {
-    alert(err.message || String(err));
+      setApplications(data || []);
+      setCurrentRequestId(requestId);   // ✅ fixed
+      setSelectedRequestStatus(requestStatus);
+      setSelectedChildId(childId || "");
+      setShowApplicationsModal(true);
+    } catch (err) {
+      alert(err.message);
+    }
   }
-}
+
 
 // Update application status (accept/reject)
 const handleUpdateApplicationStatus = async (applicationId, status, teacherId) => {
-  // Explicitly convert to null if empty
-  const childId = selectedChildId && selectedChildId !== "null" ? selectedChildId : null;
-
-  if (!childId) {
-    alert("Please select a child before accepting an application");
-    return;
-  }
-
-  const dateAdded = new Date();
-  const expiryDate = new Date();
-  expiryDate.setMonth(expiryDate.getMonth() + 1);
-
-  try {
-    // 1. Update chosen application
-    await supabase
-      .from("request_applications")
-      .update({ status })
-      .eq("id", applicationId);
-
-    if (status === "accepted") {
-      // 2. Reject others
-      await supabase
-        .from("request_applications")
-        .update({ status: "rejected" })
-        .eq("request_id", selectedRequestId)
-        .neq("id", applicationId);
-
-      // 3. Mark request as fulfilled
-      await supabase
-        .from("requests")
-        .update({ status: "fulfilled" })
-        .eq("id", selectedRequestId);
-
-      // 4. Insert teacher-child link
-      const { error: insertError } = await supabase.from("parent_child_teachers").insert([
-        {
-          parent_id: parent.id,
-          child_id: childId, // ✅ real uuid only
-          teacher_id: teacherId,
-          date_added: dateAdded.toISOString().split("T")[0],
-          expiry_date: expiryDate.toISOString().split("T")[0],
-        },
-      ]);
-
-      if (insertError) throw insertError;
+    if (!selectedChildId) {
+      alert("Please select a child before accepting an application");
+      return;
     }
 
-    alert("Status updated successfully");
-    setShowApplicationsModal(false);
-    fetchRequests();
-  } catch (err) {
-    console.error("Error updating application status:", err);
-    alert("Error updating application: " + err.message);
-  }
-};
+    const dateAdded = new Date();
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+    try {
+      // 1. Update chosen application
+      await supabase.from("request_applications").update({ status }).eq("id", applicationId);
+
+      if (status === "accepted") {
+        // 2. Reject others
+        await supabase
+          .from("request_applications")
+          .update({ status: "rejected" })
+          .eq("request_id", currentRequestId) // ✅ fixed reference
+          .neq("id", applicationId);
+
+        // 3. Mark request as fulfilled
+        await supabase.from("requests").update({ status: "fulfilled" }).eq("id", currentRequestId);
+
+        // 4. Insert teacher-child link
+        await supabase.from("parent_child_teachers").insert([
+          {
+            parent_id: parent.id,
+            child_id: selectedChildId,
+            teacher_id: teacherId,
+            date_added: dateAdded.toISOString().split("T")[0],
+            expiry_date: expiryDate.toISOString().split("T")[0],
+          },
+        ]);
+      }
+
+      alert("Status updated successfully");
+      setShowApplicationsModal(false);
+      fetchMyChildTeachers();
+    } catch (err) {
+      console.error("Error updating application status:", err);
+      alert("Error: " + err.message);
+    }
+  };
 
    
   async function uploadProfileImage(file) {
