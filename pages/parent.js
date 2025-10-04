@@ -237,81 +237,63 @@ async function handleViewApplications(requestId, requestStatus, childId) {
 }
 
 // Update application status (accept/reject)
-async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
+const handleUpdateApplicationStatus = async (applicationId, status, teacherId) => {
+  // Explicitly convert to null if empty
+  const childId = selectedChildId && selectedChildId !== "null" ? selectedChildId : null;
+
+  if (!childId) {
+    alert("Please select a child before accepting an application");
+    return;
+  }
+
+  const dateAdded = new Date();
+  const expiryDate = new Date();
+  expiryDate.setMonth(expiryDate.getMonth() + 1);
+
   try {
-    const acceptedApplication = applications.find(a => a.id === appId);
-    const teacherId = acceptedApplication?.teacher?.id;
-    const childId = selectedChildId; // ✅ always set from modal
+    // 1. Update chosen application
+    await supabase
+      .from("request_applications")
+      .update({ status })
+      .eq("id", applicationId);
 
-    if (!childId) return alert("Please select a child before accepting an application");    
-    if (!teacherId || !childId) {
-      alert("Error: Missing teacher or child info.");
-      return;
-    }
-
-    if (newStatus === "accepted") {
-      // 1️⃣ Accept chosen application
-      const { error: acceptError } = await supabase
-        .from("request_applications")
-        .update({ status: "accepted" })
-        .eq("id", appId);
-      if (acceptError) throw acceptError;
-
-      // 2️⃣ Reject other applications for the same request
-      const { error: rejectError } = await supabase
+    if (status === "accepted") {
+      // 2. Reject others
+      await supabase
         .from("request_applications")
         .update({ status: "rejected" })
-        .eq("request_id", requestId)
-        .neq("id", appId);
-      if (rejectError) throw rejectError;
+        .eq("request_id", selectedRequestId)
+        .neq("id", applicationId);
 
-      // 3️⃣ Mark the request itself as fulfilled
-      const { error: requestUpdateError } = await supabase
+      // 3. Mark request as fulfilled
+      await supabase
         .from("requests")
         .update({ status: "fulfilled" })
-        .eq("id", requestId);
-      if (requestUpdateError) throw requestUpdateError;
+        .eq("id", selectedRequestId);
 
-      // 4️⃣ Insert into parent_child_teachers (like Pay to Register)
-      const { data: existsData } = await supabase
-        .from("parent_child_teachers")
-        .select("*")
-        .eq("parent_id", parent.id)
-        .eq("child_id", childId)
-        .eq("teacher_id", teacherId);
+      // 4. Insert teacher-child link
+      const { error: insertError } = await supabase.from("parent_child_teachers").insert([
+        {
+          parent_id: parent.id,
+          child_id: childId, // ✅ real uuid only
+          teacher_id: teacherId,
+          date_added: dateAdded.toISOString().split("T")[0],
+          expiry_date: expiryDate.toISOString().split("T")[0],
+        },
+      ]);
 
-      if (!existsData?.length) {
-        const dateAdded = new Date();
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
-
-        const { error: insertError } = await supabase.from("parent_child_teachers").insert([
-          {
-            parent_id: parent.id,
-            child_id: childId,
-            teacher_id: teacherId,
-            date_added: dateAdded.toISOString().split("T")[0],
-            expiry_date: expiryDate.toISOString().split("T")[0],
-            
-          },
-        ]);
-        if (insertError) throw insertError;
-      }
-    } else {
-      // Reject individually
-      const { error } = await supabase
-        .from("request_applications")
-        .update({ status: newStatus })
-        .eq("id", appId);
-      if (error) throw error;
+      if (insertError) throw insertError;
     }
 
-    // Refresh modal
-    handleViewApplications(requestId, selectedRequestStatus, childId);
+    alert("Status updated successfully");
+    setShowApplicationsModal(false);
+    fetchRequests();
   } catch (err) {
-    alert("Error updating application: " + (err.message || String(err)));
+    console.error("Error updating application status:", err);
+    alert("Error updating application: " + err.message);
   }
-}
+};
+
    
   async function uploadProfileImage(file) {
     try {
