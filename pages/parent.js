@@ -229,7 +229,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     setApplications(data || []);
     setCurrentRequestId(requestId);
     setSelectedRequestStatus(requestStatus);
-    setSelectedChildId(childId || ""); // ✅ prefill child if available
+    setSelectedChildId(childId || null); // ✅ prefill child if available
     setShowApplicationsModal(true);
   } catch (err) {
     alert(err.message || String(err));
@@ -870,8 +870,8 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
                       <label className="block mb-1 font-semibold">Select Child for this request:</label>
                       <select
                         className="w-full p-2 border rounded"
-                        value={selectedChildId}
-                        onChange={(e) => setSelectedChildId(e.target.value)}
+                        value={selectedChildId || ""} 
+                        onChange={(e) => setSelectedChildId(e.target.value || null)}
                       >
                         <option value="">-- Select Child --</option>
                         {children.map(c => (
