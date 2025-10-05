@@ -237,15 +237,22 @@ async function handleViewApplications(requestId, requestStatus, childId) {
 }
 
   // 🔹 Accept or Reject Teacher Application
-const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
-  try {
-    // find the application being accepted
-    const acceptedApplication = applications.find(a => a.id === appId);
-    const teacherId = acceptedApplication?.teacher?.id;
-    const childId = selectedChildId && selectedChildId !== "null" && selectedChildId !== "" 
-      ? selectedChildId 
-      : null; // ✅ must come from dropdown
-
+  const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
+    try {
+      // find the application being accepted
+      const acceptedApplication = applications.find(a => a.id === appId);
+  
+  const teacherId = (acceptedApplication?.teacher?.id && acceptedApplication.teacher.id !== "null") 
+    ? acceptedApplication.teacher.id 
+    : null;
+  
+  const childId = (selectedChildId && selectedChildId !== "null" && selectedChildId !== "") 
+    ? selectedChildId 
+    : null;
+  
+  const parentId = (parent?.id && parent.id !== "null") 
+    ? parent.id 
+    : null;
     if (!teacherId) {
       alert("Missing teacher ID for this application.");
       console.error("❌ teacherId missing", acceptedApplication);
@@ -292,21 +299,28 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
       const dateAdded = new Date();
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + 1);
-
+     
+      console.log("👉 Insert payload check", {
+        parent_id: parent?.id,
+        child_id: selectedChildId,
+        teacher_id: applications.find(a => a.id === appId)?.teacher?.id,
+        appId,
+        selectedRequestId,
+      }); 
       const { error: linkError } = await supabase
         .from("parent_request_teacher_child")
         .insert([
-         console.log("👉 Inserting link:", {
-            request_id: requestId,
+         {
+            request_id: selectedRequestId,
             application_id: appId,
-            parent_id: parent.id,
-            child_id: childId,
+            parent_id: parentId,
+            child_id: selectedChildId,
             teacher_id: teacherId,
             monthly_rate: acceptedApplication?.monthly_rate || null,
             status: "accepted",
             date_added: dateAdded.toISOString().split("T")[0],
             expiry_date: expiryDate.toISOString().split("T")[0],
-          }),
+          },
         ]);
 
       console.log("Inserted into parent_request_teacher_child:", {
