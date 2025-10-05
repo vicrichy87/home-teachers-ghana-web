@@ -772,7 +772,7 @@ async function handleUpdateApplicationStatus(appId, status, requestId) {
           
          {/* NEW: Requests Tab */}
 {tab==="requests" && (
-  <div className="mt-4 w-full max-w-md space-y-4">
+  <div className="mt-4 w-full max-w-2xl space-y-4">
     <h4 className="font-semibold mb-2">All Requests</h4>
 
     {/* Request Form */}
