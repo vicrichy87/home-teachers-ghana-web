@@ -897,7 +897,7 @@ export default function ParentPage() {
       <select
         value={selectedChildId || ""} // ✅ empty string only for UI, state stores null
         onChange={(e) =>
-          setSelectedChildId(e.target.value ? e.target.value : null)
+          setSelectedChildId(e.target.value)
         }
         className="border p-2 w-full rounded mb-4"
       >
@@ -911,7 +911,7 @@ export default function ParentPage() {
 
       {/* List applications */}
       <ul className="space-y-3 max-h-60 overflow-y-auto">
-        {applications.map((app) => (
+        {selectedApplications.map((app) => (
           <li
             key={app.id}
             className="border rounded p-3 flex flex-col space-y-2"
