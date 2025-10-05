@@ -242,7 +242,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
     // find the application being accepted
     const acceptedApplication = applications.find(a => a.id === appId);
     const teacherId = acceptedApplication?.teacher?.id;
-    const childId = selectedChildId; // ✅ must come from dropdown
+    const childId = selectedChildId && selectedChildId !== "" ? selectedChildId : null; // ✅ must come from dropdown
 
     if (!teacherId) {
       alert("Missing teacher ID for this application.");
