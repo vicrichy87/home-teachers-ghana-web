@@ -887,77 +887,68 @@ export default function ParentPage() {
 </div>
 )}
        {/* Applications Modal */}
-       {showApplicationsModal && (
-       <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-       <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-       <h2 className="text-xl font-bold mb-4">Applications</h2>
+       <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+           <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
+             <h4 className="font-semibold mb-3">Applications</h4>
+           {applications.length === 0 ? (
+           <p>No applications yet.</p>
+          ) : (
+              applications.map((app) => (
+                <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
+                 <div>
+                   {/* Child selection */}
+                   {children.length > 0 && (
+                     <div className="mb-3">
+                      <label className="block mb-1 font-semibold">Select Child for this request:</label>
+                      <select
+                        className="w-full p-2 border rounded"
+                        value={selectedChildId}
+                        onChange={(e) => setSelectedChildId(e.target.value)}
+                      >
+                        <option value="">-- Select Child --</option>
+                        {children.map(c => (
+                          <option key={c.id} value={c.id}>{c.full_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-      {/* Child selector */}
-      <label className="block mb-2">Assign to Child:</label>
-      <select
-        value={selectedChildId || ""} // ✅ empty string only for UI, state stores null
-        onChange={(e) =>
-          setSelectedChildId(e.target.value)
-        }
-        className="border p-2 w-full rounded mb-4"
-      >
-        <option value="">-- Select a Child --</option>
-        {children.map((child) => (
-          <option key={child.id} value={child.id}>
-            {child.full_name}
-          </option>
-        ))}
-      </select>
-
-      {/* List applications */}
-      <ul className="space-y-3 max-h-60 overflow-y-auto">
-        {selectedApplications.map((app) => (
-          <li
-            key={app.id}
-            className="border rounded p-3 flex flex-col space-y-2"
-          >
-            <p>
-              <strong>Teacher:</strong> {app.teacher_id}
-            </p>
-            <p>
-              <strong>Rate:</strong> {app.monthly_rate} GHS/month
-            </p>
-            <p>
-              <strong>Status:</strong> {app.status}
-            </p>
-
-            {/* Accept / Reject buttons */}
-            {selectedRequestStatus === "pending" && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() =>
-                    handleUpdateApplicationStatus(app.id, "accepted", app.teacher_id)
-                  }
-                  className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                >
-                  Accept
-                </button>
-                <button
-                  onClick={() =>
-                    handleUpdateApplicationStatus(app.id, "rejected", app.teacher_id)
-                  }
-                  className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                >
-                  Reject
-                </button>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      {/* Close button */}
-      <button
-        onClick={() => setShowApplicationsModal(false)}
-        className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-      >
-        Close
-      </button>
+                   <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
+                   <p><strong>Rate:</strong> {app.monthly_rate}</p>
+                   <p><strong>Status:</strong> {app.status}</p>
+                   <p className="text-xs text-gray-500">Applied: {new Date(app.date_applied).toLocaleString()}</p>
+                 </div>
+                 <div className="flex gap-2 mt-2">
+                   {selectedRequestStatus !== "fulfilled" ? (
+                     <>
+                       <button
+                         className="px-3 py-1 rounded bg-green-600 text-white"
+                         onClick={() => handleUpdateApplicationStatus(app.id, "accepted", selectedRequestId)}
+                       >
+                         Accept
+                       </button>
+                       <button
+                         className="px-3 py-1 rounded bg-red-600 text-white"
+                         onClick={() => handleUpdateApplicationStatus(app.id, "rejected", selectedRequestId)}
+                       >
+                         Reject
+                       </button>
+                     </>
+                   ) : (
+                     <span className="text-gray-500 italic">Request fulfilled</span>
+                   )}
+            </div>
+          </div>
+        ))
+      )}
+      <div className="mt-3 text-right">
+        <button
+          className="px-3 py-1 rounded bg-gray-400 text-white"
+          onClick={() => setShowApplicationsModal(false)}
+        >
+          Close
+        </button>
+      </div>
     </div>
   </div>
 )}
