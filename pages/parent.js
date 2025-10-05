@@ -214,106 +214,102 @@ export default function ParentPage() {
   }
  }
 
-  // Open applications modal and set current request
+  // Open applications modal and fetch teacher details
 async function handleViewApplications(requestId, requestStatus, childId) {
   try {
     if (!requestId) {
-      console.error("❌ No requestId provided to handleViewApplications");
+      console.error("❌ No requestId provided");
       return;
     }
 
-    console.log("👉 handleViewApplications called with:", {
-      requestId,
-      requestStatus,
-      childId,
-    });
-
-    const { data, error } = await supabase
-      .from("request_applications")
-      .select("id, monthly_rate, status, date_applied, request_id, teacher_id")
-      .eq("request_id", requestId);
-
-    if (error) throw error;
-
-    console.log("✅ Applications fetched:", data);
-
-    setApplications(data || []);
     setCurrentRequestId(requestId);
     setSelectedRequestStatus(requestStatus || "");
-    setSelectedChildId(childId || ""); // ✅ always set, prevents null issues
+    setSelectedChildId(childId || "");
+
+    // Fetch applications
+    const { data: applicationsData, error: appError } = await supabase
+      .from("request_applications")
+      .select("id, monthly_rate, status, date_applied, teacher_id")
+      .eq("request_id", requestId);
+
+    if (appError) throw appError;
+
+    // Fetch teacher details for each application from users table
+    const teacherIds = applicationsData.map(a => a.teacher_id);
+    const { data: teachersData, error: teacherError } = await supabase
+      .from("users")
+      .select("id, full_name, email, profile_image")
+      .in("id", teacherIds)
+      .eq("user_type", "teacher");
+
+    if (teacherError) throw teacherError;
+
+    // Merge applications with teacher info
+    const mergedApplications = applicationsData.map(app => ({
+      ...app,
+      teacher: teachersData.find(t => t.id === app.teacher_id) || null
+    }));
+
+    setApplications(mergedApplications);
     setShowApplicationsModal(true);
   } catch (err) {
-    console.error("❌ Error in handleViewApplications:", err);
+    console.error("❌ Error fetching applications:", err);
     alert(err.message || String(err));
   }
 }
 
-
-  // 🔹 Accept or Reject Teacher Application
-  async function handleUpdateApplicationStatus(appId, status, requestId) {
+// Accept or reject teacher application
+async function handleUpdateApplicationStatus(appId, status, requestId) {
   try {
-    // ✅ Find application row
-    const acceptedApplication = applications.find(a => a.id === appId);
+    if (!appId || !requestId) {
+      alert("Application or request ID missing");
+      return;
+    }
 
-    // ⚡ FIX: use teacher_id directly, not teacher?.id
-    const teacherId = acceptedApplication?.teacher_id;
-    const monthlyRate = acceptedApplication?.monthly_rate || null;
+    // Find the application
+    const application = applications.find(a => a.id === appId);
+    if (!application) throw new Error("Application not found");
 
-    // ✅ fetch parent_id (user_id) + child_id from requests table
+    const teacherId = application.teacher_id;
+
+    // Fetch request details
     const { data: requestData, error: requestError } = await supabase
       .from("requests")
       .select("user_id, child_id")
       .eq("id", requestId)
       .single();
-
     if (requestError) throw requestError;
 
     const parentId = requestData.user_id;
     const childId = requestData.child_id;
 
-     const payload = {
-        request_id: requestId || null,
-        application_id: appId || null,
-        parent_id: parentId || null,
-        child_id: childId || null,
-        teacher_id: teacherId || null,
-        monthly_rate: monthlyRate,
-        status,
-        date_added: new Date().toISOString().split("T")[0],
-        expiry_date: null,
-      };
-      
-      console.log("👉 Insert payload check", payload);
-      
-      // Debug: log types
-      Object.entries(payload).forEach(([key, val]) => {
-        console.log(`🔎 ${key}:`, val, typeof val);
-      });
-      
-      if (!payload.request_id || !payload.application_id || !payload.parent_id || !payload.child_id || !payload.teacher_id) {
-        throw new Error("❌ One or more UUIDs missing in insert payload");
-      }
-  
-    // Step 1: Update application status
+    // Update application status
     const { error: updateError } = await supabase
       .from("request_applications")
       .update({ status })
       .eq("id", appId);
-
     if (updateError) throw updateError;
 
-    // Step 2: If accepted, insert into parent_request_teacher_child
+    // If accepted, create parent_request_teacher_child link and mark request fulfilled
     if (status === "accepted") {
-      const { data: linkData, error: linkError } = await supabase
-        .from("parent_request_teacher_child")
-        .insert([payload])
-        .select("*"); // 👈 return inserted row to verify
+      const payload = {
+        request_id: requestId,
+        application_id: appId,
+        parent_id: parentId,
+        child_id: childId,
+        teacher_id: teacherId,
+        monthly_rate: application.monthly_rate || null,
+        status,
+        date_added: new Date().toISOString().split("T")[0],
+        expiry_date: null,
+      };
 
+      const { error: linkError } = await supabase
+        .from("parent_request_teacher_child")
+        .insert([payload]);
       if (linkError) throw linkError;
 
-      console.log("🎉 Insert successful:", linkData);
-
-      // Step 3: Mark request as fulfilled
+      // Update request as fulfilled
       await supabase
         .from("requests")
         .update({ status: "fulfilled" })
@@ -321,9 +317,11 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     }
 
     alert(`Application ${status} successfully!`);
+    // Refresh applications list
+    handleViewApplications(requestId, status, childId);
   } catch (err) {
-    console.error("Error updating application:", err);
-    alert("Error updating application: " + (err.message || err));
+    console.error("❌ Error updating application:", err);
+    alert(err.message || String(err));
   }
 }
    
