@@ -300,13 +300,13 @@ async function handleViewApplications(requestId, requestStatus, childId) {
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + 1);
      
-      console.log("👉 Insert payload check", {
+      console.log("👉 DEBUG IDs before insert", {
         parent_id: parent?.id,
         child_id: selectedChildId,
         teacher_id: applications.find(a => a.id === appId)?.teacher?.id,
         appId,
         selectedRequestId,
-      }); 
+      });
       const { error: linkError } = await supabase
         .from("parent_request_teacher_child")
         .insert([
