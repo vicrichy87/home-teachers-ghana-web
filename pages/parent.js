@@ -237,27 +237,22 @@ async function handleViewApplications(requestId, requestStatus, childId) {
 }
 
 // Update application status (accept/reject)
-async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
+  async function handleUpdateApplicationStatus(appId, newStatus, requestId, teacherId, childId) {
+  if (!teacherId || !childId) {
+    alert("Error: Missing teacher or child info.");
+    return;
+  }
+
   try {
-    const acceptedApplication = applications.find(a => a.id === appId);
-    const teacherId = acceptedApplication?.teacher?.id;
-    const childId = selectedChildId; // ✅ always set from modal
-
-    if (!childId) return alert("Please select a child before accepting an application");    
-    if (!teacherId || !childId) {
-      alert("Error: Missing teacher or child info.");
-      return;
-    }
-
     if (newStatus === "accepted") {
-      // 1️⃣ Accept chosen application
+      // Accept chosen application
       const { error: acceptError } = await supabase
         .from("request_applications")
         .update({ status: "accepted" })
         .eq("id", appId);
       if (acceptError) throw acceptError;
 
-      // 2️⃣ Reject other applications for the same request
+      // Reject other applications
       const { error: rejectError } = await supabase
         .from("request_applications")
         .update({ status: "rejected" })
@@ -265,14 +260,14 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
         .neq("id", appId);
       if (rejectError) throw rejectError;
 
-      // 3️⃣ Mark the request itself as fulfilled
+      // Mark request fulfilled
       const { error: requestUpdateError } = await supabase
         .from("requests")
         .update({ status: "fulfilled" })
         .eq("id", requestId);
       if (requestUpdateError) throw requestUpdateError;
 
-      // 4️⃣ Insert into parent_child_teachers (like Pay to Register)
+      // Add to parent_child_teachers
       const { data: existsData } = await supabase
         .from("parent_child_teachers")
         .select("*")
@@ -292,7 +287,6 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
             teacher_id: teacherId,
             date_added: dateAdded.toISOString().split("T")[0],
             expiry_date: expiryDate.toISOString().split("T")[0],
-            
           },
         ]);
         if (insertError) throw insertError;
@@ -312,6 +306,7 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
     alert("Error updating application: " + (err.message || String(err)));
   }
 }
+
    
   async function uploadProfileImage(file) {
     try {
@@ -893,7 +888,7 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
                          className="px-3 py-1 rounded bg-green-600 text-white"
                          onClick={() => 
                            handleUpdateApplicationStatus
-                           (app.id, "accepted", app.request_id)}
+                           (app.id, "accepted", app.request_id, app.teacher?.id, selectedChildId)}
                        >
                          Accept
                        </button>
@@ -901,7 +896,7 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
                          className="px-3 py-1 rounded bg-red-600 text-white"
                          onClick={() => 
                            handleUpdateApplicationStatus
-                           (app.id, "rejected", app.request_id)}
+                           (app.id, "rejected", app.teacher?.id, selectedChildId)}
                        >
                          Reject
                        </button>
