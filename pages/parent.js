@@ -773,107 +773,108 @@ async function handleViewApplications(requestId, requestStatus, childId) {
           )}
           
          {/* NEW: Requests Tab */}
-         {tab==="requests" && (
-           <div className="mt-4 w-full max-w-md space-y-4">
-             <h4 className="font-semibold mb-2">All Requests</h4>
+{tab==="requests" && (
+  <div className="mt-4 w-full max-w-md space-y-4">
+    <h4 className="font-semibold mb-2">All Requests</h4>
 
-          {/* Request Form */}
-            <div className="p-4 mb-4 border rounded bg-white">
-              <h5 className="font-semibold mb-2">Create a Request</h5>
-                <label className="flex items-center gap-2 mb-2">
-                  <input 
-                    type="checkbox"
-                    checked={!!selectedChildId}
-                    onChange={(e) => setSelectedChildId(e.target.checked ? children[0]?.id || "" : "")}
-                  />
-                    This request is for one of my children
-                </label>
-                    {selectedChildId !== "" && (
-                     <select
-                       className="w-full p-2 mb-2 border rounded"
-                       value={selectedChildId}
-                       onChange={(e) => setSelectedChildId(e.target.value)}
-                     >
-                     <option value="">-- Select Child --</option>
-                       {children.map(c => (
-                         <option key={c.id} value={c.id}>{c.full_name}</option>
-                     ))}
-                   </select>
-                 )}
+    {/* Request Form */}
+    <div className="p-4 mb-4 border rounded bg-white">
+      <h5 className="font-semibold mb-2">Create a Request</h5>
+      <label className="flex items-center gap-2 mb-2">
+        <input 
+          type="checkbox"
+          checked={!!selectedChildId}
+          onChange={(e) => setSelectedChildId(e.target.checked ? children[0]?.id || "" : "")}
+        />
+        This request is for one of my children
+      </label>
+      {selectedChildId !== "" && (
+        <select
+          className="w-full p-2 mb-2 border rounded"
+          value={selectedChildId}
+          onChange={(e) => setSelectedChildId(e.target.value)}
+        >
+          <option value="">-- Select Child --</option>
+          {children.map(c => (
+            <option key={c.id} value={c.id}>{c.full_name}</option>
+          ))}
+        </select>
+      )}
 
-                <textarea
-                  placeholder="Type what kind of teacher or classes you are looking for..."
-                  className="w-full p-2 mb-2 border rounded"
-                  rows={3}
-                  value={requestForm.request_text}
-                  onChange={(e)=>setRequestForm({...requestForm, request_text:e.target.value})}
-               />
-                <input
-                  type="text"
-                  placeholder="City / Location"
-                  className="w-full p-2 mb-2 border rounded"
-                  value={requestForm.city}
-                  onChange={(e)=>setRequestForm({...requestForm, city:e.target.value})}
-               />
-             <button
-               className="bg-green-600 text-white px-4 py-2 rounded"
-               onClick={handleSubmitRequest}
-             >
-               Submit Request
-             </button>
-           </div>
+      <textarea
+        placeholder="Type what kind of teacher or classes you are looking for..."
+        className="w-full p-2 mb-2 border rounded"
+        rows={3}
+        value={requestForm.request_text}
+        onChange={(e)=>setRequestForm({...requestForm, request_text:e.target.value})}
+      />
+      <input
+        type="text"
+        placeholder="City / Location"
+        className="w-full p-2 mb-2 border rounded"
+        value={requestForm.city}
+        onChange={(e)=>setRequestForm({...requestForm, city:e.target.value})}
+      />
+      <button
+        className="bg-green-600 text-white px-4 py-2 rounded"
+        onClick={handleSubmitRequest}
+      >
+        Submit Request
+      </button>
+    </div>
 
-           {/* Requests List */}
-           <div className="max-h-96 overflow-y-scroll border rounded p-3 bg-gray-50 space-y-3">
-             {requests.length === 0 && <div className="text-slate-600">No requests available.</div>}
-             {requests.map((r) => (
-               <div key={r.id} className={`p-3 border rounded ${r.status==="fulfilled" ? "bg-purple-100 border-purple-600" : "bg-white"}`}>
-               <div className="text-gray-800">{r.request_text}</div>
-               <div className="text-sm text-slate-600">Location: {r.city || "N/A"}</div>
-               <div className="text-xs text-slate-500">
-                 Posted: {new Date(r.created_at).toLocaleString()}
-               {r.child_id && (
-                 <div className="text-sm text-slate-600">
-                   For Child: {children.find(c => c.id === r.child_id)?.full_name || "Unknown"}
-                 </div>
-               )}
-           </div>
-           <div className="flex gap-2 mt-2">
-              {r.status !== "fulfilled" && (
-                <>
-             <button
-               className="px-3 py-1 rounded bg-blue-500 text-white"
-               onClick={() => handleEditRequest(r.id, r.request_text)}  
-             >
-               Edit 
-             </button>
-             <button 
-               className="px-3 py-1 rounded bg-red-500 text-white"
-               onClick={() => handleDeleteRequest(r.id)}
-             >
-               Delete
-             </button>
-           </>
-         )}
-           <button
-             className="px-3 py-1 rounded bg-green-600 text-white"
-             onClick={() => handleViewApplications(r.id, r.status, r.child_id)}
-           >
-             View Applications
-           </button>
-         </div>
-       </div>
-    ))}
+    {/* Requests List */}
+    <div className="max-h-96 overflow-y-scroll border rounded p-3 bg-gray-50 space-y-3">
+      {requests.length === 0 && <div className="text-slate-600">No requests available.</div>}
+      {requests.map((r) => (
+        <div key={r.id} className={`p-3 border rounded ${r.status==="fulfilled" ? "bg-purple-100 border-purple-600" : "bg-white"}`}>
+          <div className="text-gray-800">{r.request_text}</div>
+          <div className="text-sm text-slate-600">Location: {r.city || "N/A"}</div>
+          {r.child_id && (
+            <div className="text-sm text-slate-600">
+              For Child: {children.find(c => c.id === r.child_id)?.full_name || "Unknown"}
+            </div>
+          )}
+          <div className="text-xs text-slate-500">
+            Posted: {new Date(r.created_at).toLocaleString()}
+          </div>
+          <div className="flex gap-2 mt-2">
+            {r.status !== "fulfilled" && (
+              <>
+                <button
+                  className="px-3 py-1 rounded bg-blue-500 text-white"
+                  onClick={() => handleEditRequest(r.id, r.request_text)}  
+                >
+                  Edit 
+                </button>
+                <button 
+                  className="px-3 py-1 rounded bg-red-500 text-white"
+                  onClick={() => handleDeleteRequest(r.id)}
+                >
+                  Delete
+                </button>
+              </>
+            )}
+            <button
+              className="px-3 py-1 rounded bg-green-600 text-white"
+              onClick={() => handleViewApplications(r.id, r.status, r.child_id)}
+            >
+              View Applications
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
   </div>
-</div>
 )}
+
 {/* Applications Modal */}
 {showApplicationsModal && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
       <h2 className="text-xl font-bold mb-4">Applications</h2>
 
-      {/* ✅ Child dropdown */}
+      {/* Child dropdown */}
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">
           Select Child for this Request
@@ -892,7 +893,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
         </select>
       </div>
 
-      {/* ✅ List of teacher applications */}
+      {/* List of teacher applications */}
       {applications.length > 0 ? (
         applications.map((app) => (
           <div
@@ -900,8 +901,8 @@ async function handleViewApplications(requestId, requestStatus, childId) {
             className="border p-3 rounded mb-3 flex justify-between items-center"
           >
             <div>
-              <p className="font-medium">{app.teacher.full_name}</p>
-              <p className="text-sm text-gray-600">{app.teacher.email}</p>
+              <p className="font-medium">{app.teacher?.full_name || "Unknown Teacher"}</p>
+              <p className="text-sm text-gray-600">{app.teacher?.email || "-"}</p>
               <p className="text-sm">Rate: GHC {app.monthly_rate}</p>
               <p className="text-xs italic">Status: {app.status}</p>
             </div>
@@ -915,7 +916,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
                       handleUpdateApplicationStatus(
                         app.id,
                         "accepted",
-                        selectedRequestId // ✅ request_id
+                        currentRequestId
                       )
                     }
                   >
@@ -927,7 +928,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
                       handleUpdateApplicationStatus(
                         app.id,
                         "rejected",
-                        selectedRequestId // ✅ request_id
+                        currentRequestId
                       )
                     }
                   >
@@ -956,8 +957,6 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     </div>
   </div>
 )}
-
-
 
 </div>
 </div>
