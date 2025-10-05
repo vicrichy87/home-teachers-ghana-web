@@ -893,7 +893,7 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
                          className="px-3 py-1 rounded bg-green-600 text-white"
                          onClick={() => 
                            handleUpdateApplicationStatus
-                           (app.id, app.request_id, app.teacher_id, "accepted")}
+                           (app.id, "accepted", selectedRequestId, app.teacher_id)}
                        >
                          Accept
                        </button>
@@ -901,7 +901,7 @@ async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
                          className="px-3 py-1 rounded bg-red-600 text-white"
                          onClick={() => 
                            handleUpdateApplicationStatus
-                           (app.id, app.request_id, app.teacher_id, "rejected")}
+                           (app.id, "rejected", selectedRequestId, app.teacher_id)}
                        >
                          Reject
                        </button>
