@@ -236,77 +236,94 @@ async function handleViewApplications(requestId, requestStatus, childId) {
   }
 }
 
-// Update application status (accept/reject)
-  async function handleUpdateApplicationStatus(appId, newStatus, requestId, teacherId, childId) {
-  if (!teacherId || !childId) {
-    alert("Error: Missing teacher or child info.");
-    return;
-  }
-
+  // 🔹 Accept or Reject Teacher Application
+const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
   try {
-    if (newStatus === "accepted") {
-      // Accept chosen application
-      const { error: acceptError } = await supabase
-        .from("request_applications")
-        .update({ status: "accepted" })
-        .eq("id", appId);
-      if (acceptError) throw acceptError;
+    // find the application being accepted
+    const acceptedApplication = applications.find(a => a.id === appId);
+    const teacherId = acceptedApplication?.teacher?.id;
+    const childId = selectedChildId; // ✅ must come from dropdown
 
-      // Reject other applications
+    if (!teacherId) {
+      alert("Missing teacher ID for this application.");
+      console.error("❌ teacherId missing", acceptedApplication);
+      return;
+    }
+
+    if (newStatus === "accepted" && !childId) {
+      alert("Please select a child before accepting.");
+      console.error("❌ childId missing");
+      return;
+    }
+
+    // 1️⃣ Update chosen application
+    const { error: appError } = await supabase
+      .from("request_applications")
+      .update({ status: newStatus })
+      .eq("id", appId);
+
+    if (appError) throw appError;
+
+    // 2️⃣ Reject all other applications for same request
+    if (newStatus === "accepted") {
       const { error: rejectError } = await supabase
         .from("request_applications")
         .update({ status: "rejected" })
         .eq("request_id", requestId)
         .neq("id", appId);
-      if (rejectError) throw rejectError;
 
-      // Mark request fulfilled
-      const { error: requestUpdateError } = await supabase
+      if (rejectError) throw rejectError;
+    }
+
+    // 3️⃣ Update request status if accepted
+    if (newStatus === "accepted") {
+      const { error: reqError } = await supabase
         .from("requests")
         .update({ status: "fulfilled" })
         .eq("id", requestId);
-      if (requestUpdateError) throw requestUpdateError;
 
-      // Add to parent_child_teachers
-      const { data: existsData } = await supabase
-        .from("parent_child_teachers")
-        .select("*")
-        .eq("parent_id", parent.id)
-        .eq("child_id", childId)
-        .eq("teacher_id", teacherId);
+      if (reqError) throw reqError;
+    }
 
-      if (!existsData?.length) {
-        const dateAdded = new Date();
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
+    // 4️⃣ Insert link into NEW table (parent_request_teacher_child)
+    if (newStatus === "accepted") {
+      const dateAdded = new Date();
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
 
-        const { error: insertError } = await supabase.from("parent_child_teachers").insert([
+      const { error: linkError } = await supabase
+        .from("parent_request_teacher_child")
+        .insert([
           {
+            request_id: requestId,
+            application_id: appId,
             parent_id: parent.id,
             child_id: childId,
             teacher_id: teacherId,
+            monthly_rate: acceptedApplication?.monthly_rate || null,
+            status: "accepted",
             date_added: dateAdded.toISOString().split("T")[0],
             expiry_date: expiryDate.toISOString().split("T")[0],
           },
         ]);
-        if (insertError) throw insertError;
-      }
-    } else {
-      // Reject individually
-      const { error } = await supabase
-        .from("request_applications")
-        .update({ status: newStatus })
-        .eq("id", appId);
-      if (error) throw error;
+
+      console.log("Inserted into parent_request_teacher_child:", {
+        request_id: requestId,
+        application_id: appId,
+        parent_id: parent.id,
+        child_id: childId,
+        teacher_id: teacherId,
+      });
+
+      if (linkError) throw linkError;
     }
 
-    // Refresh modal
-    handleViewApplications(requestId, selectedRequestStatus, childId);
+    alert(`Application ${newStatus} successfully!`);
   } catch (err) {
-    alert("Error updating application: " + (err.message || String(err)));
+    console.error("Error updating application:", err);
+    alert("Error updating application: " + (err.message || err));
   }
-}
-
+};
    
   async function uploadProfileImage(file) {
     try {
@@ -848,69 +865,87 @@ async function handleViewApplications(requestId, requestStatus, childId) {
   </div>
 </div>
 )}
-       {/* Applications Modal */}
-       {showApplicationsModal && (
-         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-           <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
-             <h4 className="font-semibold mb-3">Applications</h4>
-           {applications.length === 0 ? (
-           <p>No applications yet.</p>
-          ) : (
-              applications.map((app) => (
-                <div key={app.id} className="p-3 mb-2 border rounded bg-gray-50">
-                 <div>
-                   {/* Child selection */}
-                   {children.length > 0 && (
-                     <div className="mb-3">
-                      <label className="block mb-1 font-semibold">Select Child for this request:</label>
-                      <select
-                        className="w-full p-2 border rounded"
-                        value={selectedChildId}
-                        onChange={(e) => setSelectedChildId(e.target.value)}
-                      >
-                        <option value="">-- Select Child --</option>
-                        {children.map(c => (
-                          <option key={c.id} value={c.id}>{c.full_name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+{/* Applications Modal */}
+{showApplicationsModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
+      <h2 className="text-xl font-bold mb-4">Applications</h2>
 
-                   <p><strong>Teacher:</strong> {app.teacher?.full_name} ({app.teacher?.email})</p>
-                   <p><strong>Rate:</strong> {app.monthly_rate}</p>
-                   <p><strong>Status:</strong> {app.status}</p>
-                   <p className="text-xs text-gray-500">Applied: {new Date(app.date_applied).toLocaleString()}</p>
-                 </div>
-                 <div className="flex gap-2 mt-2">
-                   {selectedRequestStatus !== "fulfilled" ? (
-                     <>
-                       <button
-                         className="px-3 py-1 rounded bg-green-600 text-white"
-                         onClick={() => 
-                           handleUpdateApplicationStatus
-                           (app.id, "accepted", app.request_id, app.teacher?.id, selectedChildId)}
-                       >
-                         Accept
-                       </button>
-                       <button
-                         className="px-3 py-1 rounded bg-red-600 text-white"
-                         onClick={() => 
-                           handleUpdateApplicationStatus
-                           (app.id, "rejected", app.teacher?.id, selectedChildId)}
-                       >
-                         Reject
-                       </button>
-                     </>
-                   ) : (
-                     <span className="text-gray-500 italic">Request fulfilled</span>
-                   )}
+      {/* ✅ Child dropdown */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">
+          Select Child for this Request
+        </label>
+        <select
+          className="w-full border rounded p-2"
+          value={selectedChildId || ""}
+          onChange={(e) => setSelectedChildId(e.target.value)}
+        >
+          <option value="">-- Select a child --</option>
+          {parentChildren.map((child) => (
+            <option key={child.id} value={child.id}>
+              {child.full_name} ({child.age} yrs)
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* ✅ List of teacher applications */}
+      {applications.length > 0 ? (
+        applications.map((app) => (
+          <div
+            key={app.id}
+            className="border p-3 rounded mb-3 flex justify-between items-center"
+          >
+            <div>
+              <p className="font-medium">{app.teacher.full_name}</p>
+              <p className="text-sm text-gray-600">{app.teacher.email}</p>
+              <p className="text-sm">Rate: GHC {app.monthly_rate}</p>
+              <p className="text-xs italic">Status: {app.status}</p>
+            </div>
+
+            <div className="flex gap-2">
+              {selectedRequestStatus !== "fulfilled" ? (
+                <>
+                  <button
+                    className="px-3 py-1 rounded bg-green-600 text-white"
+                    onClick={() =>
+                      handleUpdateApplicationStatus(
+                        app.id,
+                        "accepted",
+                        selectedRequestId // ✅ request_id
+                      )
+                    }
+                  >
+                    Accept
+                  </button>
+                  <button
+                    className="px-3 py-1 rounded bg-red-600 text-white"
+                    onClick={() =>
+                      handleUpdateApplicationStatus(
+                        app.id,
+                        "rejected",
+                        selectedRequestId // ✅ request_id
+                      )
+                    }
+                  >
+                    Reject
+                  </button>
+                </>
+              ) : (
+                <span className="text-gray-500 italic">Request fulfilled</span>
+              )}
             </div>
           </div>
         ))
+      ) : (
+        <p className="text-gray-500">No applications yet.</p>
       )}
-      <div className="mt-3 text-right">
+
+      {/* Close button */}
+      <div className="mt-4 text-right">
         <button
-          className="px-3 py-1 rounded bg-gray-400 text-white"
+          className="px-4 py-2 bg-gray-500 text-white rounded"
           onClick={() => setShowApplicationsModal(false)}
         >
           Close
@@ -919,6 +954,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     </div>
   </div>
 )}
+
 
 
 </div>
