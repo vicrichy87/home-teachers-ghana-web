@@ -16,6 +16,16 @@ export default function StudentPage() {
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  // Requests
+  const [requests, setRequests] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [requestForm, setRequestForm] = useState({ request_text: "" });
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [selectedRequestApplications, setSelectedRequestApplications] = useState([]);
+  const [showApplicationsModal, setShowApplicationsModal] = useState(false);
+
+
   useEffect(() => {
     fetchStudentProfile();
   }, []);
@@ -24,11 +34,15 @@ export default function StudentPage() {
     if (tab === "myTeachers" && student) fetchMyTeachers();
   }, [tab, student]);
 
+  useEffect(() => {
+    if (student && tab === "requests") fetchRequests();
+  }, [student, tab]);
+
   // 🌍 Auto-detect location from IP
   useEffect(() => {
     async function detectLocation() {
       try {
-        const res = await fetch("https://ipapi.co/json/"); // free IP API
+        const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
         if (data && data.city) {
           setSearchLocation(data.city);
@@ -40,6 +54,7 @@ export default function StudentPage() {
     detectLocation();
   }, []);
 
+  // 🔹 Fetch student profile
   async function fetchStudentProfile() {
     setLoading(true);
     try {
@@ -62,6 +77,7 @@ export default function StudentPage() {
     }
   }
 
+  // 🔹 Fetch My Teachers
   async function fetchMyTeachers() {
     try {
       const { data, error } = await supabase
@@ -84,7 +100,50 @@ export default function StudentPage() {
     }
   }
 
-  // 🔍 Case-insensitive searches
+  // 🔹 Requests functions
+  async function fetchRequests() {
+    try {
+      setLoadingRequests(true);
+      const { data, error } = await supabase
+        .from("requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setRequests(data || []);
+      setFilteredRequests(data || []);
+    } catch (err) {
+      console.error("Error fetching requests:", err);
+      alert(err.message || String(err));
+    } finally {
+      setLoadingRequests(false);
+    }
+  }
+
+  async function handleCreateRequest() {
+    if (!requestForm.request_text) return alert("Please enter request text");
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .insert([
+          {
+            request_text: requestForm.request_text,
+            user_id: student.id,
+            status: "pending",
+            city: student.city,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      if (error) throw error;
+      alert("Request created successfully!");
+      setRequestForm({ request_text: "" });
+      fetchRequests();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || String(err));
+    }
+  }
+
+  // 🔍 Teacher searches
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
@@ -132,6 +191,7 @@ export default function StudentPage() {
     }
   }
 
+  // 🔹 Pay to register with teacher
   async function handlePayToRegister(teacherId, subject, level) {
     try {
       if (!student) return alert("Student not found");
@@ -157,6 +217,63 @@ export default function StudentPage() {
       alert(err.message || String(err));
     }
   }
+
+      // Edit request
+    async function handleEditRequest(requestId, newText) {
+      try {
+        const { error } = await supabase
+          .from("requests")
+          .update({ request_text: newText })
+          .eq("id", requestId);
+        if (error) throw error;
+        fetchRequests();
+        alert("Request updated successfully!");
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+    
+    // Delete request
+    async function handleDeleteRequest(requestId) {
+      if (!confirm("Are you sure you want to delete this request?")) return;
+      try {
+        const { error } = await supabase
+          .from("requests")
+          .delete()
+          .eq("id", requestId);
+        if (error) throw error;
+        fetchRequests();
+        alert("Request deleted successfully!");
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+    
+    // View applications in modal
+      async function handleViewApplications(requestId) {
+        try {
+          const { data, error } = await supabase
+            .from("request_applications")
+            .select(`
+              id,
+              teacher_id,
+              monthly_rate,
+              status,
+              date_applied,
+              teacher:teacher_id ( id, full_name, profile_image, city )
+            `)
+            .eq("request_id", requestId);
+      
+          if (error) throw error;
+      
+          setSelectedRequestApplications(data || []);
+          setShowApplicationsModal(true);
+        } catch (err) {
+          console.error("Error fetching applications:", err);
+          alert(err.message || String(err));
+        }
+      }
+
 
   // ✅ Upload profile image
   async function uploadProfileImage(file) {
@@ -203,45 +320,43 @@ export default function StudentPage() {
         <Banner />
         <div className="mt-4">
           <div className="flex gap-3">
-            {["profile", "searchTeacher", "myTeachers"].map(t => (
+            {["profile", "searchTeacher", "myTeachers", "requests"].map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className={`px-3 py-1 rounded ${tab===t? "bg-sky-600 text-white":"bg-sky-50"}`}
               >
-                {t==="profile" ? "Profile" : t==="searchTeacher"? "Search Teacher" : "My Teachers"}
+                {t==="profile" ? "Profile" : t==="searchTeacher"? "Search Teacher" : t==="myTeachers"? "My Teachers":"Requests"}
               </button>
             ))}
           </div>
 
           {/* Profile Tab */}
           {tab==="profile" && (
-            <div className="mt-4">
-              <div className="flex gap-4">
-                <div>
-                  <img
-                    className="w-28 h-28 rounded-full border"
-                    src={student?.profile_image || "/placeholder.png"}
-                    alt="profile"
-                  />
-                  <div className="mt-2">
-                    <label className="cursor-pointer bg-sky-600 text-white px-3 py-1 rounded">
-                      {uploading ? "Uploading..." : "Change Photo"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e)=> uploadProfileImage(e.target.files[0])}
-                      />
-                    </label>
-                  </div>
+            <div className="mt-4 flex gap-4">
+              <div>
+                <img
+                  className="w-28 h-28 rounded-full border"
+                  src={student?.profile_image || "/placeholder.png"}
+                  alt="profile"
+                />
+                <div className="mt-2">
+                  <label className="cursor-pointer bg-sky-600 text-white px-3 py-1 rounded">
+                    {uploading ? "Uploading..." : "Change Photo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e)=> uploadProfileImage(e.target.files[0])}
+                    />
+                  </label>
                 </div>
-                <div>
-                  <div><strong>Full name:</strong> {student.full_name}</div>
-                  <div><strong>Email:</strong> {student.email}</div>
-                  <div><strong>Phone:</strong> {student.phone}</div>
-                  <div><strong>City:</strong> {student.city}</div>
-                </div>
+              </div>
+              <div>
+                <div><strong>Full name:</strong> {student.full_name}</div>
+                <div><strong>Email:</strong> {student.email}</div>
+                <div><strong>Phone:</strong> {student.phone}</div>
+                <div><strong>City:</strong> {student.city}</div>
               </div>
             </div>
           )}
@@ -249,6 +364,7 @@ export default function StudentPage() {
           {/* Search Teacher Tab */}
           {tab==="searchTeacher" && (
             <div className="mt-4 space-y-4">
+              {/* Location and Subject Filters */}
               <div>
                 <input
                   value={searchLocation}
@@ -298,6 +414,7 @@ export default function StudentPage() {
                 </div>
               </div>
 
+              {/* Teacher Results */}
               <div>
                 <h4 className="font-semibold">Results</h4>
                 <div className="space-y-3 mt-2">
@@ -328,7 +445,7 @@ export default function StudentPage() {
                           <button
                             className="bg-green-600 text-white px-3 py-1 rounded"
                             onClick={(e) => {
-                              e.stopPropagation(); // prevent card click
+                              e.stopPropagation();
                               handlePayToRegister(teacherObj.id, it.subject, it.level);
                             }}
                           >
@@ -377,6 +494,125 @@ export default function StudentPage() {
               </div>
             </div>
           )}
+
+                        {/* Requests Tab */}
+              {tab === "requests" && (
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2">My Requests</h4>
+              
+                  {/* Create Request */}
+                  <div className="mb-4">
+                    <textarea
+                      value={requestForm.request_text}
+                      onChange={(e) => setRequestForm({ request_text: e.target.value })}
+                      placeholder="Enter your request here..."
+                      className="w-full p-2 border rounded"
+                    />
+                    <button
+                      onClick={handleCreateRequest}
+                      className="mt-2 bg-green-600 text-white px-4 py-2 rounded"
+                    >
+                      Create Request
+                    </button>
+                  </div>
+              
+                  {/* List Requests */}
+                  {loadingRequests ? (
+                    <p>Loading requests...</p>
+                  ) : filteredRequests.length === 0 ? (
+                    <p className="text-slate-600">No requests found.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredRequests.map((r) => (
+                        <div
+                          key={r.id}
+                          className="p-3 border rounded bg-white hover:bg-slate-50"
+                        >
+                          <div className="mb-2">{r.request_text}</div>
+                          <div className="text-xs text-gray-500 mb-2">
+                            Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
+                          </div>
+                          <div className="flex gap-2">
+                            {/* Edit button */}
+                            <button
+                              onClick={() => {
+                                const newText = prompt("Edit your request:", r.request_text);
+                                if (newText !== null) handleEditRequest(r.id, newText);
+                              }}
+                              className="px-3 py-1 bg-yellow-400 text-white rounded"
+                            >
+                              Edit
+                            </button>
+              
+                            {/* Delete button */}
+                            <button
+                              onClick={() => handleDeleteRequest(r.id)}
+                              className="px-3 py-1 bg-red-600 text-white rounded"
+                            >
+                              Delete
+                            </button>
+              
+                            {/* View Applications button */}
+                            <button
+                              onClick={() => handleViewApplications(r.id)}
+                              className="px-3 py-1 bg-blue-600 text-white rounded"
+                            >
+                              View Applications
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Applications Modal */}
+{showApplicationsModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+    <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
+      <h2 className="text-lg font-bold mb-4">Teacher Applications</h2>
+
+      {selectedRequestApplications.length === 0 ? (
+        <p className="text-gray-500">No applications yet.</p>
+      ) : (
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {selectedRequestApplications.map((app) => (
+            <div
+              key={app.id}
+              className="p-3 border rounded bg-gray-50 flex gap-4 items-center"
+            >
+              <img
+                src={app.teacher?.profile_image || "/placeholder.png"}
+                alt={app.teacher?.full_name}
+                className="w-12 h-12 rounded-full border object-cover"
+              />
+              <div className="flex-1">
+                <div className="font-semibold">{app.teacher?.full_name}</div>
+                <div className="text-sm text-gray-500">{app.teacher?.city}</div>
+                <div className="text-sm">
+                  Monthly Rate: GHC {app.monthly_rate} — Status: {app.status}
+                </div>
+                <div className="text-xs text-gray-400">
+                  Applied on: {new Date(app.date_applied).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex justify-end mt-4">
+        <button
+          className="bg-gray-400 px-4 py-2 rounded text-white"
+          onClick={() => setShowApplicationsModal(false)}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
         </div>
       </div>
