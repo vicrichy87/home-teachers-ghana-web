@@ -242,7 +242,9 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
     // find the application being accepted
     const acceptedApplication = applications.find(a => a.id === appId);
     const teacherId = acceptedApplication?.teacher?.id;
-    const childId = selectedChildId && selectedChildId !== "" ? selectedChildId : null; // ✅ must come from dropdown
+    const childId = selectedChildId && selectedChildId !== "null" && selectedChildId !== "" 
+      ? selectedChildId 
+      : null; // ✅ must come from dropdown
 
     if (!teacherId) {
       alert("Missing teacher ID for this application.");
@@ -294,7 +296,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
       const { error: linkError } = await supabase
         .from("parent_request_teacher_child")
         .insert([
-          {
+         console.log("👉 Inserting link:", {
             request_id: requestId,
             application_id: appId,
             parent_id: parent.id,
@@ -304,7 +306,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
             status: "accepted",
             date_added: dateAdded.toISOString().split("T")[0],
             expiry_date: expiryDate.toISOString().split("T")[0],
-          },
+          });
         ]);
 
       console.log("Inserted into parent_request_teacher_child:", {
