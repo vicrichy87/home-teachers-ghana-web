@@ -263,110 +263,75 @@ async function handleViewApplications(requestId, requestStatus, childId) {
 
 
   // 🔹 Accept or Reject Teacher Application
-  const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
-    try {
-      // find the application being accepted
-      const acceptedApplication = applications.find(a => a.id === appId);
-  
-  const teacherId = (acceptedApplication?.teacher?.id && acceptedApplication.teacher.id !== "null") 
-    ? acceptedApplication.teacher.id 
-    : null;
-  
-  const childId = (selectedChildId && selectedChildId !== "null" && selectedChildId !== "") 
-    ? selectedChildId 
-    : null;
-  
-  const parentId = (parent?.id && parent.id !== "null") 
-    ? parent.id 
-    : null;
-    if (!teacherId) {
-      alert("Missing teacher ID for this application.");
-      console.error("❌ teacherId missing", acceptedApplication);
-      return;
-    }
+  async function handleUpdateApplicationStatus(appId, status, requestId) {
+  try {
+    const acceptedApplication = applications.find(a => a.id === appId);
+    const teacherId = acceptedApplication?.teacher?.id;
+    const monthlyRate = acceptedApplication?.monthly_rate || null;
 
-    if (newStatus === "accepted" && !childId) {
-      alert("Please select a child before accepting.");
-      console.error("❌ childId missing");
-      return;
-    }
+    // ✅ fetch parent_id (user_id) + child_id from request
+    const { data: requestData, error: requestError } = await supabase
+      .from("requests")
+      .select("user_id, child_id")
+      .eq("id", requestId)
+      .single();
 
-    // 1️⃣ Update chosen application
-    const { error: appError } = await supabase
+    if (requestError) throw requestError;
+
+    const parentId = requestData.user_id;
+    const childId = requestData.child_id;
+
+    console.log("👉 Insert payload", {
+      parent_id: parentId,
+      child_id: childId,
+      teacher_id: teacherId,
+      request_id: requestId,
+      application_id: appId,
+      monthly_rate: monthlyRate,
+      status,
+    });
+
+    // Step 1: Update application status
+    const { error: updateError } = await supabase
       .from("request_applications")
-      .update({ status: newStatus })
-      .eq("id", appId)
-      .eq("request_id", requestId);
+      .update({ status })
+      .eq("id", appId);
 
-    if (appError) throw appError;
+    if (updateError) throw updateError;
 
-    // 2️⃣ Reject all other applications for same request
-    if (newStatus === "accepted") {
-      const { error: rejectError } = await supabase
-        .from("request_applications")
-        .update({ status: "rejected" })
-        .eq("request_id", requestId)
-        .neq("id", appId);
-
-      if (rejectError) throw rejectError;
-    }
-
-    // 3️⃣ Update request status if accepted
-    if (newStatus === "accepted") {
-      const { error: reqError } = await supabase
-        .from("requests")
-        .update({ status: "fulfilled" })
-        .eq("id", requestId);
-
-      if (reqError) throw reqError;
-    }
-
-    // 4️⃣ Insert link into NEW table (parent_request_teacher_child)
-    if (newStatus === "accepted") {
-      const dateAdded = new Date();
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-     
-      console.log("👉 DEBUG IDs before insert", {
-        parent_id: parent?.id,
-        child_id: selectedChildId,
-        teacher_id: applications.find(a => a.id === appId)?.teacher?.id,
-        appId,
-        selectedRequestId,
-      });
+    // Step 2: If accepted, insert into parent_request_teacher_child
+    if (status === "accepted") {
       const { error: linkError } = await supabase
         .from("parent_request_teacher_child")
         .insert([
-         {
-            request_id: selectedRequestId,
-            application_id: appId,
+          {
             parent_id: parentId,
-            child_id: selectedChildId,
+            child_id: childId,
             teacher_id: teacherId,
-            monthly_rate: acceptedApplication?.monthly_rate || null,
+            request_id: requestId,
+            application_id: appId,
+            monthly_rate: monthlyRate,
             status: "accepted",
-            date_added: dateAdded.toISOString().split("T")[0],
-            expiry_date: expiryDate.toISOString().split("T")[0],
+            date_added: new Date().toISOString().split("T")[0],
+            expiry_date: null,
           },
         ]);
 
-      console.log("Inserted into parent_request_teacher_child:", {
-        request_id: requestId,
-        application_id: appId,
-        parent_id: parent.id,
-        child_id: childId,
-        teacher_id: teacherId,
-      });
-
       if (linkError) throw linkError;
+
+      // Step 3: Mark request as fulfilled
+      await supabase
+        .from("requests")
+        .update({ status: "fulfilled" })
+        .eq("id", requestId);
     }
 
-    alert(`Application ${newStatus} successfully!`);
+    alert(`Application ${status} successfully!`);
   } catch (err) {
     console.error("Error updating application:", err);
     alert("Error updating application: " + (err.message || err));
   }
-};
+}
    
   async function uploadProfileImage(file) {
     try {
