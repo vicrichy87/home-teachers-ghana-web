@@ -230,20 +230,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
 
     const { data, error } = await supabase
       .from("request_applications")
-      .select(
-        `
-        id,
-        monthly_rate,
-        status,
-        date_applied,
-        request_id,
-        teacher:teacher_id (
-          id,
-          full_name,
-          email
-        )
-      `
-      )
+      .select("id, monthly_rate, status, date_applied, request_id, teacher_id")
       .eq("request_id", requestId);
 
     if (error) throw error;
@@ -284,20 +271,29 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     const parentId = requestData.user_id;
     const childId = requestData.child_id;
 
-    const payload = {
-      parent_id: parentId,
-      child_id: childId,
-      teacher_id: teacherId,
-      request_id: requestId,
-      application_id: appId,
-      monthly_rate: monthlyRate,
-      status,
-      date_added: new Date().toISOString().split("T")[0],
-      expiry_date: null,
-    };
-
-    console.log("👉 Insert payload check", payload);
-
+     const payload = {
+        request_id: requestId || null,
+        application_id: appId || null,
+        parent_id: parentId || null,
+        child_id: childId || null,
+        teacher_id: teacherId || null,
+        monthly_rate: monthlyRate,
+        status,
+        date_added: new Date().toISOString().split("T")[0],
+        expiry_date: null,
+      };
+      
+      console.log("👉 Insert payload check", payload);
+      
+      // Debug: log types
+      Object.entries(payload).forEach(([key, val]) => {
+        console.log(`🔎 ${key}:`, val, typeof val);
+      });
+      
+      if (!payload.request_id || !payload.application_id || !payload.parent_id || !payload.child_id || !payload.teacher_id) {
+        throw new Error("❌ One or more UUIDs missing in insert payload");
+      }
+  
     // Step 1: Update application status
     const { error: updateError } = await supabase
       .from("request_applications")
