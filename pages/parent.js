@@ -217,24 +217,50 @@ export default function ParentPage() {
   // Open applications modal and set current request
 async function handleViewApplications(requestId, requestStatus, childId) {
   try {
+    if (!requestId) {
+      console.error("❌ No requestId provided to handleViewApplications");
+      return;
+    }
+
+    console.log("👉 handleViewApplications called with:", {
+      requestId,
+      requestStatus,
+      childId,
+    });
+
     const { data, error } = await supabase
       .from("request_applications")
       .select(
-        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
+        `
+        id,
+        monthly_rate,
+        status,
+        date_applied,
+        request_id,
+        teacher:teacher_id (
+          id,
+          full_name,
+          email
+        )
+      `
       )
       .eq("request_id", requestId);
 
     if (error) throw error;
 
+    console.log("✅ Applications fetched:", data);
+
     setApplications(data || []);
     setCurrentRequestId(requestId);
-    setSelectedRequestStatus(requestStatus);
-    setSelectedChildId(childId || ""); // ✅ prefill child if available
+    setSelectedRequestStatus(requestStatus || "");
+    setSelectedChildId(childId || ""); // ✅ always set, prevents null issues
     setShowApplicationsModal(true);
   } catch (err) {
+    console.error("❌ Error in handleViewApplications:", err);
     alert(err.message || String(err));
   }
 }
+
 
   // 🔹 Accept or Reject Teacher Application
   const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
@@ -269,7 +295,8 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     const { error: appError } = await supabase
       .from("request_applications")
       .update({ status: newStatus })
-      .eq("id", appId);
+      .eq("id", appId)
+      .eq("request_id", requestId);
 
     if (appError) throw appError;
 
