@@ -45,25 +45,6 @@ export default function ParentPage() {
     getUser();
   }, []);
   
-  useEffect(() => {
-    const fetchChildren = async () => {
-      if (!parent?.id) return;
-
-      const { data, error } = await supabase
-        .from("parents_children") // ✅ adjust if your table is named differently
-        .select("*")
-        .eq("parent_id", parent.id);
-
-      if (error) {
-        console.error("Error fetching children:", error.message);
-      } else {
-        setChildren(data || []);
-      }
-    };
-
-    fetchChildren();
-  }, [parent]);
-  
   useEffect(() => { fetchParentProfile(); }, []);
   useEffect(() => { if (tab === "myChildTeachers" && parent) fetchMyChildTeachers(); }, [tab, parent]);
   useEffect(() => {
@@ -234,117 +215,103 @@ export default function ParentPage() {
  }
 
   // Open applications modal and set current request
-  async function handleViewApplications(requestId, requestStatus, childId) {
-    try {
-      const { data, error } = await supabase
-        .from("request_applications")
-        .select(`
-          id,
-          monthly_rate,
-          status,
-          date_applied,
-          teacher:teacher_id ( id, full_name, email )
-        `)
-        .eq("request_id", requestId);
+async function handleViewApplications(requestId, requestStatus, childId) {
+  try {
+    const { data, error } = await supabase
+      .from("request_applications")
+      .select(
+        "id, monthly_rate, status, date_applied, request_id, teacher:teacher_id (id, full_name, email)"
+      )
+      .eq("request_id", requestId);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      setApplications(data || []);
-      setCurrentRequestId(requestId);   // ✅ fixed
-      setSelectedRequestStatus(requestStatus);
-      setSelectedChildId(childId || "");
-      setShowApplicationsModal(true);
-    } catch (err) {
-      alert(err.message);
-    }
+    setApplications(data || []);
+    setCurrentRequestId(requestId);
+    setSelectedRequestStatus(requestStatus);
+    setSelectedChildId(childId || ""); // ✅ prefill child if available
+    setShowApplicationsModal(true);
+  } catch (err) {
+    alert(err.message || String(err));
   }
-
+}
 
 // Update application status (accept/reject)
-  const handleUpdateApplicationStatus = async (applicationId, newStatus, teacherId) => {
+async function handleUpdateApplicationStatus(appId, newStatus, requestId) {
   try {
-    console.log("🔹 handleUpdateApplicationStatus called with:", {
-      applicationId,
-      newStatus,
-      teacherId,
-      selectedChildId,
-      userId: user?.id,
-    });
+    const acceptedApplication = applications.find(a => a.id === appId);
+    const teacherId = acceptedApplication?.teacher?.id;
+    const childId = selectedChildId; // ✅ always set from modal
 
-    if (!selectedChildId || !teacherId || !user?.id) {
-      console.error("❌ Missing IDs for insert:", {
-        parent_id: user?.id,
-        child_id: selectedChildId,
-        teacher_id: teacherId,
-      });
-      alert("Please make sure you selected a child before accepting.");
+    if (!childId) return alert("Please select a child before accepting an application");    
+    if (!teacherId || !childId) {
+      alert("Error: Missing teacher or child info.");
       return;
     }
 
-    // 1. Update application status
-    const { error: updateError } = await supabase
-      .from("request_applications")
-      .update({ status: newStatus })
-      .eq("id", applicationId);
-
-    if (updateError) {
-      console.error("❌ Error updating application:", updateError);
-      throw updateError;
-    }
-
-    // 2. If accepted → reject others, update request, insert into parent_child_teachers
     if (newStatus === "accepted") {
-      // Reject all other applications for this request
+      // 1️⃣ Accept chosen application
+      const { error: acceptError } = await supabase
+        .from("request_applications")
+        .update({ status: "accepted" })
+        .eq("id", appId);
+      if (acceptError) throw acceptError;
+
+      // 2️⃣ Reject other applications for the same request
       const { error: rejectError } = await supabase
         .from("request_applications")
         .update({ status: "rejected" })
-        .eq("request_id", selectedRequestId)
-        .neq("id", applicationId);
+        .eq("request_id", requestId)
+        .neq("id", appId);
+      if (rejectError) throw rejectError;
 
-      if (rejectError) {
-        console.error("❌ Error rejecting other apps:", rejectError);
-      }
-
-      // Update the request as fulfilled
-      const { error: reqError } = await supabase
+      // 3️⃣ Mark the request itself as fulfilled
+      const { error: requestUpdateError } = await supabase
         .from("requests")
         .update({ status: "fulfilled" })
-        .eq("id", selectedRequestId);
+        .eq("id", requestId);
+      if (requestUpdateError) throw requestUpdateError;
 
-      if (reqError) {
-        console.error("❌ Error updating request:", reqError);
-      }
-
-      // Insert into parent_child_teachers
-      const newEntry = {
-        parent_id: user.id,
-        child_id: selectedChildId,
-        teacher_id: teacherId,
-        date_added: new Date().toISOString(),
-      };
-
-      console.log("🟢 Inserting into parent_child_teachers:", newEntry);
-
-      const { error: insertError } = await supabase
+      // 4️⃣ Insert into parent_child_teachers (like Pay to Register)
+      const { data: existsData } = await supabase
         .from("parent_child_teachers")
-        .insert([newEntry]);
+        .select("*")
+        .eq("parent_id", parent.id)
+        .eq("child_id", childId)
+        .eq("teacher_id", teacherId);
 
-      if (insertError) {
-        console.error("❌ Insert error:", insertError);
-        throw insertError;
+      if (!existsData?.length) {
+        const dateAdded = new Date();
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+        const { error: insertError } = await supabase.from("parent_child_teachers").insert([
+          {
+            parent_id: parent.id,
+            child_id: childId,
+            teacher_id: teacherId,
+            date_added: dateAdded.toISOString().split("T")[0],
+            expiry_date: expiryDate.toISOString().split("T")[0],
+            
+          },
+        ]);
+        if (insertError) throw insertError;
       }
-
-      console.log("✅ Successfully inserted into parent_child_teachers");
+    } else {
+      // Reject individually
+      const { error } = await supabase
+        .from("request_applications")
+        .update({ status: newStatus })
+        .eq("id", appId);
+      if (error) throw error;
     }
 
-    alert("Application updated successfully!");
+    // Refresh modal
+    handleViewApplications(requestId, selectedRequestStatus, childId);
   } catch (err) {
-    console.error("❌ General error in handleUpdateApplicationStatus:", err);
-    alert("Error updating application: " + (err.message || err));
+    alert("Error updating application: " + (err.message || String(err)));
   }
-};
-
-
+}
    
   async function uploadProfileImage(file) {
     try {
@@ -887,7 +854,8 @@ export default function ParentPage() {
 </div>
 )}
        {/* Applications Modal */}
-       <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+       {showApplicationsModal && (
+         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
            <div className="bg-white p-6 rounded shadow-lg w-96 max-h-[80vh] overflow-y-auto">
              <h4 className="font-semibold mb-3">Applications</h4>
            {applications.length === 0 ? (
@@ -952,7 +920,6 @@ export default function ParentPage() {
     </div>
   </div>
 )}
-
 
 
 </div>
