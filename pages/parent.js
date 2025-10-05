@@ -882,9 +882,9 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
           onChange={(e) => setSelectedChildId(e.target.value)}
         >
           <option value="">-- Select a child --</option>
-          {parentChildren.map((child) => (
+          {children.map((child) => (
             <option key={child.id} value={child.id}>
-              {child.full_name} ({child.age} yrs)
+              {child.full_name}
             </option>
           ))}
         </select>
