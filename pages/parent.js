@@ -265,11 +265,14 @@ async function handleViewApplications(requestId, requestStatus, childId) {
   // 🔹 Accept or Reject Teacher Application
   async function handleUpdateApplicationStatus(appId, status, requestId) {
   try {
+    // ✅ Find application row
     const acceptedApplication = applications.find(a => a.id === appId);
-    const teacherId = acceptedApplication?.teacher?.id;
+
+    // ⚡ FIX: use teacher_id directly, not teacher?.id
+    const teacherId = acceptedApplication?.teacher_id;
     const monthlyRate = acceptedApplication?.monthly_rate || null;
 
-    // ✅ fetch parent_id (user_id) + child_id from request
+    // ✅ fetch parent_id (user_id) + child_id from requests table
     const { data: requestData, error: requestError } = await supabase
       .from("requests")
       .select("user_id, child_id")
@@ -281,7 +284,7 @@ async function handleViewApplications(requestId, requestStatus, childId) {
     const parentId = requestData.user_id;
     const childId = requestData.child_id;
 
-    console.log("👉 Insert payload", {
+    const payload = {
       parent_id: parentId,
       child_id: childId,
       teacher_id: teacherId,
@@ -289,7 +292,11 @@ async function handleViewApplications(requestId, requestStatus, childId) {
       application_id: appId,
       monthly_rate: monthlyRate,
       status,
-    });
+      date_added: new Date().toISOString().split("T")[0],
+      expiry_date: null,
+    };
+
+    console.log("👉 Insert payload check", payload);
 
     // Step 1: Update application status
     const { error: updateError } = await supabase
@@ -301,23 +308,14 @@ async function handleViewApplications(requestId, requestStatus, childId) {
 
     // Step 2: If accepted, insert into parent_request_teacher_child
     if (status === "accepted") {
-      const { error: linkError } = await supabase
+      const { data: linkData, error: linkError } = await supabase
         .from("parent_request_teacher_child")
-        .insert([
-          {
-            parent_id: parentId,
-            child_id: childId,
-            teacher_id: teacherId,
-            request_id: requestId,
-            application_id: appId,
-            monthly_rate: monthlyRate,
-            status: "accepted",
-            date_added: new Date().toISOString().split("T")[0],
-            expiry_date: null,
-          },
-        ]);
+        .insert([payload])
+        .select("*"); // 👈 return inserted row to verify
 
       if (linkError) throw linkError;
+
+      console.log("🎉 Insert successful:", linkData);
 
       // Step 3: Mark request as fulfilled
       await supabase
