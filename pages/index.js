@@ -7,12 +7,14 @@ export default function Home() {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
-
+  
   // 🔹 Requests
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [applicationForm, setApplicationForm] = useState({ monthly_rate: "" });
+  const [hasApplied, setHasApplied] = useState(false);
+
 
   const [user, setUser] = useState(null);
   const [isTeacher, setIsTeacher] = useState(false);
@@ -185,9 +187,30 @@ export default function Home() {
               <button
                 key={`${req.id}-${index}`}
                 className="text-sm text-blue-700 hover:underline flex items-center mr-8"
-                onClick={() => {
+                onClick={async () => {
                   setSelectedRequest(req);
                   setApplicationForm({ monthly_rate: "" });
+                
+                  // Check if teacher already applied
+                  if (isTeacher && user?.id) {
+                    try {
+                      const { data: existingApp, error } = await supabase
+                        .from("request_applications")
+                        .select("id")
+                        .eq("request_id", req.id)
+                        .eq("teacher_id", user.id)
+                        .single();
+                
+                      if (error && error.code !== "PGRST116") throw error;
+                
+                      setHasApplied(!!existingApp);
+                    } catch (err) {
+                      console.error("Error checking application:", err);
+                      setHasApplied(false);
+                    }
+                  } else {
+                    setHasApplied(false);
+                  }
                 }}
               >
                 <span className="mr-1">⚠️</span>
@@ -240,8 +263,9 @@ export default function Home() {
                 <button
                   className="bg-green-600 px-4 py-2 rounded text-white"
                   onClick={handleApplyForRequest}
+                  disabled={hasApplied}
                 >
-                  Apply for Request
+                  {hasApplied ? "Already Applied" : "Apply for Request"}
                 </button>
               )}
             </div>
