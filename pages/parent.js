@@ -306,7 +306,7 @@ const handleUpdateApplicationStatus = async (appId, newStatus, requestId) => {
             status: "accepted",
             date_added: dateAdded.toISOString().split("T")[0],
             expiry_date: expiryDate.toISOString().split("T")[0],
-          });
+          }),
         ]);
 
       console.log("Inserted into parent_request_teacher_child:", {
