@@ -165,7 +165,7 @@ export default function StudentPage() {
             .from("request_applications")
             .select("request_id")
             .eq("id", application.id)
-            .single();
+            .maybeSingle(); // 👈 use maybeSingle instead of single()
     
           if (reqLookupError) throw reqLookupError;
           requestId = reqLookup?.request_id;
@@ -178,7 +178,7 @@ export default function StudentPage() {
           .from("requests")
           .select("id, request_text, user_id")
           .eq("id", requestId)
-          .single();
+          .maybeSingle(); // 👈 use maybeSingle here too
     
         if (reqError) throw reqError;
         if (!reqData) throw new Error("❌ No matching request found for this ID.");
@@ -244,6 +244,7 @@ export default function StudentPage() {
         alert(err.message || "An error occurred while accepting the application.");
       }
     }
+
 
       // Reject teacher application
     async function handleRejectApplication(app) {
@@ -753,6 +754,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
