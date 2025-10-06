@@ -658,12 +658,23 @@ export default function StudentPage() {
                       {filteredRequests.map((r) => (
                         <div
                           key={r.id}
-                          className="p-3 border rounded bg-white hover:bg-slate-50"
+                          className={`border p-4 rounded mb-3 shadow-sm transition ${
+                            r.status === "fulfilled"
+                              ? "bg-gray-100 opacity-70 cursor-not-allowed"
+                              : "bg-white"
+                          }`}
                         >
                           <div className="mb-2">{r.request_text}</div>
                           <div className="text-xs text-gray-500 mb-2">
+                          <p
+                            className={`text-sm font-medium mt-1 ${
+                              r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
+                            }`}
+                          >
                             Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
+                          </p>
                           </div>
+                          {r.status !== "fulfilled" && (  
                           <div className="flex gap-2">
                             {/* Edit button */}
                             <button
@@ -683,7 +694,8 @@ export default function StudentPage() {
                             >
                               Delete
                             </button>
-              
+                         </div>  
+                          )} 
                             {/* View Applications button */}
                             <button
                               onClick={() => handleViewApplications(r.id)}
@@ -765,6 +777,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
