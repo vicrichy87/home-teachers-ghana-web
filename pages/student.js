@@ -157,7 +157,7 @@ export default function StudentPage() {
   
       async function handleAcceptApplication(application) {
         try {
-          // Ensure request_id exists — if not, try to fetch it from Supabase
+          // Ensure request_id exists — if not, fetch it from Supabase
           let requestId = application.request_id;
           if (!requestId) {
             console.warn("⚠️ request_id missing from application object. Fetching manually...");
@@ -165,7 +165,7 @@ export default function StudentPage() {
               .from("request_applications")
               .select("request_id")
               .eq("id", application.id)
-              .single();
+              .maybeSingle();
       
             if (reqLookupError) throw reqLookupError;
             requestId = reqLookup?.request_id;
@@ -177,8 +177,10 @@ export default function StudentPage() {
             .from("requests")
             .select("id, request_text, user_id")
             .eq("id", requestId)
-            .single();
+            .maybeSingle();
+      
           if (reqError) throw reqError;
+          if (!reqData) throw new Error("No matching request found.");
       
           // 2️⃣ Mark this application as accepted
           const { error: acceptError } = await supabase
@@ -211,14 +213,13 @@ export default function StudentPage() {
             .insert([
               {
                 teacher_id: application.teacher?.id || application.teacher_id,
-                student_id: reqData.user_id, // 👈 student who made the request
-                subject: reqData.request_text, // 👈 use request text as subject
-                level: "request", // 👈 set default level
+                student_id: reqData.user_id,
+                subject: reqData.request_text,
+                level: "request",
                 date_added: dateAdded.toISOString().split("T")[0],
                 expiry_date: expiryDate.toISOString().split("T")[0],
               },
             ]);
-      
           if (insertError) throw insertError;
       
           // 5️⃣ Update request to fulfilled
@@ -239,6 +240,7 @@ export default function StudentPage() {
           alert(err.message || String(err));
         }
       }
+
 
       // Reject teacher application
     async function handleRejectApplication(app) {
@@ -748,6 +750,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
