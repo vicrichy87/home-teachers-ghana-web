@@ -182,8 +182,23 @@ export default function StudentPage() {
           const dateAdded = new Date();
           const expiryDate = new Date();
           expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+          console.log("✅ Debug IDs before insert:", {
+            teacher_id: application.teacher?.id,
+            student_id: reqData?.user_id,
+          });
+
+            await supabase.from("teacher_students").insert([
+              {
+                teacher_id: application.teacher.id,
+                student_id: reqData.user_id,
+                subject: reqData.request_text,
+                level: "request",
+              },
+            ]);
+
       
-          await supabase.from("teacher_students").insert([
+  /*        await supabase.from("teacher_students").insert([
             {
               teacher_id: application.teacher.id,
               student_id: reqData.user_id, // 👈 link to student who created the request
@@ -192,7 +207,7 @@ export default function StudentPage() {
               date_added: dateAdded.toISOString().split("T")[0],
               expiry_date: expiryDate.toISOString().split("T")[0],
             },
-          ]);
+          ]); */
       
           // 5️⃣ Update request to fulfilled
           await supabase
@@ -721,6 +736,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
