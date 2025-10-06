@@ -155,7 +155,63 @@ export default function StudentPage() {
     }
   }
 
-  // 🔍 Teacher searches
+    async function handleAcceptApplication(application) {
+      try {
+        // 1. Mark this application as accepted
+        await supabase
+          .from("request_applications")
+          .update({ status: "accepted" })
+          .eq("id", application.id);
+    
+        // 2. Reject all other applications for the same request
+        await supabase
+          .from("request_applications")
+          .update({ status: "rejected" })
+          .eq("request_id", application.request_id)
+          .neq("id", application.id);
+    
+        // 3. Get the request details (so we can save subject & level)
+        const { data: reqData, error: reqError } = await supabase
+          .from("requests")
+          .select("subject, level")
+          .eq("id", application.request_id)
+          .single();
+        if (reqError) throw reqError;
+    
+        // 4. Link teacher and student in teacher_students table
+        const dateAdded = new Date();
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+    
+        await supabase.from("teacher_students").insert([{
+          teacher_id: application.teacher.id,
+          student_id: student.id,
+          subject: reqData?.subject || null,
+          level: reqData?.level || null,
+          date_added: dateAdded.toISOString().split("T")[0],
+          expiry_date: expiryDate.toISOString().split("T")[0],
+        }]);
+    
+        // 5. Update the request itself to "fulfilled"
+        await supabase
+          .from("requests")
+          .update({ status: "fulfilled" })
+          .eq("id", application.request_id);
+    
+        alert("Application accepted successfully!");
+    
+        // 6. Close modal & refresh lists
+        setShowApplications(false);
+        fetchRequests();
+        fetchMyTeachers(); // 🔥 ensures accepted teacher shows in My Teachers tab
+        setTab("myTeachers"); // auto-switch to My Teachers tab
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+
+
+    // 🔍 Teacher searches
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
@@ -607,6 +663,14 @@ export default function StudentPage() {
                 <div className="text-xs text-gray-400">
                   Applied on: {new Date(app.date_applied).toLocaleString()}
                 </div>
+                {a.status === "pending" && (
+                  <button
+                    className="bg-green-600 text-white px-3 py-1 rounded"
+                    onClick={() => handleAcceptApplication(a)}
+                  >
+                    Accept
+                  </button>
+                )}  
               </div>
             </div>
           ))}
@@ -631,5 +695,6 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
