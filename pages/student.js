@@ -676,39 +676,44 @@ export default function StudentPage() {
             </div>
 
             {/* Only show edit/delete if not fulfilled */}
-            {r.status !== "fulfilled" && (
-              <div className="flex gap-2 mb-2">
-                <button
-                  onClick={() => {
-                    const newText = prompt("Edit your request:", r.request_text);
-                    if (newText !== null) handleEditRequest(r.id, newText);
-                  }}
-                  className="px-3 py-1 bg-yellow-400 text-white rounded"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteRequest(r.id)}
-                  className="px-3 py-1 bg-red-600 text-white rounded"
-                >
-                  Delete
-                </button>
-              </div>
-            )}
+            {/* Button row */}
+<div className="flex gap-2 mt-2">
+  {/* Edit button (only if not fulfilled) */}
+  {r.status !== "fulfilled" && (
+    <>
+      <button
+        onClick={() => {
+          const newText = prompt("Edit your request:", r.request_text);
+          if (newText !== null) handleEditRequest(r.id, newText);
+        }}
+        className="px-3 py-1 bg-yellow-400 text-white rounded"
+      >
+        Edit
+      </button>
 
-            {/* View Applications */}
-            <button
-              onClick={() => handleViewApplications(r.id)}
-              disabled={r.status === "fulfilled"}
-              className={`px-3 py-1 rounded text-white ${
-                r.status === "fulfilled"
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-            >
-              View Applications
-            </button>
-          </div>
+      <button
+        onClick={() => handleDeleteRequest(r.id)}
+        className="px-3 py-1 bg-red-600 text-white rounded"
+      >
+        Delete
+      </button>
+    </>
+  )}
+
+  {/* View Applications button */}
+  <button
+    onClick={() => handleViewApplications(r.id)}
+    disabled={r.status === "fulfilled"}
+    className={`px-3 py-1 rounded text-white ${
+      r.status === "fulfilled"
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-600 hover:bg-blue-700"
+    }`}
+  >
+    View Applications
+  </button>
+</div>
+
         ))}
       </div>
     )}
@@ -784,6 +789,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
