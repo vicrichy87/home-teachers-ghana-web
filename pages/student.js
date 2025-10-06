@@ -157,7 +157,9 @@ export default function StudentPage() {
   
     async function handleAcceptApplication(application) {
       try {
-        // 🧩 Step 1: Ensure request_id is available or fetch it manually
+        console.log("🧩 Checking application object:", application);
+    
+        // ✅ Step 1: Get request_id safely
         let requestId = application?.request_id;
         if (!requestId) {
           console.warn("⚠️ request_id missing — fetching from Supabase...");
@@ -165,7 +167,7 @@ export default function StudentPage() {
             .from("request_applications")
             .select("request_id")
             .eq("id", application.id)
-            .maybeSingle(); // 👈 use maybeSingle instead of single()
+            .maybeSingle();
     
           if (reqLookupError) throw reqLookupError;
           requestId = reqLookup?.request_id;
@@ -173,32 +175,34 @@ export default function StudentPage() {
           if (!requestId) throw new Error("❌ Request ID could not be determined.");
         }
     
-        // 🧠 Step 2: Fetch the request details
+        // ✅ Step 2: Fetch the request details safely
         const { data: reqData, error: reqError } = await supabase
           .from("requests")
           .select("id, request_text, user_id")
           .eq("id", requestId)
-          .maybeSingle(); // 👈 use maybeSingle here too
+          .maybeSingle();
     
         if (reqError) throw reqError;
         if (!reqData) throw new Error("❌ No matching request found for this ID.");
     
-        // ✅ Step 3: Mark this application as accepted
+        // ✅ Step 3: Update the accepted application
         const { error: acceptError } = await supabase
           .from("request_applications")
           .update({ status: "accepted" })
           .eq("id", application.id);
+    
         if (acceptError) throw acceptError;
     
-        // 🚫 Step 4: Reject all other applications for the same request
+        // 🚫 Step 4: Reject all other applications for this request
         const { error: rejectError } = await supabase
           .from("request_applications")
           .update({ status: "rejected" })
           .eq("request_id", requestId)
           .neq("id", application.id);
+    
         if (rejectError) throw rejectError;
     
-        // 👩‍🏫 Step 5: Link teacher and student in teacher_students
+        // 👩‍🏫 Step 5: Create link in teacher_students
         const teacherId = application?.teacher?.id || application?.teacher_id;
         if (!teacherId) throw new Error("❌ Teacher ID could not be determined.");
     
@@ -206,45 +210,45 @@ export default function StudentPage() {
         const expiryDate = new Date();
         expiryDate.setMonth(expiryDate.getMonth() + 1);
     
-        console.log("✅ Inserting teacher-student link:", {
+        console.log("✅ Linking teacher and student:", {
           teacher_id: teacherId,
           student_id: reqData.user_id,
           subject: reqData.request_text,
         });
     
-        const { error: insertError } = await supabase
-          .from("teacher_students")
-          .insert([
-            {
-              teacher_id: teacherId,
-              student_id: reqData.user_id,
-              subject: reqData.request_text,
-              level: "request",
-              date_added: dateAdded.toISOString().split("T")[0],
-              expiry_date: expiryDate.toISOString().split("T")[0],
-            },
-          ]);
-        if (insertError) throw insertError;
+        const { error: linkError } = await supabase.from("teacher_students").insert([
+          {
+            teacher_id: teacherId,
+            student_id: reqData.user_id,
+            subject: reqData.request_text,
+            level: "request",
+            date_added: dateAdded.toISOString().split("T")[0],
+            expiry_date: expiryDate.toISOString().split("T")[0],
+          },
+        ]);
     
-        // 🎯 Step 6: Mark request as fulfilled
+        if (linkError) throw linkError;
+    
+        // ✅ Step 6: Update the request to "fulfilled"
         const { error: fulfillError } = await supabase
           .from("requests")
           .update({ status: "fulfilled" })
           .eq("id", requestId);
+    
         if (fulfillError) throw fulfillError;
     
-        // 🎉 Step 7: Success — update UI
+        // 🎉 Step 7: Success feedback and refresh UI
         alert("✅ Application accepted successfully!");
         setShowApplicationsModal(false);
         await fetchRequests();
         await fetchMyTeachers();
         setTab("myTeachers");
+    
       } catch (err) {
         console.error("❌ Error in handleAcceptApplication:", err);
         alert(err.message || "An error occurred while accepting the application.");
       }
     }
-
 
       // Reject teacher application
     async function handleRejectApplication(app) {
@@ -754,6 +758,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
