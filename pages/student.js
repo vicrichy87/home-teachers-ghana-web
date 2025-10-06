@@ -663,10 +663,10 @@ export default function StudentPage() {
                 <div className="text-xs text-gray-400">
                   Applied on: {new Date(app.date_applied).toLocaleString()}
                 </div>
-                {a.status === "pending" && (
+                {app.status === "pending" && (
                   <button
                     className="bg-green-600 text-white px-3 py-1 rounded"
-                    onClick={() => handleAcceptApplication(a)}
+                    onClick={() => handleAcceptApplication(app)}
                   >
                     Accept
                   </button>
@@ -695,6 +695,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
