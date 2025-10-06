@@ -155,7 +155,7 @@ export default function StudentPage() {
     }
   }
   
-      async function handleAcceptApplication(application) {
+    /*  async function handleAcceptApplication(application) {
         try {
           // 1️⃣ Fetch the request details (get its text and user_id)
           const { data: reqData, error: reqError } = await supabase
@@ -188,9 +188,29 @@ export default function StudentPage() {
               teacher_id: application.teacher?.id,
               student_id: reqData?.user_id,
               reqData,
-            });
+            }); */
             
-
+            const handleAcceptApplication = async (application) => {
+              console.log("🪄 Checking application object:", application);
+            
+              if (!application.request_id) {
+                alert("Missing request ID. Please check the application object.");
+                return;
+              }
+            
+              const { data: reqData, error: reqError } = await supabase
+                .from("requests")
+                .select("id, request_text, user_id")
+                .eq("id", application.request_id)
+                .single();
+            
+              if (reqError) {
+                console.error("❌ Error fetching request:", reqError);
+                return;
+              }
+            
+              console.log("✅ Request data fetched:", reqData);
+            };
             await supabase.from("teacher_students").insert([
               {
                 teacher_id: application.teacher.id,
@@ -739,6 +759,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
