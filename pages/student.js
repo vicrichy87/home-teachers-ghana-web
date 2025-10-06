@@ -183,10 +183,13 @@ export default function StudentPage() {
           const expiryDate = new Date();
           expiryDate.setMonth(expiryDate.getMonth() + 1);
 
-          console.log("✅ Debug IDs before insert:", {
-            teacher_id: application.teacher?.id,
-            student_id: reqData?.user_id,
-          });
+          console.log("✅ Debug details before insert:", {
+              application,
+              teacher_id: application.teacher?.id,
+              student_id: reqData?.user_id,
+              reqData,
+            });
+            
 
             await supabase.from("teacher_students").insert([
               {
@@ -736,6 +739,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
