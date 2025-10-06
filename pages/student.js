@@ -154,53 +154,65 @@ export default function StudentPage() {
       alert(err.message || String(err));
     }
   }
-
-    async function handleAcceptApplication(application) {
-      try {
-        // 1. Mark this application as accepted
-        await supabase
-          .from("request_applications")
-          .update({ status: "accepted" })
-          .eq("id", application.id);
-    
-        // 2. Reject all other applications for the same request
-        await supabase
-          .from("request_applications")
-          .update({ status: "rejected" })
-          .eq("request_id", application.request_id)
-          .neq("id", application.id);
-              
-        // 3. Link teacher and student in teacher_students table
-        const dateAdded = new Date();
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
-    
-        await supabase.from("teacher_students").insert([{
-          teacher_id: application.teacher.id,
-          student_id: student.id,
-          subject: requestData.request_text,
-          level: "request",
-          date_added: dateAdded.toISOString().split("T")[0],
-          expiry_date: expiryDate.toISOString().split("T")[0],
-        }]);
-    
-        // 4. Update the request itself to "fulfilled"
-        await supabase
-          .from("requests")
-          .update({ status: "fulfilled" })
-          .eq("id", application.request_id);
-    
-        alert("Application accepted successfully!");
-    
-        // 5. Close modal & refresh lists
-        setShowApplications(false);
-        fetchRequests();
-        fetchMyTeachers(); // 🔥 ensures accepted teacher shows in My Teachers tab
-        setTab("myTeachers"); // auto-switch to My Teachers tab
-      } catch (err) {
-        alert(err.message || String(err));
+  
+      async function handleAcceptApplication(application) {
+        try {
+          // 1️⃣ Fetch the request details (get its text and user_id)
+          const { data: reqData, error: reqError } = await supabase
+            .from("requests")
+            .select("id, request_text, user_id")
+            .eq("id", application.request_id)
+            .single();
+          if (reqError) throw reqError;
+      
+          // 2️⃣ Mark this application as accepted
+          await supabase
+            .from("request_applications")
+            .update({ status: "accepted" })
+            .eq("id", application.id);
+      
+          // 3️⃣ Reject all other applications for this same request
+          await supabase
+            .from("request_applications")
+            .update({ status: "rejected" })
+            .eq("request_id", application.request_id)
+            .neq("id", application.id);
+      
+          // 4️⃣ Link teacher and student in teacher_students
+          const dateAdded = new Date();
+          const expiryDate = new Date();
+          expiryDate.setMonth(expiryDate.getMonth() + 1);
+      
+          await supabase.from("teacher_students").insert([
+            {
+              teacher_id: application.teacher.id,
+              student_id: reqData.user_id, // 👈 link to student who created the request
+              subject: reqData.request_text, // 👈 use request text as subject
+              level: "request", // 👈 set default level
+              date_added: dateAdded.toISOString().split("T")[0],
+              expiry_date: expiryDate.toISOString().split("T")[0],
+            },
+          ]);
+      
+          // 5️⃣ Update request to fulfilled
+          await supabase
+            .from("requests")
+            .update({ status: "fulfilled" })
+            .eq("id", application.request_id);
+      
+          alert("Application accepted successfully!");
+      
+          // 6️⃣ Refresh everything
+          setShowApplicationsModal(false);
+          fetchRequests();
+          fetchMyTeachers();
+          setTab("myTeachers"); // switch tab automatically
+        } catch (err) {
+          console.error("Error accepting application:", err);
+          alert(err.message || String(err));
+        }
       }
-    }
+
       // Reject teacher application
     async function handleRejectApplication(app) {
       try {
@@ -709,6 +721,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
