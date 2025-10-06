@@ -117,7 +117,7 @@ export default function StudentPage() {
       const { data, error } = await supabase
         .from("requests")
         .select("id, request_text, city, status, created_at")
-        .eq("user_id", user.id)  // ✅ only fetch requests created by this student
+        .eq("user_id", student.id)  // ✅ only fetch requests created by this student
         .order("created_at", { ascending: false });
       
       if (error) throw error;
@@ -631,4 +631,5 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
