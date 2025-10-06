@@ -42,13 +42,7 @@ export default function StudentPage() {
     if (student && tab === "requests") fetchRequests();
   }, [student, tab]);
 
-  useEffect(() => {
-    if (tab === "requests" && student) {
-      fetchRequests();
-    }
-  }, [tab, student]);
-
-  // 🌍 Auto-detect location from IP
+    // 🌍 Auto-detect location from IP
   useEffect(() => {
     async function detectLocation() {
       try {
@@ -113,21 +107,18 @@ export default function StudentPage() {
   // 🔹 Requests functions
   async function fetchRequests() {
     try {
-      setLoadingRequests(true);
       const { data, error } = await supabase
         .from("requests")
-        .select("id, request_text, city, status, created_at")
-        .eq("user_id", student.id)  // ✅ only fetch requests created by this student
+        .select("*")
+        .eq("user_id", student.id)
         .order("created_at", { ascending: false });
-      
+
       if (error) throw error;
       setRequests(data || []);
       setFilteredRequests(data || []);
     } catch (err) {
       console.error("Error fetching requests:", err);
       alert(err.message || String(err));
-    } finally {
-      setLoadingRequests(false);
     }
   }
 
@@ -362,52 +353,60 @@ export default function StudentPage() {
     async function handleDeleteRequest(requestId) {
       if (!confirm("Are you sure you want to delete this request?")) return;
       try {
+        // Instantly update UI
+        setRequests(prev => prev.filter(r => r.id !== requestId));
+        setFilteredRequests(prev => prev.filter(r => r.id !== requestId));
+  
+        // Then delete from backend
         const { error } = await supabase
           .from("requests")
           .delete()
           .eq("id", requestId);
+  
         if (error) throw error;
-        fetchRequests();
+  
+        // Re-fetch to confirm
+        await fetchRequests();
         alert("Request deleted successfully!");
       } catch (err) {
+        console.error("Error deleting request:", err);
+        alert(err.message || String(err));
+      }
+    }
+
+    // View applications in modal  
+  async function handleViewApplications(requestId) {
+     console.log("🪄 handleViewApplications called with requestId:", requestId);
+      try {
+        const { data, error } = await supabase
+          .from("request_applications")
+          .select(`
+            id,
+            request_id,
+            teacher_id,
+            monthly_rate,
+            status,
+            date_applied,
+            teacher:teacher_id (
+              id,
+              full_name,
+              profile_image,
+              city
+            )
+          `)
+          .eq("request_id", requestId);
+    
+        if (error) throw error;
+    
+        console.log("✅ Applications fetched:", data);
+        setSelectedRequestApplications(data || []);
+        setShowApplicationsModal(true);
+      } catch (err) {
+        console.error("Error fetching applications:", err);
         alert(err.message || String(err));
       }
     }
     
-    // View applications in modal  
-  async function handleViewApplications(requestId) {
-   console.log("🪄 handleViewApplications called with requestId:", requestId);
-    try {
-      const { data, error } = await supabase
-        .from("request_applications")
-        .select(`
-          id,
-          request_id,
-          teacher_id,
-          monthly_rate,
-          status,
-          date_applied,
-          teacher:teacher_id (
-            id,
-            full_name,
-            profile_image,
-            city
-          )
-        `)
-        .eq("request_id", requestId);
-  
-      if (error) throw error;
-  
-      console.log("✅ Applications fetched:", data);
-      setSelectedRequestApplications(data || []);
-      setShowApplicationsModal(true);
-    } catch (err) {
-      console.error("Error fetching applications:", err);
-      alert(err.message || String(err));
-    }
-  }
-    
-
   // ✅ Upload profile image
   async function uploadProfileImage(file) {
     try {
@@ -766,6 +765,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
