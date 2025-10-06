@@ -381,6 +381,7 @@ export default function StudentPage() {
             .from("request_applications")
             .select(`
               id,
+              request_id,        -- ✅ include this
               teacher_id,
               monthly_rate,
               status,
@@ -391,6 +392,7 @@ export default function StudentPage() {
       
           if (error) throw error;
       
+          console.log("✅ Applications fetched:", data); // 👈 for debugging
           setSelectedRequestApplications(data || []);
           setShowApplicationsModal(true);
         } catch (err) {
@@ -398,7 +400,6 @@ export default function StudentPage() {
           alert(err.message || String(err));
         }
       }
-
 
   // ✅ Upload profile image
   async function uploadProfileImage(file) {
@@ -758,3 +759,4 @@ export default function StudentPage() {
     </div>
   );
 }
+
