@@ -626,91 +626,96 @@ export default function StudentPage() {
               </div>
             </div>
           )}
+{/* Requests Tab */}
+{tab === "requests" && (
+  <div className="mt-4">
+    <h4 className="font-semibold mb-2">My Requests</h4>
 
-                        {/* Requests Tab */}
-              {tab === "requests" && (
-                <div className="mt-4">
-                  <h4 className="font-semibold mb-2">My Requests</h4>
-              
-                  {/* Create Request */}
-                  <div className="mb-4">
-                    <textarea
-                      value={requestForm.request_text}
-                      onChange={(e) => setRequestForm({ request_text: e.target.value })}
-                      placeholder="Enter your request here..."
-                      className="w-full p-2 border rounded"
-                    />
-                    <button
-                      onClick={handleCreateRequest}
-                      className="mt-2 bg-green-600 text-white px-4 py-2 rounded"
-                    >
-                      Create Request
-                    </button>
-                  </div>
-              
-                  {/* List Requests */}
-                  {loadingRequests ? (
-                    <p>Loading requests...</p>
-                  ) : filteredRequests.length === 0 ? (
-                    <p className="text-slate-600">No requests found.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {filteredRequests.map((r) => (
-                        <div
-                          key={r.id}
-                          className={`border p-4 rounded mb-3 shadow-sm transition ${
-                            r.status === "fulfilled"
-                              ? "bg-gray-100 opacity-70 cursor-not-allowed"
-                              : "bg-white"
-                          }`}
-                        >
-                          <div className="mb-2">{r.request_text}</div>
-                          <div className="text-xs text-gray-500 mb-2">
-                          <p
-                            className={`text-sm font-medium mt-1 ${
-                              r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
-                            }`}
-                          >
-                            Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
-                          </p>
-                          </div>
-                          {r.status !== "fulfilled" && (  
-                          <div className="flex gap-2">
-                            {/* Edit button */}
-                            <button
-                              onClick={() => {
-                                const newText = prompt("Edit your request:", r.request_text);
-                                if (newText !== null) handleEditRequest(r.id, newText);
-                              }}
-                              className="px-3 py-1 bg-yellow-400 text-white rounded"
-                            >
-                              Edit
-                            </button>
-              
-                            {/* Delete button */}
-                            <button
-                              onClick={() => handleDeleteRequest(r.id)}
-                              className="px-3 py-1 bg-red-600 text-white rounded"
-                            >
-                              Delete
-                            </button>
-                         </div>  
-                          )} 
-                            {/* View Applications button */}
-                            <button
-                              onClick={() => handleViewApplications(r.id)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded"
-                            >
-                              View Applications
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              {/* Applications Modal */}
+    {/* Create Request */}
+    <div className="mb-4">
+      <textarea
+        value={requestForm.request_text}
+        onChange={(e) => setRequestForm({ request_text: e.target.value })}
+        placeholder="Enter your request here..."
+        className="w-full p-2 border rounded"
+      />
+      <button
+        onClick={handleCreateRequest}
+        className="mt-2 bg-green-600 text-white px-4 py-2 rounded"
+      >
+        Create Request
+      </button>
+    </div>
+
+    {/* List Requests */}
+    {loadingRequests ? (
+      <p>Loading requests...</p>
+    ) : filteredRequests.length === 0 ? (
+      <p className="text-slate-600">No requests found.</p>
+    ) : (
+      <div className="space-y-3">
+        {filteredRequests.map((r) => (
+          <div
+            key={r.id}
+            className={`border p-4 rounded mb-3 shadow-sm transition ${
+              r.status === "fulfilled"
+                ? "bg-gray-100 opacity-70 cursor-not-allowed"
+                : "bg-white"
+            }`}
+          >
+            <div className="mb-2">{r.request_text}</div>
+            <div className="text-xs text-gray-500 mb-2">
+              <p
+                className={`text-sm font-medium mt-1 ${
+                  r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
+                }`}
+              >
+                Status: {r.status} | Created at:{" "}
+                {new Date(r.created_at).toLocaleString()}
+              </p>
+            </div>
+
+            {/* Only show edit/delete if not fulfilled */}
+            {r.status !== "fulfilled" && (
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => {
+                    const newText = prompt("Edit your request:", r.request_text);
+                    if (newText !== null) handleEditRequest(r.id, newText);
+                  }}
+                  className="px-3 py-1 bg-yellow-400 text-white rounded"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteRequest(r.id)}
+                  className="px-3 py-1 bg-red-600 text-white rounded"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+
+            {/* View Applications */}
+            <button
+              onClick={() => handleViewApplications(r.id)}
+              disabled={r.status === "fulfilled"}
+              className={`px-3 py-1 rounded text-white ${
+                r.status === "fulfilled"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              View Applications
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{/* Applications Modal */}
 {showApplicationsModal && (
   <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
     <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
@@ -740,13 +745,21 @@ export default function StudentPage() {
                   Applied on: {new Date(app.date_applied).toLocaleString()}
                 </div>
                 {app.status === "pending" && (
-                  <button
-                    className="bg-green-600 text-white px-3 py-1 rounded"
-                    onClick={() => handleAcceptApplication(app)}
-                  >
-                    Accept
-                  </button>
-                )}  
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      className="bg-green-600 text-white px-3 py-1 rounded"
+                      onClick={() => handleAcceptApplication(app)}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      className="bg-red-600 text-white px-3 py-1 rounded"
+                      onClick={() => handleRejectApplication(app)}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -760,12 +773,6 @@ export default function StudentPage() {
         >
           Close
         </button>
-        <button
-          className="bg-red-600 text-white px-3 py-1 rounded"
-          onClick={() => handleRejectApplication(app)}
-        >
-          Reject
-    </button>
       </div>
     </div>
   </div>
@@ -777,6 +784,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
