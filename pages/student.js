@@ -169,16 +169,8 @@ export default function StudentPage() {
           .update({ status: "rejected" })
           .eq("request_id", application.request_id)
           .neq("id", application.id);
-    
-        // 3. Get the request details (so we can save subject & level)
-        const { data: reqData, error: reqError } = await supabase
-          .from("requests")
-          .select("subject, level")
-          .eq("id", application.request_id)
-          .single();
-        if (reqError) throw reqError;
-    
-        // 4. Link teacher and student in teacher_students table
+              
+        // 3. Link teacher and student in teacher_students table
         const dateAdded = new Date();
         const expiryDate = new Date();
         expiryDate.setMonth(expiryDate.getMonth() + 1);
@@ -192,7 +184,7 @@ export default function StudentPage() {
           expiry_date: expiryDate.toISOString().split("T")[0],
         }]);
     
-        // 5. Update the request itself to "fulfilled"
+        // 4. Update the request itself to "fulfilled"
         await supabase
           .from("requests")
           .update({ status: "fulfilled" })
@@ -200,7 +192,7 @@ export default function StudentPage() {
     
         alert("Application accepted successfully!");
     
-        // 6. Close modal & refresh lists
+        // 5. Close modal & refresh lists
         setShowApplications(false);
         fetchRequests();
         fetchMyTeachers(); // 🔥 ensures accepted teacher shows in My Teachers tab
@@ -717,6 +709,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
