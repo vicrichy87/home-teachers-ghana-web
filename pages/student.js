@@ -375,31 +375,37 @@ export default function StudentPage() {
     }
     
     // View applications in modal
-      async function handleViewApplications(requestId) {
-        try {
-          const { data, error } = await supabase
-            .from("request_applications")
-            .select(`
-              id,
-              request_id,        -- ✅ include this
-              teacher_id,
-              monthly_rate,
-              status,
-              date_applied,
-              teacher:teacher_id ( id, full_name, profile_image, city )
-            `)
-            .eq("request_id", requestId);
-      
-          if (error) throw error;
-      
-          console.log("✅ Applications fetched:", data); // 👈 for debugging
-          setSelectedRequestApplications(data || []);
-          setShowApplicationsModal(true);
-        } catch (err) {
-          console.error("Error fetching applications:", err);
-          alert(err.message || String(err));
-        }
-      }
+  async function handleViewApplications(requestId) {
+    try {
+      const { data, error } = await supabase
+        .from("request_applications")
+        .select(`
+          id,
+          request_id,
+          teacher_id,
+          monthly_rate,
+          status,
+          date_applied,
+          teacher:teacher_id (
+            id,
+            full_name,
+            profile_image,
+            city
+          )
+        `)
+        .eq("request_id", requestId);
+  
+      if (error) throw error;
+  
+      console.log("✅ Applications fetched:", data);
+      setSelectedRequestApplications(data || []);
+      setShowApplicationsModal(true);
+    } catch (err) {
+      console.error("Error fetching applications:", err);
+      alert(err.message || String(err));
+    }
+  }
+    
 
   // ✅ Upload profile image
   async function uploadProfileImage(file) {
@@ -759,4 +765,5 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
