@@ -209,7 +209,23 @@ export default function StudentPage() {
         alert(err.message || String(err));
       }
     }
-
+      // Reject teacher application
+    async function handleRejectApplication(app) {
+      try {
+        const { error } = await supabase
+          .from("request_applications")
+          .update({ status: "rejected" })
+          .eq("id", app.id);
+        if (error) throw error;
+    
+        alert("Application rejected successfully.");
+        // Optionally refresh the list to show updated status
+        handleViewApplications(app.request_id);
+      } catch (err) {
+        console.error("Error rejecting application:", err);
+        alert(err.message || "Failed to reject application.");
+      }
+    }
 
     // 🔍 Teacher searches
   async function handleSearchByLocation() {
@@ -684,6 +700,12 @@ export default function StudentPage() {
         >
           Close
         </button>
+        <button
+          className="bg-red-600 text-white px-3 py-1 rounded"
+          onClick={() => handleRejectApplication(app)}
+        >
+          Reject
+    </button>
       </div>
     </div>
   </div>
@@ -695,6 +717,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
