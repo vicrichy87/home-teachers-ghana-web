@@ -186,8 +186,8 @@ export default function StudentPage() {
         await supabase.from("teacher_students").insert([{
           teacher_id: application.teacher.id,
           student_id: student.id,
-          subject: reqData?.subject || null,
-          level: reqData?.level || null,
+          subject: requestData.request_text,
+          level: "request",
           date_added: dateAdded.toISOString().split("T")[0],
           expiry_date: expiryDate.toISOString().split("T")[0],
         }]);
@@ -695,6 +695,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
