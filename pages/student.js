@@ -593,204 +593,245 @@ export default function StudentPage() {
           )}
 
           {/* My Teachers Tab */}
-          {tab==="myTeachers" && (
-            <div className="mt-4">
-              <h4 className="font-semibold">My Teachers</h4>
-              <div className="space-y-3 mt-3">
-                {myTeachers.length === 0 && <div className="text-slate-600">You have no registered teachers.</div>}
-                {myTeachers.map((m) => (
-                  <div
-                    key={m.id}
-                    className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50"
-                    onClick={() => router.push(`/teacher/${m.teacher.id}`)}
-                  >
-                    <img
-                      src={m.teacher?.profile_image || "/placeholder.png"}
-                      alt={m.teacher?.full_name}
-                      className="w-16 h-16 rounded-full border object-cover"
-                    />
-                    <div>
-                      <div className="font-semibold text-lg">{m.teacher.full_name}</div>
-                      <div className="text-sm text-slate-600">
-                        {m.teacher.email} | {m.teacher.phone}
-                      </div>
-                      <div className="text-sm">
-                        Subject: <span className="font-medium">{m.subject}</span> ({m.level})
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        Date added: {m.date_added} — Expires: {m.expiry_date}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {tab === "myTeachers" && (
+            <div className="mt-4 space-y-6">
+              {/* Normal Teachers */}
+              <div>
+                <h4 className="font-semibold mb-3">My Teachers</h4>
+                <div className="space-y-3">
+                  {myTeachers.filter(m => m.level !== "request").length === 0 ? (
+                    <div className="text-slate-600">You have no registered teachers.</div>
+                  ) : (
+                    myTeachers
+                      .filter(m => m.level !== "request")
+                      .map((m) => (
+                        <div
+                          key={m.id}
+                          className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50"
+                          onClick={() => router.push(`/teacher/${m.teacher.id}`)}
+                        >
+                          <img
+                            src={m.teacher?.profile_image || "/placeholder.png"}
+                            alt={m.teacher?.full_name}
+                            className="w-16 h-16 rounded-full border object-cover"
+                          />
+                          <div>
+                            <div className="font-semibold text-lg">{m.teacher.full_name}</div>
+                            <div className="text-sm text-slate-600">
+                              {m.teacher.email} | {m.teacher.phone}
+                            </div>
+                            <div className="text-sm">
+                              Subject: <span className="font-medium">{m.subject}</span> ({m.level})
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              Date added: {m.date_added} — Expires: {m.expiry_date}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+          
+              {/* Request Teachers */}
+              <div>
+                <h4 className="font-semibold mb-3">Request Teachers</h4>
+                <div className="space-y-3">
+                  {myTeachers.filter(m => m.level === "request").length === 0 ? (
+                    <div className="text-slate-600">No request-level teachers.</div>
+                  ) : (
+                    myTeachers
+                      .filter(m => m.level === "request")
+                      .map((m) => (
+                        <div
+                          key={m.id}
+                          className="p-4 border-l-4 border-blue-500 rounded bg-blue-50 flex gap-4 items-center cursor-pointer hover:bg-blue-100 transition"
+                          onClick={() => router.push(`/teacher/${m.teacher.id}`)}
+                        >
+                          <img
+                            src={m.teacher?.profile_image || "/placeholder.png"}
+                            alt={m.teacher?.full_name}
+                            className="w-16 h-16 rounded-full border object-cover"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-lg">{m.teacher.full_name}</span>
+                              <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Request</span>
+                            </div>
+                            <div className="text-sm text-slate-600">
+                              {m.teacher.email} | {m.teacher.phone}
+                            </div>
+                            <div className="text-sm">
+                              Subject: <span className="font-medium">{m.subject}</span> ({m.level})
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              Date added: {m.date_added} — Expires: {m.expiry_date}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
               </div>
             </div>
           )}
-{/* Requests Tab */}
-{tab === "requests" && (
-  <div className="mt-4">
-    <h4 className="font-semibold mb-2">My Requests</h4>
 
-    {/* Create Request */}
-    <div className="mb-4">
-      <textarea
-        value={requestForm.request_text}
-        onChange={(e) => setRequestForm({ request_text: e.target.value })}
-        placeholder="Enter your request here..."
-        className="w-full p-2 border rounded"
-      />
-      <button
-        onClick={handleCreateRequest}
-        className="mt-2 bg-green-600 text-white px-4 py-2 rounded"
-      >
-        Create Request
-      </button>
-    </div>
-
-    {/* List Requests */}
-    {loadingRequests ? (
-      <p>Loading requests...</p>
-    ) : filteredRequests.length === 0 ? (
-      <p className="text-slate-600">No requests found.</p>
-    ) : (
-      <div className="space-y-3">
-        {filteredRequests.map((r) => (
-          <div
-            key={r.id}
-            className={`border p-4 rounded shadow-sm transition ${
-              r.status === "fulfilled"
-                ? "bg-gray-100 opacity-70 cursor-not-allowed"
-                : "bg-white"
-            }`}
-          >
-            <div className="mb-2">{r.request_text}</div>
-            <p
-              className={`text-sm font-medium mt-1 ${
-                r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
-              }`}
-            >
-              Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
-            </p>
-    
-            {/* Buttons */}
-            <div className="flex gap-2 mt-2">
-              {r.status !== "fulfilled" && (
-                <>
-                  <button
-                    onClick={() => {
-                      const newText = prompt("Edit your request:", r.request_text);
-                      if (newText !== null) handleEditRequest(r.id, newText);
-                    }}
-                    className="px-3 py-1 bg-yellow-400 text-white rounded"
-                  >
-                    Edit
-                  </button>
-    
-                  <button
-                    onClick={() => handleDeleteRequest(r.id)}
-                    className="px-3 py-1 bg-red-600 text-white rounded"
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
-    
-              <button
-                onClick={() => handleViewApplications(r.id)}
-                disabled={r.status === "fulfilled"}
-                className={`px-3 py-1 rounded text-white ${
-                  r.status === "fulfilled"
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                View Applications
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
-
-  </div>
-)}
-
-{/* Applications Modal */}
-{showApplicationsModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-    <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
-      <h2 className="text-lg font-bold mb-4">Teacher Applications</h2>
-
-      {selectedRequestApplications.length === 0 ? (
-        <p className="text-gray-500">No applications yet.</p>
-      ) : (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {selectedRequestApplications.map((app) => (
-            <div
-              key={app.id}
-              className="p-3 border rounded bg-gray-50 flex gap-4 items-center"
-            >
-              <img
-                src={app.teacher?.profile_image || "/placeholder.png"}
-                alt={app.teacher?.full_name}
-                className="w-12 h-12 rounded-full border object-cover"
-              />
-              <div className="flex-1">
-                <div className="font-semibold">{app.teacher?.full_name}</div>
-                <div className="text-sm text-gray-500">{app.teacher?.city}</div>
-                <div className="text-sm">
-                  Monthly Rate: GHC {app.monthly_rate} — Status: {app.status}
-                </div>
-                <div className="text-xs text-gray-400">
-                  Applied on: {new Date(app.date_applied).toLocaleString()}
-                </div>
-                {app.status === "pending" && (
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      className="bg-green-600 text-white px-3 py-1 rounded"
-                      onClick={() => handleAcceptApplication(app)}
-                    >
-                      Accept
-                    </button>
-                    <button
-                      className="bg-red-600 text-white px-3 py-1 rounded"
-                      onClick={() => handleRejectApplication(app)}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                )}
+                  {/* Requests Tab */}
+                  {tab === "requests" && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold mb-2">My Requests</h4>
+                  
+                      {/* Create Request */}
+                      <div className="mb-4">
+                        <textarea
+                          value={requestForm.request_text}
+                          onChange={(e) => setRequestForm({ request_text: e.target.value })}
+                          placeholder="Enter your request here..."
+                          className="w-full p-2 border rounded"
+                        />
+                        <button
+                          onClick={handleCreateRequest}
+                          className="mt-2 bg-green-600 text-white px-4 py-2 rounded"
+                        >
+                          Create Request
+                        </button>
+                      </div>
+                  
+                      {/* List Requests */}
+                      {loadingRequests ? (
+                        <p>Loading requests...</p>
+                      ) : filteredRequests.length === 0 ? (
+                        <p className="text-slate-600">No requests found.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {filteredRequests.map((r) => (
+                            <div
+                              key={r.id}
+                              className={`border p-4 rounded shadow-sm transition ${
+                                r.status === "fulfilled"
+                                  ? "bg-gray-100 opacity-70 cursor-not-allowed"
+                                  : "bg-white"
+                              }`}
+                            >
+                              <div className="mb-2">{r.request_text}</div>
+                              <p
+                                className={`text-sm font-medium mt-1 ${
+                                  r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
+                                }`}
+                              >
+                                Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
+                              </p>
+                      
+                              {/* Buttons */}
+                              <div className="flex gap-2 mt-2">
+                                {r.status !== "fulfilled" && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        const newText = prompt("Edit your request:", r.request_text);
+                                        if (newText !== null) handleEditRequest(r.id, newText);
+                                      }}
+                                      className="px-3 py-1 bg-yellow-400 text-white rounded"
+                                    >
+                                      Edit
+                                    </button>
+                      
+                                    <button
+                                      onClick={() => handleDeleteRequest(r.id)}
+                                      className="px-3 py-1 bg-red-600 text-white rounded"
+                                    >
+                                      Delete
+                                    </button>
+                                  </>
+                                )}
+                      
+                                <button
+                                  onClick={() => handleViewApplications(r.id)}
+                                  disabled={r.status === "fulfilled"}
+                                  className={`px-3 py-1 rounded text-white ${
+                                    r.status === "fulfilled"
+                                      ? "bg-gray-400 cursor-not-allowed"
+                                      : "bg-blue-600 hover:bg-blue-700"
+                                  }`}
+                                >
+                                  View Applications
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                  
+                    </div>
+                  )}
+                  
+                  {/* Applications Modal */}
+                  {showApplicationsModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+                      <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
+                        <h2 className="text-lg font-bold mb-4">Teacher Applications</h2>
+                  
+                        {selectedRequestApplications.length === 0 ? (
+                          <p className="text-gray-500">No applications yet.</p>
+                        ) : (
+                          <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {selectedRequestApplications.map((app) => (
+                              <div
+                                key={app.id}
+                                className="p-3 border rounded bg-gray-50 flex gap-4 items-center"
+                              >
+                                <img
+                                  src={app.teacher?.profile_image || "/placeholder.png"}
+                                  alt={app.teacher?.full_name}
+                                  className="w-12 h-12 rounded-full border object-cover"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-semibold">{app.teacher?.full_name}</div>
+                                  <div className="text-sm text-gray-500">{app.teacher?.city}</div>
+                                  <div className="text-sm">
+                                    Monthly Rate: GHC {app.monthly_rate} — Status: {app.status}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    Applied on: {new Date(app.date_applied).toLocaleString()}
+                                  </div>
+                                  {app.status === "pending" && (
+                                    <div className="flex gap-2 mt-2">
+                                      <button
+                                        className="bg-green-600 text-white px-3 py-1 rounded"
+                                        onClick={() => handleAcceptApplication(app)}
+                                      >
+                                        Accept
+                                      </button>
+                                      <button
+                                        className="bg-red-600 text-white px-3 py-1 rounded"
+                                        onClick={() => handleRejectApplication(app)}
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                  
+                        <div className="flex justify-end mt-4">
+                          <button
+                            className="bg-gray-400 px-4 py-2 rounded text-white"
+                            onClick={() => setShowApplicationsModal(false)}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+      
               </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex justify-end mt-4">
-        <button
-          className="bg-gray-400 px-4 py-2 rounded text-white"
-          onClick={() => setShowApplicationsModal(false)}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-
-
-
-
-
-
-
-
+          </div>
+        );
+      }         
+ 
