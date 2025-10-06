@@ -657,28 +657,23 @@ export default function StudentPage() {
         {filteredRequests.map((r) => (
           <div
             key={r.id}
-            className={`border p-4 rounded mb-3 shadow-sm transition ${
+            className={`border p-4 rounded shadow-sm transition ${
               r.status === "fulfilled"
                 ? "bg-gray-100 opacity-70 cursor-not-allowed"
                 : "bg-white"
             }`}
           >
             <div className="mb-2">{r.request_text}</div>
-            <div className="text-xs text-gray-500 mb-2">
-              <p
-                className={`text-sm font-medium mt-1 ${
-                  r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
-                }`}
-              >
-                Status: {r.status} | Created at:{" "}
-                {new Date(r.created_at).toLocaleString()}
-              </p>
-            </div>
-
-            {/* Only show edit/delete if not fulfilled */}
-            {/* Button row */}
+            <p
+              className={`text-sm font-medium mt-1 ${
+                r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
+              }`}
+            >
+              Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
+            </p>
+    
+            {/* Buttons */}
             <div className="flex gap-2 mt-2">
-              {/* Edit & Delete (only if not fulfilled) */}
               {r.status !== "fulfilled" && (
                 <>
                   <button
@@ -690,7 +685,7 @@ export default function StudentPage() {
                   >
                     Edit
                   </button>
-            
+    
                   <button
                     onClick={() => handleDeleteRequest(r.id)}
                     className="px-3 py-1 bg-red-600 text-white rounded"
@@ -699,8 +694,7 @@ export default function StudentPage() {
                   </button>
                 </>
               )}
-            
-              {/* View Applications button */}
+    
               <button
                 onClick={() => handleViewApplications(r.id)}
                 disabled={r.status === "fulfilled"}
@@ -713,10 +707,11 @@ export default function StudentPage() {
                 View Applications
               </button>
             </div>
-
+          </div>
         ))}
       </div>
     )}
+
   </div>
 )}
 
@@ -789,6 +784,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
