@@ -374,9 +374,9 @@ export default function StudentPage() {
       }
     }
     
-    // View applications in modal
-  console.log("🪄 handleViewApplications called with requestId:", requestId);
+    // View applications in modal  
   async function handleViewApplications(requestId) {
+   console.log("🪄 handleViewApplications called with requestId:", requestId);
     try {
       const { data, error } = await supabase
         .from("request_applications")
@@ -766,6 +766,7 @@ export default function StudentPage() {
     </div>
   );
 }
+
 
 
 
