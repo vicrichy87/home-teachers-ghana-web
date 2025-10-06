@@ -9,14 +9,18 @@ export default function StudentPage() {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile");
+  
+  // Teacher search + management
   const [teachers, setTeachers] = useState([]);
   const [myTeachers, setMyTeachers] = useState([]);
+
+   // Search fields
   const [searchLocation, setSearchLocation] = useState("");
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Requests
+  // Requests state
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -37,6 +41,12 @@ export default function StudentPage() {
   useEffect(() => {
     if (student && tab === "requests") fetchRequests();
   }, [student, tab]);
+
+  useEffect(() => {
+    if (tab === "requests" && student) {
+      fetchRequests();
+    }
+  }, [tab, student]);
 
   // 🌍 Auto-detect location from IP
   useEffect(() => {
@@ -106,8 +116,10 @@ export default function StudentPage() {
       setLoadingRequests(true);
       const { data, error } = await supabase
         .from("requests")
-        .select("*")
+        .select("id, request_text, city, status, created_at")
+        .eq("user_id", user.id)  // ✅ only fetch requests created by this student
         .order("created_at", { ascending: false });
+      
       if (error) throw error;
       setRequests(data || []);
       setFilteredRequests(data || []);
@@ -619,3 +631,4 @@ export default function StudentPage() {
     </div>
   );
 }
+
