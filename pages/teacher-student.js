@@ -1,4 +1,4 @@
-// pages/teacher-student/[id].js
+// pages/teacher-student/[teacher_id]_[student_id].js
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
@@ -6,7 +6,7 @@ import Banner from "../components/Banner";
 
 export default function TeacherStudentPage() {
   const router = useRouter();
-  const { id: student_id } = router.query;
+  const { teacher_id, student_id } = extractIds(router.query?.id);
 
   const [teacher, setTeacher] = useState(null);
   const [relationship, setRelationship] = useState(null);
@@ -17,7 +17,13 @@ export default function TeacherStudentPage() {
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
 
-  // Format date helper
+  // Helper to extract both IDs
+  function extractIds(param) {
+    if (!param) return { teacher_id: null, student_id: null };
+    const [teacher_id, student_id] = param.split("_");
+    return { teacher_id, student_id };
+  }
+
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
@@ -28,22 +34,10 @@ export default function TeacherStudentPage() {
     });
   };
 
-  // Fetch logged-in teacher
-  useEffect(() => {
-    const fetchTeacher = async () => {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
-      if (error) console.error(error.message);
-      if (user) setTeacher(user);
-    };
-    fetchTeacher();
-  }, []);
-
   // Fetch teacher-student relationship
   useEffect(() => {
-    if (!teacher?.id || !student_id) return;
+    if (!teacher_id || !student_id) return;
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -58,7 +52,7 @@ export default function TeacherStudentPage() {
             teacher:teacher_id (id, full_name, email, phone, city, profile_image),
             student:student_id (id, full_name, email, phone, city, profile_image)
           `)
-          .eq("teacher_id", teacher.id)
+          .eq("teacher_id", teacher_id)
           .eq("student_id", student_id)
           .single();
 
@@ -70,48 +64,48 @@ export default function TeacherStudentPage() {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [teacher, student_id]);
 
-  // Fetch timetable, zoom meetings, and contracts
+    fetchData();
+  }, [teacher_id, student_id]);
+
+  // Fetch extra related data
   useEffect(() => {
-    if (!teacher?.id || !student_id) return;
+    if (!teacher_id || !student_id) return;
 
     const fetchExtraData = async () => {
       const { data: timetableData } = await supabase
         .from("teacher_student_timetable")
         .select("*")
-        .eq("teacher_id", teacher.id)
+        .eq("teacher_id", teacher_id)
         .eq("student_id", student_id);
 
       const { data: zoomData } = await supabase
         .from("zoom_meetings")
         .select("*")
-        .eq("teacher_id", teacher.id)
+        .eq("teacher_id", teacher_id)
         .eq("student_id", student_id);
 
       const { data: contractsData } = await supabase
         .from("contracts")
         .select("*")
-        .eq("teacher_id", teacher.id)
+        .eq("teacher_id", teacher_id)
         .eq("student_id", student_id);
 
       setTimetable(timetableData || []);
       setZoomMeetings(zoomData || []);
       setContracts(contractsData || []);
     };
-    fetchExtraData();
-  }, [teacher, student_id]);
 
-  // Placeholder handlers
-  const handleAddTimetable = async () => alert("Add Timetable coming soon!");
-  const handleAddZoom = async () => alert("Schedule Zoom meeting coming soon!");
-  const handleUploadContract = async () => alert("Upload Contract coming soon!");
+    fetchExtraData();
+  }, [teacher_id, student_id]);
+
+  const handleAddTimetable = () => alert("Add Timetable coming soon!");
+  const handleAddZoom = () => alert("Schedule Zoom meeting coming soon!");
+  const handleUploadContract = () => alert("Upload Contract coming soon!");
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
-  if (!relationship)
-    return <div className="p-8 text-center">No record found.</div>;
+  if (!relationship) return <div className="p-8 text-center">No record found.</div>;
 
   const { teacher: teacherInfo, student, subject, level, date_added, expiry_date } =
     relationship;
@@ -132,49 +126,18 @@ export default function TeacherStudentPage() {
           Teacher–Student Relationship
         </h1>
 
-        {/* Profile Overview */}
+        {/* Profiles */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Teacher */}
-          <div className="bg-sky-50 p-4 rounded shadow">
-            <h2 className="text-lg font-semibold text-sky-800 mb-2">Teacher</h2>
-            <img
-              src={teacherInfo?.profile_image || "/default-avatar.png"}
-              alt="Teacher"
-              className="w-24 h-24 rounded-full mx-auto mb-2"
-            />
-            <p className="text-center font-semibold">{teacherInfo?.full_name}</p>
-            <p className="text-center text-sm text-gray-600">{teacherInfo?.email}</p>
-            <p className="text-center text-sm">{teacherInfo?.city}</p>
-          </div>
-
-          {/* Student */}
-          <div className="bg-emerald-50 p-4 rounded shadow">
-            <h2 className="text-lg font-semibold text-emerald-800 mb-2">Student</h2>
-            <img
-              src={student?.profile_image || "/default-avatar.png"}
-              alt="Student"
-              className="w-24 h-24 rounded-full mx-auto mb-2"
-            />
-            <p className="text-center font-semibold">{student?.full_name}</p>
-            <p className="text-center text-sm text-gray-600">{student?.email}</p>
-            <p className="text-center text-sm">{student?.city}</p>
-          </div>
+          <ProfileCard user={teacherInfo} role="Teacher" color="sky" />
+          <ProfileCard user={student} role="Student" color="emerald" />
         </div>
 
-        {/* Relationship Info */}
+        {/* Relationship info */}
         <div className="bg-gray-100 p-4 rounded mb-4 text-center">
-          <p>
-            <strong>Subject:</strong> {subject}
-          </p>
-          <p>
-            <strong>Level:</strong> {level}
-          </p>
-          <p>
-            <strong>Date Added:</strong> {formatDate(date_added)}
-          </p>
-          <p>
-            <strong>Expiry Date:</strong> {formatDate(expiry_date)}
-          </p>
+          <p><strong>Subject:</strong> {subject}</p>
+          <p><strong>Level:</strong> {level}</p>
+          <p><strong>Date Added:</strong> {formatDate(date_added)}</p>
+          <p><strong>Expiry Date:</strong> {formatDate(expiry_date)}</p>
           {isExpiringSoon && (
             <div className="bg-yellow-100 text-yellow-800 p-2 mt-2 rounded">
               ⚠️ This relationship is expiring soon.
@@ -183,29 +146,9 @@ export default function TeacherStudentPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex justify-center space-x-3 mb-6">
-          {["overview", "timetable", "zoom", "contracts"].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded ${
-                tab === t
-                  ? "bg-sky-600 text-white"
-                  : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-              }`}
-            >
-              {t === "overview"
-                ? "Overview"
-                : t === "timetable"
-                ? "Timetable"
-                : t === "zoom"
-                ? "Zoom Sessions"
-                : "Contracts"}
-            </button>
-          ))}
-        </div>
+        <Tabs tab={tab} setTab={setTab} />
 
-        {/* Tab Content */}
+        {/* Tab content */}
         {tab === "overview" && (
           <div className="text-center text-gray-700">
             <p>
@@ -213,105 +156,126 @@ export default function TeacherStudentPage() {
               <strong>{student?.full_name}</strong> for{" "}
               <strong>{subject}</strong> ({level}).
             </p>
-            <p className="mt-2">
-              Use the tabs above to manage lessons, meetings, and contracts.
-            </p>
           </div>
         )}
 
         {tab === "timetable" && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-sky-700">Timetable</h3>
-            <button
-              onClick={handleAddTimetable}
-              className="bg-sky-600 text-white px-3 py-1 rounded mb-3"
-            >
-              + Add Session
-            </button>
-            {timetable.length === 0 ? (
-              <p>No timetable sessions yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {timetable.map((item) => (
-                  <li
-                    key={item.id}
-                    className="border p-3 rounded bg-gray-50 flex justify-between"
-                  >
-                    <span>
-                      {item.day} - {item.subject} ({item.start_time} to{" "}
-                      {item.end_time})
-                    </span>
-                  </li>
-                ))}
-              </ul>
+          <Section
+            title="Timetable"
+            buttonText="+ Add Session"
+            onClick={handleAddTimetable}
+            data={timetable}
+            renderItem={(item) => (
+              <li key={item.id} className="border p-3 rounded bg-gray-50">
+                {item.day} - {item.subject} ({item.start_time} to {item.end_time})
+              </li>
             )}
-          </div>
+          />
         )}
 
         {tab === "zoom" && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-sky-700">
-              Zoom Meetings
-            </h3>
-            <button
-              onClick={handleAddZoom}
-              className="bg-sky-600 text-white px-3 py-1 rounded mb-3"
-            >
-              + Schedule Zoom Meeting
-            </button>
-            {zoomMeetings.length === 0 ? (
-              <p>No meetings scheduled.</p>
-            ) : (
-              <ul className="space-y-2">
-                {zoomMeetings.map((z) => (
-                  <li key={z.id} className="border p-3 rounded bg-gray-50">
-                    <a
-                      href={z.zoom_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sky-700 underline"
-                    >
-                      {z.topic || "Meeting Link"}
-                    </a>{" "}
-                    on {formatDate(z.start_time)}
-                  </li>
-                ))}
-              </ul>
+          <Section
+            title="Zoom Meetings"
+            buttonText="+ Schedule Zoom Meeting"
+            onClick={handleAddZoom}
+            data={zoomMeetings}
+            renderItem={(z) => (
+              <li key={z.id} className="border p-3 rounded bg-gray-50">
+                <a
+                  href={z.zoom_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sky-700 underline"
+                >
+                  {z.topic || "Meeting Link"}
+                </a>{" "}
+                on {formatDate(z.start_time)}
+              </li>
             )}
-          </div>
+          />
         )}
 
         {tab === "contracts" && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2 text-sky-700">Contracts</h3>
-            <button
-              onClick={handleUploadContract}
-              className="bg-sky-600 text-white px-3 py-1 rounded mb-3"
-            >
-              + Upload Contract
-            </button>
-            {contracts.length === 0 ? (
-              <p>No contracts uploaded yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {contracts.map((c) => (
-                  <li key={c.id} className="border p-3 rounded bg-gray-50">
-                    <a
-                      href={c.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sky-700 underline"
-                    >
-                      View Contract
-                    </a>{" "}
-                    signed on {formatDate(c.date_signed)}
-                  </li>
-                ))}
-              </ul>
+          <Section
+            title="Contracts"
+            buttonText="+ Upload Contract"
+            onClick={handleUploadContract}
+            data={contracts}
+            renderItem={(c) => (
+              <li key={c.id} className="border p-3 rounded bg-gray-50">
+                <a
+                  href={c.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sky-700 underline"
+                >
+                  View Contract
+                </a>{" "}
+                signed on {formatDate(c.date_signed)}
+              </li>
             )}
-          </div>
+          />
         )}
       </div>
+    </div>
+  );
+}
+
+function ProfileCard({ user, role, color }) {
+  return (
+    <div className={`bg-${color}-50 p-4 rounded shadow`}>
+      <h2 className={`text-lg font-semibold text-${color}-800 mb-2`}>{role}</h2>
+      <img
+        src={user?.profile_image || "/default-avatar.png"}
+        alt={role}
+        className="w-24 h-24 rounded-full mx-auto mb-2"
+      />
+      <p className="text-center font-semibold">{user?.full_name}</p>
+      <p className="text-center text-sm text-gray-600">{user?.email}</p>
+      <p className="text-center text-sm">{user?.city}</p>
+    </div>
+  );
+}
+
+function Tabs({ tab, setTab }) {
+  const tabs = ["overview", "timetable", "zoom", "contracts"];
+  return (
+    <div className="flex justify-center space-x-3 mb-6">
+      {tabs.map((t) => (
+        <button
+          key={t}
+          onClick={() => setTab(t)}
+          className={`px-4 py-2 rounded ${
+            tab === t
+              ? "bg-sky-600 text-white"
+              : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+          }`}
+        >
+          {t === "overview"
+            ? "Overview"
+            : t === "timetable"
+            ? "Timetable"
+            : t === "zoom"
+            ? "Zoom Sessions"
+            : "Contracts"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Section({ title, buttonText, onClick, data, renderItem }) {
+  return (
+    <div>
+      <h3 className="text-lg font-semibold mb-2 text-sky-700">{title}</h3>
+      <button onClick={onClick} className="bg-sky-600 text-white px-3 py-1 rounded mb-3">
+        {buttonText}
+      </button>
+      {(!data || data.length === 0) ? (
+        <p>No {title.toLowerCase()} yet.</p>
+      ) : (
+        <ul className="space-y-2">{data.map(renderItem)}</ul>
+      )}
     </div>
   );
 }
