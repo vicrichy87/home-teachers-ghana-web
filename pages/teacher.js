@@ -576,7 +576,7 @@ export default function TeacherPage() {
                 .map(s => (
                   <div
                     key={s.id}
-                    onClick={() => router.push(`/teacher-student/${teacher.id}-${s.student.id}`)}
+                    onClick={() => router.push(`/teacher-student/${teacher.id}~${s.student.id}`)}
                     className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
                   >
                     <img
@@ -784,6 +784,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
