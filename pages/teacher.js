@@ -554,56 +554,57 @@ export default function TeacherPage() {
           </div>
         </div>
       )}
-
-      {/*Students Tab */}
-      {tab === "students" && (
-        <div className="mt-4">
-         {/* Students Group */}
-<h4
-  className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
-  onClick={() => toggleGroup("students")}
->
-  My Students
-  <span>{collapsedGroups.students ? "▼" : "▲"}</span>
-</h4>
-{!collapsedGroups.students && (
-  <div className="space-y-3 mb-4">
-    {students.filter(s => s.level !== "request").length === 0 && (
-      <p className="text-gray-500">No students yet.</p>
-    )}
-
-    {[...new Map(
-      students
-        .filter(s => s.level !== "request")
-        .map(s => [s.student.id, s])
-    ).values()]
-      .map(s => (
-        <div
-          key={s.id}
-          onClick={() => router.push(`/teacher-student/${s.student.id}~${teacher.id}`)}
-          className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
-        >
-          <img
-            src={s.student.image_url}
-            alt={s.student.full_name}
-            className="w-14 h-14 rounded-full border object-cover"
-          />
-          <div>
-            <div className="font-semibold">{s.student.full_name}</div>
-            <div className="text-sm text-gray-600">{s.student.email}</div>
-            <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
-            <div className="text-sm">
-              📘 {s.subject} ({s.level})
-            </div>
-            <div className="text-xs text-gray-500">
-              Added: {s.date_added} — Expiry: {s.expiry_date}
-            </div>
-          </div>
+      {/* Students Group */}
+      <h4
+        className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
+        onClick={() => toggleGroup("students")}
+      >
+        My Students
+        <span>{collapsedGroups.students ? "▼" : "▲"}</span>
+      </h4>
+      {!collapsedGroups.students && (
+        <div className="space-y-3 mb-4">
+          {students.filter(s => s.level !== "request").length === 0 && (
+            <p className="text-gray-500">No students yet.</p>
+          )}
+      
+          {/* Only pick first instance per student for the list */}
+          {students
+            .filter(s => s.level !== "request")
+            .reduce((uniqueStudents, s) => {
+              if (!uniqueStudents.some(us => us.student.id === s.student.id)) {
+                uniqueStudents.push(s);
+              }
+              return uniqueStudents;
+            }, [])
+            .map(s => (
+              <div
+                key={s.id}
+                onClick={() =>
+                  router.push(`/teacher-student/${teacher.id}~${s.student.id}`)
+                }
+                className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
+              >
+                <img
+                  src={s.student.image_url}
+                  alt={s.student.full_name}
+                  className="w-14 h-14 rounded-full border object-cover"
+                />
+                <div>
+                  <div className="font-semibold">{s.student.full_name}</div>
+                  <div className="text-sm text-gray-600">{s.student.email}</div>
+                  <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                  <div className="text-sm">
+                    📘 {s.subject} ({s.level})
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Added: {s.date_added} — Expiry: {s.expiry_date}
+                  </div>
+                </div>
+              </div>
+            ))}
         </div>
-      ))}
-  </div>
-)}
-
+      )}
       
           {/* Parents Group */}
           <h4
@@ -789,4 +790,5 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
