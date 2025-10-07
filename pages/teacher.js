@@ -577,6 +577,7 @@ export default function TeacherPage() {
                 .map(s => (
                   <div
                     key={s.id}
+                    onClick={() => router.push(`/teacher-student/${s.student.id}`)}
                     className="border p-3 rounded flex items-center gap-3"
                   >
                     <img
@@ -784,6 +785,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
