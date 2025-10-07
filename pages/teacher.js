@@ -70,16 +70,18 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
-      // ✅ Helper to format dates
+      // ✅ Safe and consistent timestamp formatter
       function formatDate(dateStr) {
-        if (!dateStr) return "N/A";
+        if (!dateStr) return "Not set";
         const date = new Date(dateStr);
+        if (isNaN(date)) return "Not set";
         return date.toLocaleDateString("en-GB", {
-          day: "2-digit",
+          day: "numeric",
           month: "short",
           year: "numeric",
         });
       }
+  
       // 1️⃣ Fetch teacher students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
@@ -136,7 +138,7 @@ export default function TeacherPage() {
         .select("id, full_name")
         .in("id", childIds);
   
-      // 5️⃣ Combine parent and child info with formatted dates
+      // 5️⃣ Combine parent + child info with formatted timestamps
       const formattedParents = (links || []).map(link => {
         const parent = parentsData?.find(p => p.id === link.parent_id) || {};
         const child = childrenData?.find(c => c.id === link.child_id) || { full_name: "Unknown" };
@@ -161,6 +163,7 @@ export default function TeacherPage() {
       alert(err.message || String(err));
     }
   }
+
   
   async function fetchRates() {
     try {
@@ -557,6 +560,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
