@@ -63,11 +63,13 @@ export default function MyApp({ Component, pageProps }) {
       } 
       else if (
         router.pathname.startsWith("/teacher") &&
-        router.pathname !== "/teacher/[id]" && // ✅ allow profile pages for any logged-in user
+        !router.pathname.startsWith("/teacher-student") && // <— exclude this
+        router.pathname !== "/teacher/[id]" &&
         userType !== "teacher"
       ) {
         router.push("/403");
-      } 
+      }
+
       else if (
         router.pathname.startsWith("/student") &&
         userType !== "student"
