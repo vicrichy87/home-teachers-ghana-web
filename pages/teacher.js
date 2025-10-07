@@ -490,7 +490,7 @@ export default function TeacherPage() {
 
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
- return (
+return (
   <div className="max-w-4xl mx-auto bg-white p-6 rounded shadow">
     <Banner />
 
@@ -507,7 +507,7 @@ export default function TeacherPage() {
           {t === "profile"
             ? "Profile"
             : t === "students"
-            ? "View Students"
+            ? "Students"
             : t === "rates"
             ? "Add Rates"
             : "My Rates"}
@@ -560,44 +560,42 @@ export default function TeacherPage() {
         </h4>
         {!collapsedGroups.students && (
           <div className="space-y-3 mb-4">
-            {students.filter((s) => s.level !== "request").length === 0 && (
+            {students.filter((s) => s.level !== "request").length === 0 ? (
               <p className="text-gray-500">No students yet.</p>
-            )}
-
-            {students
-              .filter((s) => s.level !== "request")
-              .reduce((uniqueStudents, s) => {
-                if (!uniqueStudents.some((us) => us.student.id === s.student.id)) {
-                  uniqueStudents.push(s);
-                }
-                return uniqueStudents;
-              }, [])
-              .map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() =>
-                    router.push(`/teacher-student/${teacher.id}~${s.student.id}`)
-                  }
-                  className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
-                >
-                  <img
-                    src={s.student.image_url}
-                    alt={s.student.full_name}
-                    className="w-14 h-14 rounded-full border object-cover"
-                  />
-                  <div>
-                    <div className="font-semibold">{s.student.full_name}</div>
-                    <div className="text-sm text-gray-600">{s.student.email}</div>
-                    <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
-                    <div className="text-sm">
-                      📘 {s.subject} ({s.level})
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Added: {s.date_added} — Expiry: {s.expiry_date}
+            ) : (
+              students
+                .filter((s) => s.level !== "request")
+                .reduce((unique, s) => {
+                  if (!unique.some(us => us.student.id === s.student.id)) unique.push(s);
+                  return unique;
+                }, [])
+                .map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() =>
+                      router.push(`/teacher-student/${teacher.id}~${s.student.id}`)
+                    }
+                    className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
+                  >
+                    <img
+                      src={s.student.image_url}
+                      alt={s.student.full_name}
+                      className="w-14 h-14 rounded-full border object-cover"
+                    />
+                    <div>
+                      <div className="font-semibold">{s.student.full_name}</div>
+                      <div className="text-sm text-gray-600">{s.student.email}</div>
+                      <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                      <div className="text-sm">
+                        📘 {s.subject} ({s.level})
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Added: {s.date_added} — Expiry: {s.expiry_date}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+            )}
           </div>
         )}
 
@@ -611,24 +609,27 @@ export default function TeacherPage() {
         </h4>
         {!collapsedGroups.parents && (
           <div className="space-y-3 mb-4">
-            {parents.length === 0 && <p className="text-gray-500">No parents yet.</p>}
-            {parents.map((p) => (
-              <div key={p.id} className="border p-3 rounded flex items-center gap-3">
-                <img
-                  src={p.parent.image_url}
-                  alt={p.parent.full_name}
-                  className="w-14 h-14 rounded-full border object-cover"
-                />
-                <div>
-                  <div className="font-semibold">{p.parent.full_name}</div>
-                  <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
-                  <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
-                  <div className="text-xs text-gray-500">
-                    Added: {p.date_added} — Expiry: {p.expiry_date}
+            {parents.length === 0 ? (
+              <p className="text-gray-500">No parents yet.</p>
+            ) : (
+              parents.map((p) => (
+                <div key={p.id} className="border p-3 rounded flex items-center gap-3">
+                  <img
+                    src={p.parent.image_url}
+                    alt={p.parent.full_name}
+                    className="w-14 h-14 rounded-full border object-cover"
+                  />
+                  <div>
+                    <div className="font-semibold">{p.parent.full_name}</div>
+                    <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
+                    <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
+                    <div className="text-xs text-gray-500">
+                      Added: {p.date_added} — Expiry: {p.expiry_date}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         )}
 
@@ -642,40 +643,41 @@ export default function TeacherPage() {
         </h4>
         {!collapsedGroups.requests && (
           <div className="space-y-3">
-            {students.filter((s) => s.level === "request").length === 0 && (
+            {students.filter((s) => s.level === "request").length === 0 ? (
               <p className="text-gray-500">No request students yet.</p>
-            )}
-            {students
-              .filter((s) => s.level === "request")
-              .map((s) => (
-                <div
-                  key={s.id}
-                  className="border p-3 rounded flex items-center gap-3"
-                >
-                  <img
-                    src={s.student.image_url}
-                    alt={s.student.full_name}
-                    className="w-14 h-14 rounded-full border object-cover"
-                  />
-                  <div>
-                    <div className="font-semibold">{s.student.full_name}</div>
-                    <div className="text-sm text-gray-600">{s.student.email}</div>
-                    <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
-                    <div className="text-sm">
-                      📘 {s.subject} ({s.level})
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Added: {s.date_added} — Expiry: {s.expiry_date}
+            ) : (
+              students
+                .filter((s) => s.level === "request")
+                .map((s) => (
+                  <div
+                    key={s.id}
+                    className="border p-3 rounded flex items-center gap-3"
+                  >
+                    <img
+                      src={s.student.image_url}
+                      alt={s.student.full_name}
+                      className="w-14 h-14 rounded-full border object-cover"
+                    />
+                    <div>
+                      <div className="font-semibold">{s.student.full_name}</div>
+                      <div className="text-sm text-gray-600">{s.student.email}</div>
+                      <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                      <div className="text-sm">
+                        📘 {s.subject} ({s.level})
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Added: {s.date_added} — Expiry: {s.expiry_date}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+            )}
           </div>
         )}
       </div>
     )}
 
-    {/* Add Rates Tab */}
+    {/* Rates Tab */}
     {tab === "rates" && (
       <div className="mt-4">
         <input
@@ -712,7 +714,7 @@ export default function TeacherPage() {
       </div>
     )}
 
-    {/* My Rates Tab */}
+    {/* MyRates Tab */}
     {tab === "myRates" && (
       <div className="mt-4 space-y-3">
         {rates.length === 0 && <div>No rates</div>}
@@ -741,19 +743,35 @@ export default function TeacherPage() {
                   onChange={(e) => setEditRate(e.target.value)}
                   className="p-2 border rounded"
                 />
-                <button onClick={handleSaveRate} className="bg-emerald-600 text-white px-4 py-2 rounded">
+                <button
+                  onClick={handleSaveRate}
+                  className="bg-emerald-600 text-white px-4 py-2 rounded"
+                >
                   Save
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-3 border rounded flex justify-between items-center" key={item.id}>
+            <div
+              className="p-3 border rounded flex justify-between items-center"
+              key={item.id}
+            >
               <div>
                 {item.subject} ({item.level}) — GHC {item.rate}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => handleEditRate(item)} className="bg-yellow-500 px-3 py-1 rounded text-white">Edit</button>
-                <button onClick={() => handleDeleteRate(item.id)} className="bg-red-600 px-3 py-1 rounded text-white">Delete</button>
+                <button
+                  onClick={() => handleEditRate(item)}
+                  className="bg-yellow-500 px-3 py-1 rounded text-white"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteRate(item.id)}
+                  className="bg-red-600 px-3 py-1 rounded text-white"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           )
@@ -761,4 +779,5 @@ export default function TeacherPage() {
       </div>
     )}
   </div>
-);
+  );
+}
