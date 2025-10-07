@@ -1,33 +1,22 @@
 // pages/teacher-student/[teacher_id]_[student_id].js
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../lib/supabaseClient";
-import Banner from "../components/Banner";
+import { supabase } from "../../lib/supabaseClient";
+import Banner from "../../components/Banner";
 
 export default function TeacherStudentPage() {
   const router = useRouter();
-  const [teacher_id, setTeacherId] = useState(null);
-  const [student_id, setStudentId] = useState(null);
+  const { teacher_id, student_id } = extractIds(router.query?.teacher_id_student_id);
 
-  const [teacher, setTeacher] = useState(null);
   const [relationship, setRelationship] = useState(null);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [renewing, setRenewing] = useState(false);
   const [timetable, setTimetable] = useState([]);
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
 
-  useEffect(() => {
-    if (!router.isReady) return; // wait until Next.js populates the query
-    const param = router.query.id;
-    if (param) {
-      const [tId, sId] = param.split("_");
-      setTeacherId(tId);
-      setStudentId(sId);
-    }
-  }, [router.isReady, router.query.id]);
-  
   // Helper to extract both IDs
   function extractIds(param) {
     if (!param) return { teacher_id: null, student_id: null };
@@ -70,6 +59,7 @@ export default function TeacherStudentPage() {
         if (error) throw error;
         setRelationship(data);
       } catch (err) {
+        console.error("Error fetching relationship:", err.message);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -110,9 +100,32 @@ export default function TeacherStudentPage() {
     fetchExtraData();
   }, [teacher_id, student_id]);
 
-  const handleAddTimetable = () => alert("Add Timetable coming soon!");
-  const handleAddZoom = () => alert("Schedule Zoom meeting coming soon!");
-  const handleUploadContract = () => alert("Upload Contract coming soon!");
+  // Renew relationship
+  const handleRenewRelationship = async () => {
+    if (!relationship?.id) return;
+
+    try {
+      setRenewing(true);
+      const newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + 30);
+
+      const { error } = await supabase
+        .from("teacher_students")
+        .update({ expiry_date: newExpiry.toISOString().split("T")[0] })
+        .eq("id", relationship.id);
+
+      if (error) throw error;
+
+      alert("Relationship successfully renewed for 30 more days!");
+      // Refresh data
+      location.reload();
+    } catch (err) {
+      console.error("Error renewing relationship:", err.message);
+      alert("Failed to renew: " + err.message);
+    } finally {
+      setRenewing(false);
+    }
+  };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
@@ -121,12 +134,10 @@ export default function TeacherStudentPage() {
   const { teacher: teacherInfo, student, subject, level, date_added, expiry_date } =
     relationship;
 
-  const isExpiringSoon = (() => {
-    const now = new Date();
-    const expiry = new Date(expiry_date);
-    const diffDays = (expiry - now) / (1000 * 60 * 60 * 24);
-    return diffDays <= 7;
-  })();
+  const expiry = new Date(expiry_date);
+  const now = new Date();
+  const diffDays = (expiry - now) / (1000 * 60 * 60 * 24);
+  const isExpiringSoon = diffDays <= 7;
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -143,16 +154,27 @@ export default function TeacherStudentPage() {
           <ProfileCard user={student} role="Student" color="emerald" />
         </div>
 
-        {/* Relationship info */}
+        {/* Relationship Info */}
         <div className="bg-gray-100 p-4 rounded mb-4 text-center">
           <p><strong>Subject:</strong> {subject}</p>
           <p><strong>Level:</strong> {level}</p>
           <p><strong>Date Added:</strong> {formatDate(date_added)}</p>
           <p><strong>Expiry Date:</strong> {formatDate(expiry_date)}</p>
+
           {isExpiringSoon && (
             <div className="bg-yellow-100 text-yellow-800 p-2 mt-2 rounded">
               ⚠️ This relationship is expiring soon.
             </div>
+          )}
+
+          {isExpiringSoon && (
+            <button
+              onClick={handleRenewRelationship}
+              disabled={renewing}
+              className="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+            >
+              {renewing ? "Renewing..." : "Renew Relationship"}
+            </button>
           )}
         </div>
 
@@ -174,7 +196,7 @@ export default function TeacherStudentPage() {
           <Section
             title="Timetable"
             buttonText="+ Add Session"
-            onClick={handleAddTimetable}
+            onClick={() => alert("Add Timetable coming soon!")}
             data={timetable}
             renderItem={(item) => (
               <li key={item.id} className="border p-3 rounded bg-gray-50">
@@ -188,7 +210,7 @@ export default function TeacherStudentPage() {
           <Section
             title="Zoom Meetings"
             buttonText="+ Schedule Zoom Meeting"
-            onClick={handleAddZoom}
+            onClick={() => alert("Schedule Zoom Meeting coming soon!")}
             data={zoomMeetings}
             renderItem={(z) => (
               <li key={z.id} className="border p-3 rounded bg-gray-50">
@@ -210,7 +232,7 @@ export default function TeacherStudentPage() {
           <Section
             title="Contracts"
             buttonText="+ Upload Contract"
-            onClick={handleUploadContract}
+            onClick={() => alert("Upload Contract coming soon!")}
             data={contracts}
             renderItem={(c) => (
               <li key={c.id} className="border p-3 rounded bg-gray-50">
@@ -279,7 +301,10 @@ function Section({ title, buttonText, onClick, data, renderItem }) {
   return (
     <div>
       <h3 className="text-lg font-semibold mb-2 text-sky-700">{title}</h3>
-      <button onClick={onClick} className="bg-sky-600 text-white px-3 py-1 rounded mb-3">
+      <button
+        onClick={onClick}
+        className="bg-sky-600 text-white px-3 py-1 rounded mb-3"
+      >
         {buttonText}
       </button>
       {(!data || data.length === 0) ? (
