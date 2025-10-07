@@ -18,16 +18,6 @@ export default function TeacherStudentPage() {
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
 
-  // Wait for router to be ready before splitting IDs
-  useEffect(() => {
-    if (!router.isReady) return;
-    if (teacher_id_student_id) {
-      const [tId, sId] = teacher_id_student_id.split("_");
-      setTeacherId(tId);
-      setStudentId(sId);
-    }
-  }, [router.isReady, teacher_id_student_id]);
-
   // Format date helper
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -39,7 +29,15 @@ export default function TeacherStudentPage() {
     });
   };
 
-  // Fetch teacher–student relationship
+   // ✅ Wait for router to be ready before splitting param
+  useEffect(() => {
+    if (!router.isReady || !teacher_id_student_id) return;
+    const [tId, sId] = teacher_id_student_id.split("_");
+    setTeacherId(tId);
+    setStudentId(sId);
+  }, [router.isReady, teacher_id_student_id]);
+
+  // ✅ Fetch data only when both IDs exist
   useEffect(() => {
     if (!teacherId || !studentId) return;
 
@@ -49,13 +47,9 @@ export default function TeacherStudentPage() {
         const { data, error } = await supabase
           .from("teacher_students")
           .select(`
-            id,
-            subject,
-            level,
-            date_added,
-            expiry_date,
-            teacher:teacher_id (id, full_name, email, phone, city, profile_image),
-            student:student_id (id, full_name, email, phone, city, profile_image)
+            id, subject, level, date_added, expiry_date,
+            teacher:teacher_id (id, full_name, profile_image, email, city),
+            student:student_id (id, full_name, profile_image, email, city)
           `)
           .eq("teacher_id", teacherId)
           .eq("student_id", studentId)
@@ -64,7 +58,7 @@ export default function TeacherStudentPage() {
         if (error) throw error;
         setRelationship(data);
       } catch (err) {
-        console.error(err);
+        console.error("Error:", err);
         setError(err.message);
       } finally {
         setLoading(false);
