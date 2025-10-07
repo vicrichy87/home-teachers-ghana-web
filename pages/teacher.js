@@ -357,20 +357,21 @@ export default function TeacherPage() {
                   className="border p-3 rounded flex items-center gap-3"
                 >
                   <img
-                    src={p.parent.image_url}
-                    alt={p.parent.full_name}
+                    src={p.child.image_url}
+                    alt={p.child.full_name}
                     className="w-14 h-14 rounded-full border object-cover"
                   />
                   <div>
                     <div className="font-semibold">{p.parent.full_name}</div>
                     <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
                     <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
+                    <div className="text-xs text-gray-500">Added: {p.date_added}</div>
                   </div>
                 </div>
               ))}
             </div>
           )}
-
+          
       
           {/* Request Students Group */}
           <h4
@@ -525,6 +526,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
