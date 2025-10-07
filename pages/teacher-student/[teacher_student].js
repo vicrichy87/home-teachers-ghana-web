@@ -7,7 +7,7 @@ import Banner from "../../components/Banner";
 export default function TeacherStudentPage() {
   const router = useRouter();
   const { "teacher-student": teacher_student } = router.query;
-
+  
   const [teacherId, setTeacherId] = useState(null);
   const [studentId, setStudentId] = useState(null);
   const [relationship, setRelationship] = useState(null);
@@ -31,14 +31,14 @@ export default function TeacherStudentPage() {
     if (!router.isReady || !teacher_student) return;
 
     // Parse teacher and student IDs from route
-    const [tId, sId] = teacher_student.split("-");
-    if (!tId || !sId) {
+    const [teacherId, studentId] = teacher_student.split("~");
+    if (!teacherId || !studentId) {
       setError("Invalid route parameters.");
       setLoading(false);
       return;
     }
-    setTeacherId(tId);
-    setStudentId(sId);
+    setTeacherId(teacherId);
+    setStudentId(studentId);
 
     const fetchAll = async () => {
       try {
