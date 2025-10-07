@@ -100,10 +100,10 @@ export default function TeacherPage() {
         };
       });
   
-      // 2️⃣ Fetch parents linked to this teacher from parent_child_teachers
+      // 2️⃣ Fetch parent-child links
       const { data: links, error: linksError } = await supabase
         .from("parent_child_teachers")
-        .select("id, parent_id, child_id")
+        .select("id, parent_id, child_id, date_added, expiry_date")
         .eq("teacher_id", teacher.id);
   
       if (linksError) throw linksError;
@@ -111,19 +111,19 @@ export default function TeacherPage() {
       const parentIds = [...new Set((links || []).map(l => l.parent_id))].filter(Boolean);
       const childIds = [...new Set((links || []).map(l => l.child_id))].filter(Boolean);
   
-      // 3️⃣ Fetch parent info from users table
+      // 3️⃣ Fetch parent info
       const { data: parentsData } = await supabase
         .from("users")
         .select("id, full_name, phone, profile_image")
         .in("id", parentIds);
   
-      // 4️⃣ Fetch child info from parents_children table
+      // 4️⃣ Fetch child info
       const { data: childrenData } = await supabase
         .from("parents_children") // corrected table name
         .select("id, full_name")
         .in("id", childIds);
   
-      // 5️⃣ Combine parent and child info
+      // 5️⃣ Combine parent and child info with date_added and expiry_date
       const formattedParents = (links || []).map(link => {
         const parent = parentsData?.find(p => p.id === link.parent_id) || {};
         const child = childrenData?.find(c => c.id === link.child_id) || { full_name: "Unknown" };
@@ -136,6 +136,7 @@ export default function TeacherPage() {
           },
           child,
           date_added: link.date_added || "",
+          expiry_date: link.expiry_date || "",
         };
       });
   
@@ -146,6 +147,7 @@ export default function TeacherPage() {
       alert(err.message || String(err));
     }
   }
+
   
   async function fetchRates() {
     try {
@@ -383,7 +385,7 @@ export default function TeacherPage() {
                     <div className="font-semibold">{p.parent.full_name}</div>
                     <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
                     <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
-                    <div className="text-xs text-gray-500">Added: {p.date_added}</div>
+                    <div className="text-xs text-gray-500">Added: {p.date_added} — Expiry: {p.expiry_date}</div>
                   </div>
                 </div>
               ))}
@@ -542,6 +544,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
