@@ -6,7 +6,8 @@ import Banner from "../components/Banner";
 
 export default function TeacherStudentPage() {
   const router = useRouter();
-  const { teacher_id, student_id } = extractIds(router.query?.id);
+  const [teacher_id, setTeacherId] = useState(null);
+  const [student_id, setStudentId] = useState(null);
 
   const [teacher, setTeacher] = useState(null);
   const [relationship, setRelationship] = useState(null);
@@ -17,6 +18,16 @@ export default function TeacherStudentPage() {
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
 
+  useEffect(() => {
+    if (!router.isReady) return; // wait until Next.js populates the query
+    const param = router.query.id;
+    if (param) {
+      const [tId, sId] = param.split("_");
+      setTeacherId(tId);
+      setStudentId(sId);
+    }
+  }, [router.isReady, router.query.id]);
+  
   // Helper to extract both IDs
   function extractIds(param) {
     if (!param) return { teacher_id: null, student_id: null };
