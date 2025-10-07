@@ -69,7 +69,7 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
-      // 1. Fetch students linked to this teacher
+      // 1️⃣ Fetch teacher students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
         .select(`
@@ -99,36 +99,31 @@ export default function TeacherPage() {
         };
       });
   
-      // 2. Fetch parent-child-teacher info
+      // 2️⃣ Fetch parents linked to this teacher from parent_child_teachers
       const { data: parentData, error: parentError } = await supabase
         .from("parent_child_teachers")
         .select(`
           id,
-          parent:parent_id (id, full_name, phone, email),
-          child:child_id (id, full_name, profile_image),
-          date_added
+          parent_id,
+          child:child_id (id, full_name),
+          parent:parent_id (id, full_name, email, phone, profile_image)
         `)
         .eq("teacher_id", teacher.id)
-        .order("date_added", { ascending: false });
+        .order("id", { ascending: false });
   
       if (parentError) throw parentError;
   
-      const parentsWithImages = (parentData || []).map(p => {
-        let childImage = p.child?.profile_image || "/placeholder.png";
-        if (childImage && !childImage.startsWith("http")) {
-          const { data: publicUrlData } = supabase.storage
-            .from("student_images")
-            .getPublicUrl(childImage);
-          childImage = publicUrlData?.publicUrl || "/placeholder.png";
-        }
-        return {
-          ...p,
-          child: { ...p.child, image_url: childImage },
-        };
-      });
+      // Ensure parent image uses profile_image from users table
+      const formattedParents = (parentData || []).map(p => ({
+        ...p,
+        parent: {
+          ...p.parent,
+          image_url: p.parent.profile_image || "/placeholder.png",
+        },
+      }));
   
       setStudents(studentsWithImages);
-      setParents(parentsWithImages); // new state for Parents group
+      setParents(formattedParents);
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -362,20 +357,20 @@ export default function TeacherPage() {
                   className="border p-3 rounded flex items-center gap-3"
                 >
                   <img
-                    src={p.child.image_url}
-                    alt={p.child.full_name}
+                    src={p.parent.image_url}
+                    alt={p.parent.full_name}
                     className="w-14 h-14 rounded-full border object-cover"
                   />
                   <div>
                     <div className="font-semibold">{p.parent.full_name}</div>
                     <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
                     <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
-                    <div className="text-xs text-gray-500">Added: {p.date_added}</div>
                   </div>
                 </div>
               ))}
             </div>
           )}
+
       
           {/* Request Students Group */}
           <h4
@@ -530,6 +525,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
