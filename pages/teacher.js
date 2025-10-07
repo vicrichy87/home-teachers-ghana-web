@@ -70,10 +70,8 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
-      if (!teacher?.id) return;
-  
-      // 1️⃣ Fetch teacher students (approved and request separately)
-      const { data: studentData = [], error: studentError } = await supabase
+      // 1️⃣ Fetch teacher students
+      const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
         .select(`
           id,
@@ -102,34 +100,34 @@ export default function TeacherPage() {
         };
       });
   
-      // 2️⃣ Fetch parent-teacher links
-      const { data: links = [], error: linksError } = await supabase
+      // 2️⃣ Fetch parents linked to this teacher from parent_child_teachers
+      const { data: links, error: linksError } = await supabase
         .from("parent_child_teachers")
         .select("id, parent_id, child_id")
         .eq("teacher_id", teacher.id);
   
       if (linksError) throw linksError;
   
-      const parentIds = [...new Set((links || []).map(l => l.parent_id))];
-      const childIds = [...new Set((links || []).map(l => l.child_id))];
+      const parentIds = [...new Set((links || []).map(l => l.parent_id))].filter(Boolean);
+      const childIds = [...new Set((links || []).map(l => l.child_id))].filter(Boolean);
   
-      // 3️⃣ Fetch parent details
-      const { data: parentsData = [] } = await supabase
+      // 3️⃣ Fetch parent info from users table
+      const { data: parentsData } = await supabase
         .from("users")
-        .select("id, full_name, email, phone, profile_image")
-        .in("id", parentIds)
-        .eq("user_type", "parent");
+        .select("id, full_name, phone, profile_image")
+        .in("id", parentIds);
   
-      // 4️⃣ Fetch child details from correct table
-      const { data: childrenData = [] } = await supabase
-        .from("parents_children")
+      // 4️⃣ Fetch child info from parents_children table
+      const { data: childrenData } = await supabase
+        .from("parents_children") // corrected table name
         .select("id, full_name")
         .in("id", childIds);
   
-      // 5️⃣ Format parents with children
+      // 5️⃣ Combine parent and child info
       const formattedParents = (links || []).map(link => {
-        const parent = (parentsData || []).find(p => p.id === link.parent_id) || {};
-        const child = (childrenData || []).find(c => c.id === link.child_id) || { full_name: "Unknown" };
+        const parent = parentsData?.find(p => p.id === link.parent_id) || {};
+        const child = childrenData?.find(c => c.id === link.child_id) || { full_name: "Unknown" };
+  
         return {
           id: link.id,
           parent: {
@@ -137,56 +135,17 @@ export default function TeacherPage() {
             image_url: parent.profile_image || "/placeholder.png",
           },
           child,
+          date_added: link.date_added || "",
         };
       });
   
-      // 6️⃣ Fetch additional request students
-      const { data: requestData = [] } = await supabase
-        .from("parent_request_teacher_child")
-        .select(`
-          id,
-          parent_id,
-          child_id
-        `)
-        .eq("teacher_id", teacher.id);
-  
-      const requestParentIds = [...new Set((requestData || []).map(r => r.parent_id))];
-      const requestChildIds = [...new Set((requestData || []).map(r => r.child_id))];
-  
-      const { data: requestParentsData = [] } = await supabase
-        .from("users")
-        .select("id, full_name, email, phone, profile_image")
-        .in("id", requestParentIds)
-        .eq("user_type", "parent");
-  
-      const { data: requestChildrenData = [] } = await supabase
-        .from("parents_children")
-        .select("id, full_name")
-        .in("id", requestChildIds);
-  
-      const formattedRequests = (requestData || []).map(r => {
-        const parent = (requestParentsData || []).find(p => p.id === r.parent_id) || {};
-        const child = (requestChildrenData || []).find(c => c.id === r.child_id) || { full_name: "Unknown" };
-        return {
-          id: r.id,
-          parent: {
-            ...parent,
-            image_url: parent.profile_image || "/placeholder.png",
-          },
-          child,
-        };
-      });
-  
-      // 7️⃣ Update state
       setStudents(studentsWithImages);
       setParents(formattedParents);
-      setRequests(formattedRequests);
+  
     } catch (err) {
-      console.error(err);
       alert(err.message || String(err));
     }
   }
-
   
   async function fetchRates() {
     try {
@@ -583,6 +542,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
