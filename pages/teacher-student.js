@@ -1,13 +1,14 @@
-// pages/teacher-student.js
+// pages/teacher-student/[id].js
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../lib/supabaseClient";
-import Banner from "../components/Banner";
+import { supabase } from "../../lib/supabaseClient";
+import Banner from "../../components/Banner";
 
 export default function TeacherStudentPage() {
   const router = useRouter();
-  const { teacher_id, student_id } = router.query;
+  const { id: student_id } = router.query;
 
+  const [teacher, setTeacher] = useState(null);
   const [relationship, setRelationship] = useState(null);
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,7 @@ export default function TeacherStudentPage() {
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
 
-  // Format date
+  // Format date helper
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const date = new Date(dateStr);
@@ -27,9 +28,22 @@ export default function TeacherStudentPage() {
     });
   };
 
+  // Fetch logged-in teacher
+  useEffect(() => {
+    const fetchTeacher = async () => {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+      if (error) console.error(error.message);
+      if (user) setTeacher(user);
+    };
+    fetchTeacher();
+  }, []);
+
   // Fetch teacher-student relationship
   useEffect(() => {
-    if (!teacher_id || !student_id) return;
+    if (!teacher?.id || !student_id) return;
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -44,7 +58,7 @@ export default function TeacherStudentPage() {
             teacher:teacher_id (id, full_name, email, phone, city, profile_image),
             student:student_id (id, full_name, email, phone, city, profile_image)
           `)
-          .eq("teacher_id", teacher_id)
+          .eq("teacher_id", teacher.id)
           .eq("student_id", student_id)
           .single();
 
@@ -57,32 +71,29 @@ export default function TeacherStudentPage() {
       }
     };
     fetchData();
-  }, [teacher_id, student_id]);
+  }, [teacher, student_id]);
 
-  // Fetch timetable, zoom meetings, contracts
+  // Fetch timetable, zoom meetings, and contracts
   useEffect(() => {
-    if (!teacher_id || !student_id) return;
+    if (!teacher?.id || !student_id) return;
 
     const fetchExtraData = async () => {
-      // Fetch timetable
       const { data: timetableData } = await supabase
         .from("teacher_student_timetable")
         .select("*")
-        .eq("teacher_id", teacher_id)
+        .eq("teacher_id", teacher.id)
         .eq("student_id", student_id);
 
-      // Fetch zoom meetings
       const { data: zoomData } = await supabase
         .from("zoom_meetings")
         .select("*")
-        .eq("teacher_id", teacher_id)
+        .eq("teacher_id", teacher.id)
         .eq("student_id", student_id);
 
-      // Fetch contracts
       const { data: contractsData } = await supabase
         .from("contracts")
         .select("*")
-        .eq("teacher_id", teacher_id)
+        .eq("teacher_id", teacher.id)
         .eq("student_id", student_id);
 
       setTimetable(timetableData || []);
@@ -90,26 +101,21 @@ export default function TeacherStudentPage() {
       setContracts(contractsData || []);
     };
     fetchExtraData();
-  }, [teacher_id, student_id]);
+  }, [teacher, student_id]);
 
-  // Handlers (placeholders for now)
-  const handleAddTimetable = async () => {
-    alert("Add Timetable coming soon!");
-  };
-  const handleAddZoom = async () => {
-    alert("Schedule Zoom meeting coming soon!");
-  };
-  const handleUploadContract = async () => {
-    alert("Upload Contract feature coming soon!");
-  };
+  // Placeholder handlers
+  const handleAddTimetable = async () => alert("Add Timetable coming soon!");
+  const handleAddZoom = async () => alert("Schedule Zoom meeting coming soon!");
+  const handleUploadContract = async () => alert("Upload Contract coming soon!");
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
-  if (!relationship) return <div className="p-8 text-center">No record found.</div>;
+  if (!relationship)
+    return <div className="p-8 text-center">No record found.</div>;
 
-  const { teacher, student, subject, level, date_added, expiry_date } = relationship;
+  const { teacher: teacherInfo, student, subject, level, date_added, expiry_date } =
+    relationship;
 
-  // Expiry warning
   const isExpiringSoon = (() => {
     const now = new Date();
     const expiry = new Date(expiry_date);
@@ -132,13 +138,13 @@ export default function TeacherStudentPage() {
           <div className="bg-sky-50 p-4 rounded shadow">
             <h2 className="text-lg font-semibold text-sky-800 mb-2">Teacher</h2>
             <img
-              src={teacher?.profile_image || "/default-avatar.png"}
+              src={teacherInfo?.profile_image || "/default-avatar.png"}
               alt="Teacher"
               className="w-24 h-24 rounded-full mx-auto mb-2"
             />
-            <p className="text-center font-semibold">{teacher?.full_name}</p>
-            <p className="text-center text-sm text-gray-600">{teacher?.email}</p>
-            <p className="text-center text-sm">{teacher?.city}</p>
+            <p className="text-center font-semibold">{teacherInfo?.full_name}</p>
+            <p className="text-center text-sm text-gray-600">{teacherInfo?.email}</p>
+            <p className="text-center text-sm">{teacherInfo?.city}</p>
           </div>
 
           {/* Student */}
@@ -203,7 +209,7 @@ export default function TeacherStudentPage() {
         {tab === "overview" && (
           <div className="text-center text-gray-700">
             <p>
-              This page connects <strong>{teacher?.full_name}</strong> and{" "}
+              This page connects <strong>{teacherInfo?.full_name}</strong> and{" "}
               <strong>{student?.full_name}</strong> for{" "}
               <strong>{subject}</strong> ({level}).
             </p>
