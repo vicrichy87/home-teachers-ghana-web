@@ -499,87 +499,86 @@ export default function TeacherPage() {
     }
   }
 
-  if (loading) return <div className="text-center py-20">Loading...</div>;
+  )}
+          {/* Tab Buttons */}
+    <div className="mt-4 flex gap-3">
+      {["profile", "students", "rates", "myRates"].map((t) => (
+        <button
+          key={t}
+          onClick={() => setTab(t)}
+          className={`px-3 py-1 rounded ${
+            tab === t ? "bg-sky-600 text-white" : "bg-sky-50"
+          }`}
+        >
+          {t === "profile"
+            ? "Profile"
+            : t === "students"
+            ? "View Students"
+            : t === "rates"
+            ? "Add Rates"
+            : "My Rates"}
+        </button>
+      ))}
+    </div>
 
-  return (
-    <div className="max-w-4xl mx-auto bg-white p-6 rounded shadow">
-      <Banner />
-      <div className="mt-4 flex gap-3">
-        {["profile", "students", "rates", "myRates"].map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-3 py-1 rounded ${
-              tab === t ? "bg-sky-600 text-white" : "bg-sky-50"
-            }`}
-          >
-            {t === "profile"
-              ? "Profile"
-              : t === "students"
-              ? "View Students"
-              : t === "rates"
-              ? "Add Rates"
-              : "My Rates"}
-          </button>
-        ))}
-      </div>
-
-      {tab === "profile" && (
-        <div className="mt-4 flex gap-6">
-          <div>
-            <img
-              src={teacher?.profile_image || "/placeholder.png"}
-              className="w-28 h-28 rounded-full border"
-            />
-            <div className="mt-2">
-              <label className="bg-sky-600 text-white px-3 py-1 rounded cursor-pointer">
-                {uploading ? "Uploading..." : "Change Photo"}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={(e) => handlePickImage(e.target.files[0])}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <div><strong>{teacher.full_name}</strong></div>
-            <div>{teacher.email}</div>
-            <div>{teacher.phone}</div>
-            <div>{teacher.city}</div>
-            <div>{teacher.sex}</div>
-            <div>{teacher.dob}</div>
+    {/* Profile Tab */}
+    {tab === "profile" && (
+      <div className="mt-4 flex gap-6">
+        <div>
+          <img
+            src={teacher?.profile_image || "/placeholder.png"}
+            className="w-28 h-28 rounded-full border"
+          />
+          <div className="mt-2">
+            <label className="bg-sky-600 text-white px-3 py-1 rounded cursor-pointer">
+              {uploading ? "Uploading..." : "Change Photo"}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={(e) => handlePickImage(e.target.files[0])}
+              />
+            </label>
           </div>
         </div>
-      )}
+        <div>
+          <div><strong>{teacher.full_name}</strong></div>
+          <div>{teacher.email}</div>
+          <div>{teacher.phone}</div>
+          <div>{teacher.city}</div>
+          <div>{teacher.sex}</div>
+          <div>{teacher.dob}</div>
+        </div>
+      </div>
+    )}
 
-      {/* Students Group */}
-      <h4
-        className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
-        onClick={() => toggleGroup("students")}
-      >
-        My Students
-        <span>{collapsedGroups.students ? "▼" : "▲"}</span>
-      </h4>
-      {!collapsedGroups.students && (
-        <div className="space-y-3 mb-4">
-          {students.filter(s => s.level !== "request").length === 0 && (
-            <p className="text-gray-500">No students yet.</p>
-          )}
-      
-          {/* Only pick first instance per student for the list */}
-          {students
-            .filter(s => s.level !== "request")
-            .reduce((uniqueStudents, s) => {
-              if (!uniqueStudents.some(us => us.student.id === s.student.id)) {
-                uniqueStudents.push(s);
-              }
-              return uniqueStudents;
-            }, [])
-            .map((s) => {
-              return (
+    {/* Students Tab */}
+    {tab === "students" && (
+      <div className="mt-4">
+
+        {/* My Students Group */}
+        <h4
+          className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
+          onClick={() => toggleGroup("students")}
+        >
+          My Students
+          <span>{collapsedGroups.students ? "▼" : "▲"}</span>
+        </h4>
+        {!collapsedGroups.students && (
+          <div className="space-y-3 mb-4">
+            {students.filter((s) => s.level !== "request").length === 0 && (
+              <p className="text-gray-500">No students yet.</p>
+            )}
+
+            {students
+              .filter((s) => s.level !== "request")
+              .reduce((uniqueStudents, s) => {
+                if (!uniqueStudents.some((us) => us.student.id === s.student.id)) {
+                  uniqueStudents.push(s);
+                }
+                return uniqueStudents;
+              }, [])
+              .map((s) => (
                 <div
                   key={s.id}
                   onClick={() =>
@@ -604,84 +603,83 @@ export default function TeacherPage() {
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+          </div>
+        )}
 
-      
-          {/* Parents Group */}
-          <h4
-            className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
-            onClick={() => toggleGroup("parents")}
-          >
-            Parents
-            <span>{collapsedGroups.parents ? "▼" : "▲"}</span>
-          </h4>
-          {!collapsedGroups.parents && (
-            <div className="space-y-3 mb-4">
-              {parents.length === 0 && <p className="text-gray-500">No parents yet.</p>}
-              {parents.map(p => (
+        {/* Parents Group */}
+        <h4
+          className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
+          onClick={() => toggleGroup("parents")}
+        >
+          Parents
+          <span>{collapsedGroups.parents ? "▼" : "▲"}</span>
+        </h4>
+        {!collapsedGroups.parents && (
+          <div className="space-y-3 mb-4">
+            {parents.length === 0 && <p className="text-gray-500">No parents yet.</p>}
+            {parents.map((p) => (
+              <div key={p.id} className="border p-3 rounded flex items-center gap-3">
+                <img
+                  src={p.parent.image_url}
+                  alt={p.parent.full_name}
+                  className="w-14 h-14 rounded-full border object-cover"
+                />
+                <div>
+                  <div className="font-semibold">{p.parent.full_name}</div>
+                  <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
+                  <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
+                  <div className="text-xs text-gray-500">
+                    Added: {p.date_added} — Expiry: {p.expiry_date}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Request Students Group */}
+        <h4
+          className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
+          onClick={() => toggleGroup("requests")}
+        >
+          Request Students
+          <span>{collapsedGroups.requests ? "▼" : "▲"}</span>
+        </h4>
+        {!collapsedGroups.requests && (
+          <div className="space-y-3">
+            {students.filter((s) => s.level === "request").length === 0 && (
+              <p className="text-gray-500">No request students yet.</p>
+            )}
+            {students
+              .filter((s) => s.level === "request")
+              .map((s) => (
                 <div
-                  key={p.id}
+                  key={s.id}
                   className="border p-3 rounded flex items-center gap-3"
                 >
                   <img
-                    src={p.parent.image_url}
-                    alt={p.parent.full_name}
+                    src={s.student.image_url}
+                    alt={s.student.full_name}
                     className="w-14 h-14 rounded-full border object-cover"
                   />
                   <div>
-                    <div className="font-semibold">{p.parent.full_name}</div>
-                    <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
-                    <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
-                    <div className="text-xs text-gray-500">Added: {p.date_added} — Expiry: {p.expiry_date}</div>
+                    <div className="font-semibold">{s.student.full_name}</div>
+                    <div className="text-sm text-gray-600">{s.student.email}</div>
+                    <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                    <div className="text-sm">
+                      📘 {s.subject} ({s.level})
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Added: {s.date_added} — Expiry: {s.expiry_date}
+                    </div>
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-      
-          {/* Request Students Group */}
-          <h4
-            className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
-            onClick={() => toggleGroup("requests")}
-          >
-            Request Students
-            <span>{collapsedGroups.requests ? "▼" : "▲"}</span>
-          </h4>
-          {!collapsedGroups.requests && (
-            <div className="space-y-3">
-              {students.filter(s => s.level === "request").length === 0 && (
-                <p className="text-gray-500">No request students yet.</p>
-              )}
-              {students
-                .filter(s => s.level === "request")
-                .map(s => (
-                  <div
-                    key={s.id}
-                    className="border p-3 rounded flex items-center gap-3"
-                  >
-                    <img
-                      src={s.student.image_url}
-                      alt={s.student.full_name}
-                      className="w-14 h-14 rounded-full border object-cover"
-                    />
-                    <div>
-                      <div className="font-semibold">{s.student.full_name}</div>
-                      <div className="text-sm text-gray-600">{s.student.email}</div>
-                      <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
-                      <div className="text-sm">
-                        📘 {s.subject} ({s.level})
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Added: {s.date_added} — Expiry: {s.expiry_date}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
+    )}
               
             {/* Rates tabs remain unchanged */}
             {tab === "rates" && (
@@ -792,6 +790,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
