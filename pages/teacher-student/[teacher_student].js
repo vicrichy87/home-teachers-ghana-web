@@ -7,7 +7,7 @@ import Banner from "../../components/Banner";
 export default function TeacherStudentPage() {
   const router = useRouter();
   const { "teacher-student": teacher_student } = router.query;
-  
+
   const [teacherId, setTeacherId] = useState(null);
   const [studentId, setStudentId] = useState(null);
   const [relationship, setRelationship] = useState(null);
@@ -30,21 +30,21 @@ export default function TeacherStudentPage() {
   useEffect(() => {
     if (!router.isReady || !teacher_student) return;
 
-    // Parse teacher and student IDs from route
-    const [teacherId, studentId] = teacher_student.split("~");
-    if (!teacherId || !studentId) {
+    // ✅ Split teacher and student IDs
+    const [tId, sId] = teacher_student.split("~");
+    if (!tId || !sId) {
       setError("Invalid route parameters.");
       setLoading(false);
       return;
     }
-    setTeacherId(teacherId);
-    setStudentId(studentId);
+    setTeacherId(tId);
+    setStudentId(sId);
 
     const fetchAll = async () => {
       try {
         setLoading(true);
 
-        // Fetch teacher-student relationship
+        // ✅ Fetch teacher-student relationship
         const { data: relData, error: relError } = await supabase
           .from("teacher_students")
           .select(`
@@ -54,26 +54,32 @@ export default function TeacherStudentPage() {
           `)
           .eq("teacher_id", tId)
           .eq("student_id", sId)
-          .single();
+          .maybeSingle(); // <--- avoid crash if no match
 
         if (relError) throw relError;
+        if (!relData) {
+          setError("No relationship found for this teacher and student.");
+          setLoading(false);
+          return;
+        }
+
         setRelationship(relData);
 
-        // Fetch timetable
+        // ✅ Fetch timetable
         const { data: timetableData } = await supabase
           .from("teacher_student_timetable")
           .select("*")
           .eq("teacher_id", tId)
           .eq("student_id", sId);
 
-        // Fetch zoom meetings
+        // ✅ Fetch zoom meetings
         const { data: zoomData } = await supabase
           .from("zoom_meetings")
           .select("*")
           .eq("teacher_id", tId)
           .eq("student_id", sId);
 
-        // Fetch contracts
+        // ✅ Fetch contracts
         const { data: contractsData } = await supabase
           .from("contracts")
           .select("*")
@@ -138,51 +144,11 @@ export default function TeacherStudentPage() {
           </div>
         )}
 
-        {tab === "timetable" && (
-          <Section
-            title="Timetable"
-            buttonText="+ Add Session"
-            onClick={() => alert("Add Timetable coming soon!")}
-            data={timetable}
-            renderItem={item => (
-              <li key={item.id} className="border p-3 rounded bg-gray-50">
-                {item.day} - {item.subject} ({item.start_time} to {item.end_time})
-              </li>
-            )}
-          />
-        )}
+        {tab === "timetable" && <Section title="Timetable" buttonText="+ Add Session" onClick={() => alert("Add Timetable coming soon!")} data={timetable} renderItem={item => <li key={item.id} className="border p-3 rounded bg-gray-50">{item.day} - {item.subject} ({item.start_time} to {item.end_time})</li>} />}
 
-        {tab === "zoom" && (
-          <Section
-            title="Zoom Meetings"
-            buttonText="+ Schedule Zoom Meeting"
-            onClick={() => alert("Schedule Zoom meeting coming soon!")}
-            data={zoomMeetings}
-            renderItem={z => (
-              <li key={z.id} className="border p-3 rounded bg-gray-50">
-                <a href={z.zoom_link} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">
-                  {z.topic || "Meeting Link"}
-                </a> on {formatDate(z.start_time)}
-              </li>
-            )}
-          />
-        )}
+        {tab === "zoom" && <Section title="Zoom Meetings" buttonText="+ Schedule Zoom Meeting" onClick={() => alert("Schedule Zoom meeting coming soon!")} data={zoomMeetings} renderItem={z => <li key={z.id} className="border p-3 rounded bg-gray-50"><a href={z.zoom_link} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">{z.topic || "Meeting Link"}</a> on {formatDate(z.start_time)}</li>} />}
 
-        {tab === "contracts" && (
-          <Section
-            title="Contracts"
-            buttonText="+ Upload Contract"
-            onClick={() => alert("Upload Contract coming soon!")}
-            data={contracts}
-            renderItem={c => (
-              <li key={c.id} className="border p-3 rounded bg-gray-50">
-                <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">
-                  View Contract
-                </a> signed on {formatDate(c.date_signed)}
-              </li>
-            )}
-          />
-        )}
+        {tab === "contracts" && <Section title="Contracts" buttonText="+ Upload Contract" onClick={() => alert("Upload Contract coming soon!")} data={contracts} renderItem={c => <li key={c.id} className="border p-3 rounded bg-gray-50"><a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">View Contract</a> signed on {formatDate(c.date_signed)}</li>} />}
       </div>
     </div>
   );
@@ -193,11 +159,7 @@ function ProfileCard({ user, role, color }) {
   return (
     <div className={`bg-${color}-50 p-4 rounded shadow`}>
       <h2 className={`text-lg font-semibold text-${color}-800 mb-2`}>{role}</h2>
-      <img
-        src={user.profile_image || "/default-avatar.png"}
-        alt={role}
-        className="w-24 h-24 rounded-full mx-auto mb-2"
-      />
+      <img src={user.profile_image || "/default-avatar.png"} alt={role} className="w-24 h-24 rounded-full mx-auto mb-2" />
       <p className="text-center font-semibold">{user.full_name}</p>
       <p className="text-center text-sm text-gray-600">{user.email}</p>
       <p className="text-center text-sm">{user.city}</p>
@@ -210,12 +172,8 @@ function Tabs({ tab, setTab }) {
   return (
     <div className="flex justify-center space-x-3 mb-6">
       {tabs.map(t => (
-        <button
-          key={t}
-          onClick={() => setTab(t)}
-          className={`px-4 py-2 rounded ${tab === t ? "bg-sky-600 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"}`}
-        >
-          {t === "overview" ? "Overview" : t === "timetable" ? "Timetable" : t === "zoom" ? "Zoom Sessions" : "Contracts"}
+        <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded ${tab===t?"bg-sky-600 text-white":"bg-gray-100 text-gray-800 hover:bg-gray-200"}`}>
+          {t==="overview"?"Overview":t==="timetable"?"Timetable":t==="zoom"?"Zoom Sessions":"Contracts"}
         </button>
       ))}
     </div>
@@ -227,7 +185,7 @@ function Section({ title, buttonText, onClick, data, renderItem }) {
     <div>
       <h3 className="text-lg font-semibold mb-2 text-sky-700">{title}</h3>
       <button onClick={onClick} className="bg-sky-600 text-white px-3 py-1 rounded mb-3">{buttonText}</button>
-      {(!data || data.length === 0) ? <p>No {title.toLowerCase()} yet.</p> : <ul className="space-y-2">{data.map(renderItem)}</ul>}
+      {(!data || data.length===0)? <p>No {title.toLowerCase()} yet.</p> : <ul className="space-y-2">{data.map(renderItem)}</ul>}
     </div>
   );
 }
