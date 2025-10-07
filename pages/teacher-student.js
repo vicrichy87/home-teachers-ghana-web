@@ -1,8 +1,8 @@
 // pages/teacher-student/[teacher_id]_[student_id].js
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../../lib/supabaseClient";
-import Banner from "../../components/Banner";
+import { supabase } from "../lib/supabaseClient";
+import Banner from "../components/Banner";
 
 export default function TeacherStudentPage() {
   const router = useRouter();
