@@ -114,7 +114,7 @@ export default function TeacherPage() {
       // 4️⃣ Fetch child details
       const childIds = [...new Set((links || []).map(l => l.child_id))];
       const { data: childrenData } = await supabase
-        .from("parent_children")
+        .from("parents_children")
         .select("id, full_name")
         .in("id", childIds);
   
@@ -591,6 +591,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
