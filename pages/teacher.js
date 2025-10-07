@@ -70,6 +70,16 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
+      // ✅ Helper to format dates
+      function formatDate(dateStr) {
+        if (!dateStr) return "N/A";
+        const date = new Date(dateStr);
+        return date.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      }
       // 1️⃣ Fetch teacher students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
@@ -94,9 +104,12 @@ export default function TeacherPage() {
             .getPublicUrl(imageUrl);
           imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
         }
+  
         return {
           ...s,
           student: { ...s.student, image_url: imageUrl },
+          formattedDateAdded: formatDate(s.date_added),
+          formattedExpiryDate: formatDate(s.expiry_date),
         };
       });
   
@@ -117,13 +130,13 @@ export default function TeacherPage() {
         .select("id, full_name, phone, profile_image")
         .in("id", parentIds);
   
-      // 4️⃣ Fetch child info
+      // 4️⃣ Fetch child info (corrected table name)
       const { data: childrenData } = await supabase
-        .from("parents_children") // corrected table name
+        .from("parents_children")
         .select("id, full_name")
         .in("id", childIds);
   
-      // 5️⃣ Combine parent and child info with date_added and expiry_date
+      // 5️⃣ Combine parent and child info with formatted dates
       const formattedParents = (links || []).map(link => {
         const parent = parentsData?.find(p => p.id === link.parent_id) || {};
         const child = childrenData?.find(c => c.id === link.child_id) || { full_name: "Unknown" };
@@ -135,11 +148,12 @@ export default function TeacherPage() {
             image_url: parent.profile_image || "/placeholder.png",
           },
           child,
-          date_added: link.date_added || "",
-          expiry_date: link.expiry_date || "",
+          formattedDateAdded: formatDate(link.date_added),
+          formattedExpiryDate: formatDate(link.expiry_date),
         };
       });
   
+      // ✅ Update states
       setStudents(studentsWithImages);
       setParents(formattedParents);
   
@@ -147,7 +161,6 @@ export default function TeacherPage() {
       alert(err.message || String(err));
     }
   }
-
   
   async function fetchRates() {
     try {
@@ -544,6 +557,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
