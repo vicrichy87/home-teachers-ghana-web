@@ -25,7 +25,6 @@ export default function TeacherPage() {
   const [editRate, setEditRate] = useState("");
 
   const [uploading, setUploading] = useState(false);
-
   const [collapsedGroups, setCollapsedGroups] = useState({
     students: false,
     parents: false,
@@ -785,6 +784,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
