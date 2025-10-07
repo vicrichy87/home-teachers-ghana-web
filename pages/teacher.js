@@ -45,6 +45,17 @@ export default function TeacherPage() {
     if (tab === "myRates") fetchRates();
   }, [tab, teacher]);
 
+  function formatDate(dateStr) {
+        if (!dateStr) return "Not set";
+        const date = new Date(dateStr);
+        if (isNaN(date)) return "Not set";
+        return date.toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+      }
+  
   async function fetchTeacherProfile() {
     setLoading(true);
     try {
@@ -70,18 +81,7 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
-      // ✅ Safe and consistent timestamp formatter
-      function formatDate(dateStr) {
-        if (!dateStr) return "Not set";
-        const date = new Date(dateStr);
-        if (isNaN(date)) return "Not set";
-        return date.toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        });
-      }
-  
+       
       // 1️⃣ Fetch teacher students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
@@ -368,7 +368,7 @@ export default function TeacherPage() {
                         📘 {s.subject} ({s.level})
                       </div>
                       <div className="text-xs text-gray-500">
-                        Added: {s.date_added} — Expiry: {s.expiry_date}
+                        Added: {s.formattedDateAdded} — Expiry: {s.formattedExpiryDate}
                       </div>
                     </div>
                   </div>
@@ -441,7 +441,7 @@ export default function TeacherPage() {
                         📘 {s.subject} ({s.level})
                       </div>
                       <div className="text-xs text-gray-500">
-                        Added: {s.date_added} — Expiry: {s.expiry_date}
+                        Added: {s.formattedDateAdded} — Expiry: {s.formattedExpiryDate}
                       </div>
                     </div>
                   </div>
@@ -560,6 +560,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
