@@ -578,7 +578,7 @@ export default function TeacherPage() {
                   <div
                     key={s.id}
                     onClick={() => router.push(
-                      `/pages/teacher-student.?teacher_id=${s.teacher_id}&student_id=${s.student.id}`
+                      `/pages/teacher-student?teacher_id=${s.teacher_id}&student_id=${s.student.id}`
                     )}
                     className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
                   >
@@ -787,6 +787,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
