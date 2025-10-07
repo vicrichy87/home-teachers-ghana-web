@@ -7,10 +7,18 @@ import Banner from "../../components/Banner";
 export default function TeacherStudentPage() {
   const router = useRouter();
   const { teacher_id_student_id } = router.query;
-  
+
   const [teacherId, setTeacherId] = useState(null);
   const [studentId, setStudentId] = useState(null);
-  
+  const [relationship, setRelationship] = useState(null);
+  const [tab, setTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [timetable, setTimetable] = useState([]);
+  const [zoomMeetings, setZoomMeetings] = useState([]);
+  const [contracts, setContracts] = useState([]);
+
+  // Wait for router to be ready before splitting IDs
   useEffect(() => {
     if (!router.isReady) return;
     if (teacher_id_student_id) {
@@ -19,14 +27,6 @@ export default function TeacherStudentPage() {
       setStudentId(sId);
     }
   }, [router.isReady, teacher_id_student_id]);
-
-  const [relationship, setRelationship] = useState(null);
-  const [tab, setTab] = useState("overview");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [timetable, setTimetable] = useState([]);
-  const [zoomMeetings, setZoomMeetings] = useState([]);
-  const [contracts, setContracts] = useState([]);
 
   // Format date helper
   const formatDate = (dateStr) => {
@@ -79,32 +79,38 @@ export default function TeacherStudentPage() {
     if (!teacherId || !studentId) return;
 
     const fetchExtras = async () => {
-      const { data: timetableData } = await supabase
-        .from("teacher_student_timetable")
-        .select("*")
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId);
+      try {
+        const { data: timetableData } = await supabase
+          .from("teacher_student_timetable")
+          .select("*")
+          .eq("teacher_id", teacherId)
+          .eq("student_id", studentId);
 
-      const { data: zoomData } = await supabase
-        .from("zoom_meetings")
-        .select("*")
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId);
+        const { data: zoomData } = await supabase
+          .from("zoom_meetings")
+          .select("*")
+          .eq("teacher_id", teacherId)
+          .eq("student_id", studentId);
 
-      const { data: contractsData } = await supabase
-        .from("contracts")
-        .select("*")
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId);
+        const { data: contractsData } = await supabase
+          .from("contracts")
+          .select("*")
+          .eq("teacher_id", teacherId)
+          .eq("student_id", studentId);
 
-      setTimetable(timetableData || []);
-      setZoomMeetings(zoomData || []);
-      setContracts(contractsData || []);
+        setTimetable(timetableData || []);
+        setZoomMeetings(zoomData || []);
+        setContracts(contractsData || []);
+      } catch (err) {
+        console.error("Error fetching extras:", err);
+      }
     };
 
     fetchExtras();
   }, [teacherId, studentId]);
 
+  if (!router.isReady)
+    return <div className="p-8 text-center">Loading route...</div>;
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
   if (!relationship)
@@ -225,6 +231,7 @@ export default function TeacherStudentPage() {
 }
 
 function ProfileCard({ user, role, color }) {
+  if (!user) return null;
   return (
     <div className={`bg-${color}-50 p-4 rounded shadow`}>
       <h2 className={`text-lg font-semibold text-${color}-800 mb-2`}>{role}</h2>
