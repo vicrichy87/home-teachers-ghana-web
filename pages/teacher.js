@@ -67,10 +67,11 @@ export default function TeacherPage() {
   }
 
   // ✅ Updated: fetch students with subject, level, phone and image
-  
   async function fetchStudents() {
     try {
-      // 1️⃣ Fetch teacher's students
+      if (!teacher?.id) return;
+  
+      // 1️⃣ Fetch teacher students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
         .select(`
@@ -101,32 +102,32 @@ export default function TeacherPage() {
       });
   
       // 2️⃣ Fetch parent-child-teacher links
-      const { data: links, error: linkError } = await supabase
+      const { data: links, error: linksError } = await supabase
         .from("parent_child_teachers")
-        .select("*")
+        .select("id, parent_id, child_id, date_added")
         .eq("teacher_id", teacher.id);
   
-      if (linkError) throw linkError;
+      if (linksError) throw linksError;
   
-      // 3️⃣ Fetch parent info from users table
-      const parentIds = links.map(l => l.parent_id);
+      // 3️⃣ Fetch parent details from users table
+      const parentIds = [...new Set((links || []).map(l => l.parent_id))];
       const { data: parentsData } = await supabase
         .from("users")
         .select("id, full_name, email, phone, profile_image")
         .in("id", parentIds)
-        .eq("user_type", "parents");
+        .eq("user_type", "parent");
   
-      // 4️⃣ Fetch children info
-      const childIds = links.map(l => l.child_id);
+      // 4️⃣ Fetch child details from parent_children table
+      const childIds = [...new Set((links || []).map(l => l.child_id))];
       const { data: childrenData } = await supabase
         .from("parent_children")
         .select("id, full_name")
         .in("id", childIds);
   
-      // 5️⃣ Merge links with parent + child info
-      const formattedParents = links.map(link => {
-        const parent = parentsData.find(p => p.id === link.parent_id);
-        const child = childrenData.find(c => c.id === link.child_id);
+      // 5️⃣ Merge links with parent + child info safely
+      const formattedParents = (links || []).map(link => {
+        const parent = (parentsData || []).find(p => p.id === link.parent_id);
+        const child = (childrenData || []).find(c => c.id === link.child_id);
         return {
           id: link.id,
           parent: {
@@ -138,15 +139,12 @@ export default function TeacherPage() {
         };
       });
   
-      // 6️⃣ Set state
       setStudents(studentsWithImages);
       setParents(formattedParents);
-  
     } catch (err) {
       alert(err.message || String(err));
     }
   }
-
 
   async function fetchRates() {
     try {
@@ -543,6 +541,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
