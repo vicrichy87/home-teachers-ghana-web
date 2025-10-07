@@ -11,6 +11,8 @@ export default function TeacherPage() {
   const [tab, setTab] = useState("profile");
   const [students, setStudents] = useState([]);
   const [rates, setRates] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [parents, setParents] = useState([]);
 
   const [subject, setSubject] = useState("");
@@ -69,8 +71,6 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
-      if (!teacher?.id) return;
-  
       // 1️⃣ Fetch teacher students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
@@ -84,7 +84,6 @@ export default function TeacherPage() {
         `)
         .eq("teacher_id", teacher.id)
         .order("date_added", { ascending: false });
-  
       if (studentError) throw studentError;
   
       const studentsWithImages = (studentData || []).map(s => {
@@ -95,10 +94,7 @@ export default function TeacherPage() {
             .getPublicUrl(imageUrl);
           imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
         }
-        return {
-          ...s,
-          student: { ...s.student, image_url: imageUrl },
-        };
+        return { ...s, student: { ...s.student, image_url: imageUrl } };
       });
   
       // 2️⃣ Fetch parent-child-teacher links
@@ -106,10 +102,9 @@ export default function TeacherPage() {
         .from("parent_child_teachers")
         .select("id, parent_id, child_id, date_added")
         .eq("teacher_id", teacher.id);
-  
       if (linksError) throw linksError;
   
-      // 3️⃣ Fetch parent details from users table
+      // 3️⃣ Fetch parent details
       const parentIds = [...new Set((links || []).map(l => l.parent_id))];
       const { data: parentsData } = await supabase
         .from("users")
@@ -117,14 +112,14 @@ export default function TeacherPage() {
         .in("id", parentIds)
         .eq("user_type", "parent");
   
-      // 4️⃣ Fetch child details from parent_children table
+      // 4️⃣ Fetch child details
       const childIds = [...new Set((links || []).map(l => l.child_id))];
       const { data: childrenData } = await supabase
         .from("parent_children")
         .select("id, full_name")
         .in("id", childIds);
   
-      // 5️⃣ Merge links with parent + child info safely
+      // 5️⃣ Merge parent + child info safely
       const formattedParents = (links || []).map(link => {
         const parent = (parentsData || []).find(p => p.id === link.parent_id);
         const child = (childrenData || []).find(c => c.id === link.child_id);
@@ -139,44 +134,68 @@ export default function TeacherPage() {
         };
       });
   
-      // 6️⃣ Fetch additional parent requests
-      const { data: requestData, error: requestError } = await supabase
+      // 6️⃣ Fetch request students from parent_request_teacher_child
+      const { data: reqData1, error: reqError1 } = await supabase
+        .from("teacher_students")
+        .select(`
+          id,
+          subject,
+          level,
+          date_added,
+          expiry_date,
+          student:student_id (id, full_name, email, phone, profile_image)
+        `)
+        .eq("teacher_id", teacher.id)
+        .eq("level", "request");
+  
+      if (reqError1) throw reqError1;
+  
+      const { data: reqData2, error: reqError2 } = await supabase
         .from("parent_request_teacher_child")
         .select(`
           id,
           parent_id,
-          child_id,
-          date_added,
           child:child_id (id, full_name),
-          parent:parent_id (id, full_name, email, phone, profile_image)
+          parent:parent_id (id, full_name, email, phone, profile_image),
+          date_added
         `)
         .eq("teacher_id", teacher.id);
   
-      if (requestError) throw requestError;
+      if (reqError2) throw reqError2;
   
-      const requestsWithImages = (requestData || []).map(r => ({
-        ...r,
-        student: {
-          ...r.child,
-          image_url: "/placeholder.png", // child has no profile image
-        },
-        level: "request",
-      }));
-  
-      // Combine students requests with parent requests
-      const allStudentsWithRequests = [
-        ...studentsWithImages.filter(s => s.level !== "request"),
-        ...studentsWithImages.filter(s => s.level === "request"),
-        ...requestsWithImages,
+      // Merge requests
+      const requestStudents = [
+        ...(reqData1 || []).map(s => {
+          let imageUrl = s.student?.profile_image || "/placeholder.png";
+          if (imageUrl && !imageUrl.startsWith("http")) {
+            const { data: publicUrlData } = supabase.storage
+              .from("student_images")
+              .getPublicUrl(imageUrl);
+            imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
+          }
+          return { ...s, student: { ...s.student, image_url: imageUrl } };
+        }),
+        ...(reqData2 || []).map(r => ({
+          id: r.id,
+          subject: "Request",
+          level: "request",
+          date_added: r.date_added,
+          student: r.child || { full_name: "Unknown" },
+          parent: {
+            ...r.parent,
+            image_url: r.parent?.profile_image || "/placeholder.png",
+          },
+        })),
       ];
   
-      setStudents(allStudentsWithRequests);
+      // 7️⃣ Update state
+      setStudents(studentsWithImages);
       setParents(formattedParents);
+      setRequests(requestStudents);
     } catch (err) {
       alert(err.message || String(err));
     }
   }
-
 
   async function fetchRates() {
     try {
@@ -573,6 +592,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
