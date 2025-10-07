@@ -549,7 +549,7 @@ return (
     {/* Students Tab */}
     {tab === "students" && (
       <div className="mt-4">
-
+    
         {/* My Students Group */}
         <h4
           className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
@@ -560,45 +560,46 @@ return (
         </h4>
         {!collapsedGroups.students && (
           <div className="space-y-3 mb-4">
-            {students.filter((s) => s.level !== "request").length === 0 ? (
+            {students.filter((s) => s.level !== "request").length === 0 && (
               <p className="text-gray-500">No students yet.</p>
-            ) : (
-              students
-                .filter((s) => s.level !== "request")
-                .reduce((unique, s) => {
-                  if (!unique.some(us => us.student.id === s.student.id)) unique.push(s);
-                  return unique;
-                }, [])
-                .map((s) => (
-                  <div
-                    key={s.id}
-                    onClick={() =>
-                      router.push(`/teacher-student/${teacher.id}~${s.student.id}`)
-                    }
-                    className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
-                  >
-                    <img
-                      src={s.student.image_url}
-                      alt={s.student.full_name}
-                      className="w-14 h-14 rounded-full border object-cover"
-                    />
-                    <div>
-                      <div className="font-semibold">{s.student.full_name}</div>
-                      <div className="text-sm text-gray-600">{s.student.email}</div>
-                      <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
-                      <div className="text-sm">
-                        📘 {s.subject} ({s.level})
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Added: {s.date_added} — Expiry: {s.expiry_date}
-                      </div>
+            )}
+            {students
+              .filter((s) => s.level !== "request")
+              .reduce((uniqueStudents, s) => {
+                if (!uniqueStudents.some((us) => us.student.id === s.student.id)) {
+                  uniqueStudents.push(s);
+                }
+                return uniqueStudents;
+              }, [])
+              .map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() =>
+                    router.push(`/teacher-student/${teacher.id}~${s.student.id}`)
+                  }
+                  className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-gray-50 hover:shadow transition"
+                >
+                  <img
+                    src={s.student.image_url}
+                    alt={s.student.full_name}
+                    className="w-14 h-14 rounded-full border object-cover"
+                  />
+                  <div>
+                    <div className="font-semibold">{s.student.full_name}</div>
+                    <div className="text-sm text-gray-600">{s.student.email}</div>
+                    <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                    <div className="text-sm">
+                      📘 {s.subject} ({s.level})
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Added: {s.date_added} — Expiry: {s.expiry_date}
                     </div>
                   </div>
-                ))
-            )}
+                </div>
+              ))}
           </div>
         )}
-
+    
         {/* Parents Group */}
         <h4
           className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
@@ -609,30 +610,27 @@ return (
         </h4>
         {!collapsedGroups.parents && (
           <div className="space-y-3 mb-4">
-            {parents.length === 0 ? (
-              <p className="text-gray-500">No parents yet.</p>
-            ) : (
-              parents.map((p) => (
-                <div key={p.id} className="border p-3 rounded flex items-center gap-3">
-                  <img
-                    src={p.parent.image_url}
-                    alt={p.parent.full_name}
-                    className="w-14 h-14 rounded-full border object-cover"
-                  />
-                  <div>
-                    <div className="font-semibold">{p.parent.full_name}</div>
-                    <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
-                    <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
-                    <div className="text-xs text-gray-500">
-                      Added: {p.date_added} — Expiry: {p.expiry_date}
-                    </div>
+            {parents.length === 0 && <p className="text-gray-500">No parents yet.</p>}
+            {parents.map((p) => (
+              <div key={p.id} className="border p-3 rounded flex items-center gap-3">
+                <img
+                  src={p.parent.image_url}
+                  alt={p.parent.full_name}
+                  className="w-14 h-14 rounded-full border object-cover"
+                />
+                <div>
+                  <div className="font-semibold">{p.parent.full_name}</div>
+                  <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
+                  <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
+                  <div className="text-xs text-gray-500">
+                    Added: {p.date_added} — Expiry: {p.expiry_date}
                   </div>
                 </div>
-              ))
-            )}
+              </div>
+            ))}
           </div>
         )}
-
+    
         {/* Request Students Group */}
         <h4
           className="font-semibold mb-2 flex items-center justify-between cursor-pointer"
@@ -643,39 +641,39 @@ return (
         </h4>
         {!collapsedGroups.requests && (
           <div className="space-y-3">
-            {students.filter((s) => s.level === "request").length === 0 ? (
+            {students.filter((s) => s.level === "request").length === 0 && (
               <p className="text-gray-500">No request students yet.</p>
-            ) : (
-              students
-                .filter((s) => s.level === "request")
-                .map((s) => (
-                  <div
-                    key={s.id}
-                    className="border p-3 rounded flex items-center gap-3"
-                  >
-                    <img
-                      src={s.student.image_url}
-                      alt={s.student.full_name}
-                      className="w-14 h-14 rounded-full border object-cover"
-                    />
-                    <div>
-                      <div className="font-semibold">{s.student.full_name}</div>
-                      <div className="text-sm text-gray-600">{s.student.email}</div>
-                      <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
-                      <div className="text-sm">
-                        📘 {s.subject} ({s.level})
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Added: {s.date_added} — Expiry: {s.expiry_date}
-                      </div>
+            )}
+            {students
+              .filter((s) => s.level === "request")
+              .map((s) => (
+                <div
+                  key={s.id}
+                  className="border p-3 rounded flex items-center gap-3"
+                >
+                  <img
+                    src={s.student.image_url}
+                    alt={s.student.full_name}
+                    className="w-14 h-14 rounded-full border object-cover"
+                  />
+                  <div>
+                    <div className="font-semibold">{s.student.full_name}</div>
+                    <div className="text-sm text-gray-600">{s.student.email}</div>
+                    <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                    <div className="text-sm">
+                      📘 {s.subject} ({s.level})
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Added: {s.date_added} — Expiry: {s.expiry_date}
                     </div>
                   </div>
-                ))
-            )}
+                </div>
+              ))}
           </div>
         )}
       </div>
     )}
+    
 
     {/* Rates Tab */}
     {tab === "rates" && (
@@ -780,3 +778,4 @@ return (
     )}
   </div>
   );
+
