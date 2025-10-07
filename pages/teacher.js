@@ -167,11 +167,23 @@ export default function TeacherPage() {
     }
   }
 
-  // ✅ Updated: fetch students with subject, level, phone and image
+  // ✅ Updated: fetch students with subject, level, phone and image  
   async function fetchStudents() {
+    if (!teacher?.id) return;
     try {
-      // 1️⃣ Fetch teacher's assigned students
-      const { data: studentData, error: studentError } = await supabase
+      const formatDate = (ts) => {
+        if (!ts) return "";
+        const d = new Date(ts);
+        // en-GB: "06 Oct 2025"
+        return d.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      };
+  
+      // ---------- 1) teacher_students (regular + request-level entries) ----------
+      const { data: tsData, error: tsError } = await supabase
         .from("teacher_students")
         .select(`
           id,
@@ -179,30 +191,40 @@ export default function TeacherPage() {
           level,
           date_added,
           expiry_date,
-          student:student_id (id, full_name, email, phone, profile_image)
+          student:student_id ( id, full_name, email, phone, profile_image )
         `)
         .eq("teacher_id", teacher.id)
         .order("date_added", { ascending: false });
   
-      if (studentError) throw studentError;
+      if (tsError) throw tsError;
   
-      const studentsWithImages = (studentData || []).map(s => {
-        let imageUrl = s.student?.profile_image || "/placeholder.png";
-        if (imageUrl && !imageUrl.startsWith("http")) {
-          const { data: publicUrlData } = supabase.storage
-            .from("student_images")
-            .getPublicUrl(imageUrl);
-          imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
+      // normalize teacher_students entries to a common shape
+      const studentsFromTeacher = (tsData || []).map((s) => {
+        // compute image url; if stored path, try public url; otherwise placeholder
+        let image = s.student?.profile_image || "/placeholder.png";
+        if (image && !image.startsWith("http")) {
+          const { data: publicUrlData } = supabase.storage.from("student_images").getPublicUrl(image);
+          image = publicUrlData?.publicUrl || "/placeholder.png";
         }
         return {
-          ...s,
-          student: { ...s.student, image_url: imageUrl },
-          formattedDateAdded: formatDate(s.date_added),
-          formattedExpiryDate: formatDate(s.expiry_date),
+          _key: `ts-${s.id}`,           // unique key for react lists
+          source: "teacher_students",
+          id: s.id,
+          subject: s.subject,
+          level: s.level,
+          student: {
+            id: s.student?.id || null,
+            full_name: s.student?.full_name || "Unknown",
+            email: s.student?.email || "",
+            phone: s.student?.phone || "",
+            image_url: image,
+          },
+          date_added: formatDate(s.date_added),
+          expiry_date: formatDate(s.expiry_date),
         };
       });
   
-      // 2️⃣ Fetch parent-child links
+      // ---------- 2) parent_child_teachers (parents + their child links) ----------
       const { data: links, error: linksError } = await supabase
         .from("parent_child_teachers")
         .select("id, parent_id, child_id, date_added, expiry_date")
@@ -210,96 +232,163 @@ export default function TeacherPage() {
   
       if (linksError) throw linksError;
   
-      const parentIds = [...new Set((links || []).map(l => l.parent_id))].filter(Boolean);
-      const childIds = [...new Set((links || []).map(l => l.child_id))].filter(Boolean);
+      const parentIdsFromLinks = [...new Set((links || []).map((l) => l.parent_id).filter(Boolean))];
+      const childIdsFromLinks = [...new Set((links || []).map((l) => l.child_id).filter(Boolean))];
   
-      // 3️⃣ Fetch parent info
-      const { data: parentsData } = await supabase
-        .from("users")
-        .select("id, full_name, phone, profile_image")
-        .in("id", parentIds);
+      // fetch parent user info
+      let parentsData = [];
+      if (parentIdsFromLinks.length) {
+        const { data: pData, error: pError } = await supabase
+          .from("users")
+          .select("id, full_name, phone, profile_image")
+          .in("id", parentIdsFromLinks);
+        if (pError) throw pError;
+        parentsData = pData || [];
+      }
   
-      // 4️⃣ Fetch child info
-      const { data: childrenData } = await supabase
-        .from("parents_children")
-        .select("id, full_name")
-        .in("id", childIds);
+      // fetch child info from parents_children
+      let childrenData = [];
+      if (childIdsFromLinks.length) {
+        const { data: cData, error: cError } = await supabase
+          .from("parents_children")
+          .select("id, full_name")
+          .in("id", childIdsFromLinks);
+        if (cError) throw cError;
+        childrenData = cData || [];
+      }
   
-      // 5️⃣ Combine parent and child info
-      const formattedParents = (links || []).map(link => {
-        const parent = parentsData?.find(p => p.id === link.parent_id) || {};
-        const child = childrenData?.find(c => c.id === link.child_id) || { full_name: "Unknown" };
+      const formattedParents = (links || []).map((link) => {
+        const parent = parentsData.find((p) => p.id === link.parent_id) || {};
+        const child = childrenData.find((c) => c.id === link.child_id) || { full_name: "Unknown" };
+  
+        // parent image (public url attempt)
+        let parentImage = parent.profile_image || "/placeholder.png";
+        if (parentImage && !parentImage.startsWith("http")) {
+          const { data: pub } = supabase.storage.from("profile-pictures").getPublicUrl(parentImage);
+          parentImage = pub?.publicUrl || "/placeholder.png";
+        }
   
         return {
           id: link.id,
           parent: {
-            ...parent,
-            image_url: parent.profile_image || "/placeholder.png",
+            id: parent.id || null,
+            full_name: parent.full_name || "Unknown",
+            phone: parent.phone || "",
+            image_url: parentImage,
           },
-          child,
+          child: {
+            id: child.id || null,
+            full_name: child.full_name || "Unknown",
+          },
           date_added: formatDate(link.date_added),
           expiry_date: formatDate(link.expiry_date),
         };
       });
   
-      // 6️⃣ Fetch accepted parent requests (from parent_request_teacher_child)
-      const { data: requestData, error: requestError } = await supabase
+      // ---------- 3) parent_request_teacher_child (accepted parent requests applied to teacher) ----------
+      // only include rows where parent accepted (status = 'accepted')
+      const { data: prtData, error: prtError } = await supabase
         .from("parent_request_teacher_child")
-        .select(`
-          id,
-          teacher_id,
-          parent_id,
-          child_id,
-          status,
-          date_added,
-          expiry_date
-        `)
+        .select("id, parent_id, child_id, request_id, application_id, date_added, expiry_date, status")
         .eq("teacher_id", teacher.id)
-        .eq("status", "accepted"); // ✅ Only accepted requests
+        .eq("status", "accepted") // match your requirement
+        .order("date_added", { ascending: false });
   
-      if (requestError) throw requestError;
+      if (prtError) throw prtError;
   
-      const requestParentIds = [...new Set((requestData || []).map(r => r.parent_id))].filter(Boolean);
-      const requestChildIds = [...new Set((requestData || []).map(r => r.child_id))].filter(Boolean);
+      // collect ids that might not have been fetched earlier
+      const prtParentIds = [...new Set((prtData || []).map((r) => r.parent_id).filter(Boolean))];
+      const prtChildIds = [...new Set((prtData || []).map((r) => r.child_id).filter(Boolean))];
+      const missingParentIds = prtParentIds.filter((id) => !parentIdsFromLinks.includes(id));
+      const missingChildIds = prtChildIds.filter((id) => !childIdsFromLinks.includes(id));
   
-      const { data: reqParentsData } = await supabase
-        .from("users")
-        .select("id, full_name, phone, profile_image")
-        .in("id", requestParentIds);
+      // fetch any missing parent / child rows
+      let extraParents = [];
+      if (missingParentIds.length) {
+        const { data: pEx, error: pExErr } = await supabase
+          .from("users")
+          .select("id, full_name, phone, profile_image")
+          .in("id", missingParentIds);
+        if (pExErr) throw pExErr;
+        extraParents = pEx || [];
+      }
   
-      const { data: reqChildrenData } = await supabase
-        .from("parents_children")
-        .select("id, full_name")
-        .in("id", requestChildIds);
+      let extraChildren = [];
+      if (missingChildIds.length) {
+        const { data: cEx, error: cExErr } = await supabase
+          .from("parents_children")
+          .select("id, full_name")
+          .in("id", missingChildIds);
+        if (cExErr) throw cExErr;
+        extraChildren = cEx || [];
+      }
   
-      // 7️⃣ Combine accepted requests with child + parent info
-      const formattedRequests = (requestData || []).map(req => {
-        const parent = reqParentsData?.find(p => p.id === req.parent_id) || {};
-        const child = reqChildrenData?.find(c => c.id === req.child_id) || { full_name: "Unknown" };
+      const allParents = [...parentsData, ...extraParents];
+      const allChildren = [...childrenData, ...extraChildren];
+  
+      // (optional) fetch request_text for request_id to show subject/details - helps UI clarity
+      const requestIds = [...new Set((prtData || []).map((r) => r.request_id).filter(Boolean))];
+      let requestsMap = {};
+      if (requestIds.length) {
+        const { data: reqs, error: reqErr } = await supabase
+          .from("requests")
+          .select("id, request_text")
+          .in("id", requestIds);
+        if (reqErr) throw reqErr;
+        requestsMap = (reqs || []).reduce((acc, cur) => {
+          acc[cur.id] = cur.request_text;
+          return acc;
+        }, {});
+      }
+  
+      // Map parent_request_teacher_child into entries compatible with teacher_students display, mark source 'parent_request'
+      const requestStudentsFromParents = (prtData || []).map((r) => {
+        const parent = allParents.find((p) => p.id === r.parent_id) || {};
+        const child = allChildren.find((c) => c.id === r.child_id) || { full_name: "Unknown" };
+  
+        // parent image fallback
+        let parentImg = parent.profile_image || "/placeholder.png";
+        if (parentImg && !parentImg.startsWith("http")) {
+          const { data: pub } = supabase.storage.from("profile-pictures").getPublicUrl(parentImg);
+          parentImg = pub?.publicUrl || "/placeholder.png";
+        }
+  
         return {
-          id: req.id,
-          parent: {
-            ...parent,
-            image_url: parent.profile_image || "/placeholder.png",
+          _key: `prt-${r.id}`,
+          source: "parent_request_teacher_child",
+          id: r.id,
+          subject: requestsMap[r.request_id] || "Request",
+          level: "request", // ensures this appears in Request Students group
+          student: {
+            id: child.id || null,
+            full_name: child.full_name || "Unknown",
+            email: "", // child has no email
+            phone: parent.phone || "",
+            image_url: parentImg, // show parent image for the child card
           },
-          child,
-          date_added: formatDate(req.date_added),
-          expiry_date: formatDate(req.expiry_date),
+          date_added: formatDate(r.date_added),
+          expiry_date: formatDate(r.expiry_date),
         };
       });
   
-      // ✅ Update states
-      setStudents(studentsWithImages);
-      setParents(formattedParents);
-      setRequests(formattedRequests);
+      // ---------- 4) Combine teacher_students + requestStudentsFromParents ----------
+      // note: teacher_students may already include some level==='request' entries; keep them and add parent-request entries
+      const combinedStudents = [...studentsFromTeacher, ...requestStudentsFromParents];
   
+      // set states
+      setStudents(combinedStudents);
+      setParents(formattedParents);
+  
+      // debug logs
+      console.debug("fetchStudents: teacher_students rows:", tsData?.length || 0);
+      console.debug("fetchStudents: parent_child_teachers links:", links?.length || 0);
+      console.debug("fetchStudents: parent_request_teacher_child accepted:", prtData?.length || 0);
     } catch (err) {
+      console.error("fetchStudents error:", err);
       alert(err.message || String(err));
     }
   }
-  
-
-  
+   
   async function fetchRates() {
     try {
       const { data, error } = await supabase
@@ -695,6 +784,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
