@@ -7,11 +7,18 @@ import Banner from "../../components/Banner";
 export default function TeacherStudentPage() {
   const router = useRouter();
   const { teacher_id_student_id } = router.query;
-
-  // Extract both IDs safely
-  const [teacherId, studentId] = teacher_id_student_id
-    ? teacher_id_student_id.split("_")
-    : [null, null];
+  
+  const [teacherId, setTeacherId] = useState(null);
+  const [studentId, setStudentId] = useState(null);
+  
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (teacher_id_student_id) {
+      const [tId, sId] = teacher_id_student_id.split("_");
+      setTeacherId(tId);
+      setStudentId(sId);
+    }
+  }, [router.isReady, teacher_id_student_id]);
 
   const [relationship, setRelationship] = useState(null);
   const [tab, setTab] = useState("overview");
