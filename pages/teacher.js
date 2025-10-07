@@ -264,34 +264,160 @@ export default function TeacherPage() {
       )}
 
       {tab === "students" && (
-        <div className="mt-4">
-          <h3 className="font-semibold mb-2">Students</h3>
-          <div className="space-y-3">
-            {students.length === 0 && <div>No students yet.</div>}
-            {students.map(s => (
-              <div key={s.id} className="border p-3 rounded flex items-center gap-3">
-                <img
-                  src={s.student.image_url}
-                  alt={s.student.full_name}
-                  className="w-14 h-14 rounded-full border object-cover"
-                />
-                <div>
-                  <div className="font-semibold">{s.student.full_name}</div>
-                  <div className="text-sm text-gray-600">{s.student.email}</div>
-                  <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
-                  <div className="text-sm">
-                    📘 {s.subject} ({s.level})
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Added: {s.date_added} — Expiry: {s.expiry_date}
-                  </div>
-                </div>
+        <div className="mt-4 space-y-6">
+          {/* State to manage collapse */}
+          {/** Place these at the top of your TeacherPage component */}
+          const [collapsedGroups, setCollapsedGroups] = useState({
+            students: false,
+            parents: false,
+            requests: false,
+          });
+      
+          const toggleGroup = (group) => {
+            setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }));
+          };
+      
+          {/* Normal Students */}
+          <div>
+            <h4
+              className="font-semibold mb-3 flex items-center justify-between cursor-pointer"
+              onClick={() => toggleGroup("students")}
+            >
+              Students
+              <span>{collapsedGroups.students ? "▼" : "▲"}</span>
+            </h4>
+            {!collapsedGroups.students && (
+              <div className="space-y-3">
+                {students.filter(s => s.level !== "request" && !s.is_parent).length === 0 ? (
+                  <div className="text-slate-600">No students yet.</div>
+                ) : (
+                  students
+                    .filter(s => s.level !== "request" && !s.is_parent)
+                    .map((s) => (
+                      <div
+                        key={s.id}
+                        className="border p-3 rounded flex items-center gap-3 cursor-pointer hover:bg-slate-50"
+                        onClick={() => router.push(`/student/${s.student.id}`)}
+                      >
+                        <img
+                          src={s.student.image_url || "/placeholder.png"}
+                          alt={s.student.full_name}
+                          className="w-14 h-14 rounded-full border object-cover"
+                        />
+                        <div>
+                          <div className="font-semibold">{s.student.full_name}</div>
+                          <div className="text-sm text-gray-600">{s.student.email}</div>
+                          <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                          <div className="text-sm">📘 {s.subject} ({s.level})</div>
+                          <div className="text-xs text-gray-500">
+                            Added: {s.date_added} — Expiry: {s.expiry_date}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
               </div>
-            ))}
+            )}
+          </div>
+      
+          {/* Parent Students */}
+          <div>
+            <h4
+              className="font-semibold mb-3 flex items-center justify-between cursor-pointer"
+              onClick={() => toggleGroup("parents")}
+            >
+              Parents
+              <span>{collapsedGroups.parents ? "▼" : "▲"}</span>
+            </h4>
+            {!collapsedGroups.parents && (
+              <div className="space-y-3">
+                {students.filter(s => s.is_parent).length === 0 ? (
+                  <div className="text-slate-600">No parent students yet.</div>
+                ) : (
+                  students
+                    .filter(s => s.is_parent)
+                    .map((s) => (
+                      <div
+                        key={s.id}
+                        className="border-l-4 border-purple-500 rounded bg-purple-50 p-3 flex items-center gap-3 cursor-pointer hover:bg-purple-100 transition"
+                        onClick={() => router.push(`/student/${s.student.id}`)}
+                      >
+                        <img
+                          src={s.student.image_url || "/placeholder.png"}
+                          alt={s.student.full_name}
+                          className="w-14 h-14 rounded-full border object-cover"
+                        />
+                        <div>
+                          <div className="font-semibold flex items-center gap-2">
+                            {s.student.full_name}
+                            <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full">
+                              Parent
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-600">{s.student.email}</div>
+                          <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                          <div className="text-sm">📘 {s.subject} ({s.level})</div>
+                          <div className="text-xs text-gray-500">
+                            Added: {s.date_added} — Expiry: {s.expiry_date}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
+          </div>
+      
+          {/* Request Students */}
+          <div>
+            <h4
+              className="font-semibold mb-3 flex items-center justify-between cursor-pointer"
+              onClick={() => toggleGroup("requests")}
+            >
+              Request Students
+              <span>{collapsedGroups.requests ? "▼" : "▲"}</span>
+            </h4>
+            {!collapsedGroups.requests && (
+              <div className="space-y-3">
+                {students.filter(s => s.level === "request").length === 0 ? (
+                  <div className="text-slate-600">No request-level students.</div>
+                ) : (
+                  students
+                    .filter(s => s.level === "request")
+                    .map((s) => (
+                      <div
+                        key={s.id}
+                        className="border-l-4 border-blue-500 rounded bg-blue-50 p-3 flex items-center gap-3 cursor-pointer hover:bg-blue-100 transition"
+                        onClick={() => router.push(`/student/${s.student.id}`)}
+                      >
+                        <img
+                          src={s.student.image_url || "/placeholder.png"}
+                          alt={s.student.full_name}
+                          className="w-14 h-14 rounded-full border object-cover"
+                        />
+                        <div>
+                          <div className="font-semibold flex items-center gap-2">
+                            {s.student.full_name}
+                            <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">
+                              Request
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-600">{s.student.email}</div>
+                          <div className="text-sm text-gray-600">📞 {s.student.phone}</div>
+                          <div className="text-sm">📘 {s.subject} ({s.level})</div>
+                          <div className="text-xs text-gray-500">
+                            Added: {s.date_added} — Expiry: {s.expiry_date}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
-
+    
       {/* Rates tabs remain unchanged */}
       {tab === "rates" && (
         <div className="mt-4">
@@ -401,4 +527,5 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
