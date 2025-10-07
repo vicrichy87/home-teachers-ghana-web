@@ -139,12 +139,44 @@ export default function TeacherPage() {
         };
       });
   
-      setStudents(studentsWithImages);
+      // 6️⃣ Fetch additional parent requests
+      const { data: requestData, error: requestError } = await supabase
+        .from("parent_request_teacher_child")
+        .select(`
+          id,
+          parent_id,
+          child_id,
+          date_added,
+          child:child_id (id, full_name),
+          parent:parent_id (id, full_name, email, phone, profile_image)
+        `)
+        .eq("teacher_id", teacher.id);
+  
+      if (requestError) throw requestError;
+  
+      const requestsWithImages = (requestData || []).map(r => ({
+        ...r,
+        student: {
+          ...r.child,
+          image_url: "/placeholder.png", // child has no profile image
+        },
+        level: "request",
+      }));
+  
+      // Combine students requests with parent requests
+      const allStudentsWithRequests = [
+        ...studentsWithImages.filter(s => s.level !== "request"),
+        ...studentsWithImages.filter(s => s.level === "request"),
+        ...requestsWithImages,
+      ];
+  
+      setStudents(allStudentsWithRequests);
       setParents(formattedParents);
     } catch (err) {
       alert(err.message || String(err));
     }
   }
+
 
   async function fetchRates() {
     try {
@@ -541,6 +573,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
