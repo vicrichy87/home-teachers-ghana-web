@@ -11,6 +11,7 @@ export default function TeacherPage() {
   const [tab, setTab] = useState("profile");
   const [students, setStudents] = useState([]);
   const [rates, setRates] = useState([]);
+  const [parents, setParents] = useState([]);
 
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("");
@@ -68,7 +69,8 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
-      const { data, error } = await supabase
+      // 1. Fetch students linked to this teacher
+      const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
         .select(`
           id,
@@ -76,15 +78,15 @@ export default function TeacherPage() {
           level,
           date_added,
           expiry_date,
-          student:student_id ( id, full_name, email, phone, profile_image )
+          student:student_id (id, full_name, email, phone, profile_image)
         `)
         .eq("teacher_id", teacher.id)
         .order("date_added", { ascending: false });
-
-      if (error) throw error;
-
-      const studentsWithImages = (data || []).map(s => {
-        let imageUrl = s.student?.profile_image || null;
+  
+      if (studentError) throw studentError;
+  
+      const studentsWithImages = (studentData || []).map(s => {
+        let imageUrl = s.student?.profile_image || "/placeholder.png";
         if (imageUrl && !imageUrl.startsWith("http")) {
           const { data: publicUrlData } = supabase.storage
             .from("student_images")
@@ -93,18 +95,45 @@ export default function TeacherPage() {
         }
         return {
           ...s,
-          student: {
-            ...s.student,
-            image_url: imageUrl || "/placeholder.png",
-          },
+          student: { ...s.student, image_url: imageUrl },
         };
       });
-
+  
+      // 2. Fetch parent-child-teacher info
+      const { data: parentData, error: parentError } = await supabase
+        .from("parent_child_teachers")
+        .select(`
+          id,
+          parent:parent_id (id, full_name, phone, email),
+          child:child_id (id, full_name, profile_image),
+          date_added
+        `)
+        .eq("teacher_id", teacher.id)
+        .order("date_added", { ascending: false });
+  
+      if (parentError) throw parentError;
+  
+      const parentsWithImages = (parentData || []).map(p => {
+        let childImage = p.child?.profile_image || "/placeholder.png";
+        if (childImage && !childImage.startsWith("http")) {
+          const { data: publicUrlData } = supabase.storage
+            .from("student_images")
+            .getPublicUrl(childImage);
+          childImage = publicUrlData?.publicUrl || "/placeholder.png";
+        }
+        return {
+          ...p,
+          child: { ...p.child, image_url: childImage },
+        };
+      });
+  
       setStudents(studentsWithImages);
+      setParents(parentsWithImages); // new state for Parents group
     } catch (err) {
       alert(err.message || String(err));
     }
   }
+
 
   async function fetchRates() {
     try {
@@ -326,27 +355,22 @@ export default function TeacherPage() {
           </h4>
           {!collapsedGroups.parents && (
             <div className="space-y-3 mb-4">
-              {students.length === 0 && <p className="text-gray-500">No parents yet.</p>}
-              {students.map(s => (
+              {parents.length === 0 && <p className="text-gray-500">No parents yet.</p>}
+              {parents.map(p => (
                 <div
-                  key={s.id}
+                  key={p.id}
                   className="border p-3 rounded flex items-center gap-3"
                 >
                   <img
-                    src={s.student.image_url}
-                    alt={s.student.full_name}
+                    src={p.child.image_url}
+                    alt={p.child.full_name}
                     className="w-14 h-14 rounded-full border object-cover"
                   />
                   <div>
-                    <div className="font-semibold">{s.student.full_name}</div>
-                    <div className="text-sm text-gray-600">Parent: {s.student.parent_name || "N/A"}</div>
-                    <div className="text-sm text-gray-600">📞 {s.student.parent_phone || "N/A"}</div>
-                    <div className="text-sm">
-                      📘 {s.subject} ({s.level})
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Added: {s.date_added} — Expiry: {s.expiry_date}
-                    </div>
+                    <div className="font-semibold">{p.parent.full_name}</div>
+                    <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
+                    <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
+                    <div className="text-xs text-gray-500">Added: {p.date_added}</div>
                   </div>
                 </div>
               ))}
@@ -506,6 +530,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
