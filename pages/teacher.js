@@ -487,6 +487,15 @@ export default function TeacherPage() {
         .from("users")
         .update({ profile_image: publicUrl })
         .eq("id", user.id);
+      if (updateError) throw updateError;
+
+    setTeacher(prev => ({ ...prev, profile_image: publicUrl }));
+  } catch (err) {
+    alert(err.message || String(err));
+  } finally {
+    setUploading(false);
+  }
+}
 
   if (loading) return <div className="text-center py-20">Loading...</div>;
 
@@ -742,7 +751,7 @@ return (
                   className="p-2 border rounded"
                 />
                 <button
-                  onClick={handleSaveRate}
+                  onClick={handleSaveEditRate}
                   className="bg-emerald-600 text-white px-4 py-2 rounded"
                 >
                   Save
@@ -759,7 +768,7 @@ return (
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleEditRate(item)}
+                  onClick={() => startEditRate(item)}
                   className="bg-yellow-500 px-3 py-1 rounded text-white"
                 >
                   Edit
@@ -778,3 +787,4 @@ return (
     )}
   </div>
   );
+
