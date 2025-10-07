@@ -67,9 +67,10 @@ export default function TeacherPage() {
   }
 
   // ✅ Updated: fetch students with subject, level, phone and image
+  
   async function fetchStudents() {
     try {
-      // 1️⃣ Fetch teacher students
+      // 1️⃣ Fetch teacher's students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
         .select(`
@@ -99,31 +100,48 @@ export default function TeacherPage() {
         };
       });
   
-      // 2️⃣ Fetch parents linked to this teacher from parent_child_teachers
-      const { data: parentData, error: parentError } = await supabase
+      // 2️⃣ Fetch parent-child-teacher links
+      const { data: links, error: linkError } = await supabase
         .from("parent_child_teachers")
-        .select(`
-          id,
-          parent_id,
-          child:child_id (id, full_name),
-          parent:parent_id (id, full_name, email, phone, profile_image)
-        `)
-        .eq("teacher_id", teacher.id)
-        .order("id", { ascending: false });
+        .select("*")
+        .eq("teacher_id", teacher.id);
   
-      if (parentError) throw parentError;
+      if (linkError) throw linkError;
   
-      // Ensure parent image uses profile_image from users table
-      const formattedParents = (parentData || []).map(p => ({
-        ...p,
-        parent: {
-          ...p.parent,
-          image_url: p.parent.profile_image || "/placeholder.png",
-        },
-      }));
+      // 3️⃣ Fetch parent info from users table
+      const parentIds = links.map(l => l.parent_id);
+      const { data: parentsData } = await supabase
+        .from("users")
+        .select("id, full_name, email, phone, profile_image")
+        .in("id", parentIds)
+        .eq("user_type", "parents");
   
+      // 4️⃣ Fetch children info
+      const childIds = links.map(l => l.child_id);
+      const { data: childrenData } = await supabase
+        .from("parent_children")
+        .select("id, full_name")
+        .in("id", childIds);
+  
+      // 5️⃣ Merge links with parent + child info
+      const formattedParents = links.map(link => {
+        const parent = parentsData.find(p => p.id === link.parent_id);
+        const child = childrenData.find(c => c.id === link.child_id);
+        return {
+          id: link.id,
+          parent: {
+            ...parent,
+            image_url: parent?.profile_image || "/placeholder.png",
+          },
+          child: child || { full_name: "Unknown" },
+          date_added: link.date_added,
+        };
+      });
+  
+      // 6️⃣ Set state
       setStudents(studentsWithImages);
       setParents(formattedParents);
+  
     } catch (err) {
       alert(err.message || String(err));
     }
@@ -296,6 +314,7 @@ export default function TeacherPage() {
           </div>
         </div>
       )}
+
       {/*Students Tab */}
       {tab === "students" && (
         <div className="mt-4">
@@ -371,7 +390,6 @@ export default function TeacherPage() {
               ))}
             </div>
           )}
-          
       
           {/* Request Students Group */}
           <h4
@@ -415,8 +433,7 @@ export default function TeacherPage() {
           )}
         </div>
       )}
-      
-          
+              
             {/* Rates tabs remain unchanged */}
             {tab === "rates" && (
               <div className="mt-4">
@@ -526,6 +543,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
