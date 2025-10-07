@@ -357,8 +357,8 @@ export default function TeacherPage() {
                   className="border p-3 rounded flex items-center gap-3"
                 >
                   <img
-                    src={p.child.image_url}
-                    alt={p.child.full_name}
+                    src={p.parent.image_url}
+                    alt={p.parent.full_name}
                     className="w-14 h-14 rounded-full border object-cover"
                   />
                   <div>
@@ -526,6 +526,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
