@@ -5,7 +5,7 @@ import Banner from "../../components/Banner";
 
 export default function TeacherStudentPage() {
   const router = useRouter();
-  const { id } = router.query;
+  const { "teacher-student": teacher_student } = router.query;
 
   const [teacherId, setTeacherId] = useState(null);
   const [studentId, setStudentId] = useState(null);
@@ -25,44 +25,15 @@ export default function TeacherStudentPage() {
       year: "numeric",
     });
   };
-  
+
   useEffect(() => {
-    if (!id) return;
-    const [teacherId, studentId] = id.split("_"); // split the id
-    fetchStudent(teacherId, studentId);
-  }, [id]);
-
-  async function fetchStudent(teacherId, studentId) {
-    try {
-      setLoading(true);
-      // fetch student info from teacher_students or parent requests
-      const { data, error } = await supabase
-        .from("teacher_students")
-        .select("id, subject, level, date_added, expiry_date, student:student_id(*)")
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId)
-        .single();
-
-      if (error) throw error;
-
-      setStudent(data);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to fetch student info");
-    } finally {
-      setLoading(false);
-    }
-  }
-  useEffect(() => {
-    if (!router.isReady || !teacher_id_student_id) return;
-
-    const [tId, sId] = teacher_id_student_id.split("_");
+    if (!router.isReady || !teacher_student) return;
+    const [tId, sId] = teacher_student.split("-");
     if (!tId || !sId) {
       setError("Invalid route parameters.");
       setLoading(false);
       return;
     }
-
     setTeacherId(tId);
     setStudentId(sId);
 
@@ -118,7 +89,7 @@ export default function TeacherStudentPage() {
     };
 
     fetchAll();
-  }, [router.isReady, teacher_id_student_id]);
+  }, [router.isReady, teacher_student]);
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
