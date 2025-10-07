@@ -37,6 +37,13 @@ export default function TeacherPage() {
   };
 
   useEffect(() => {
+    if (teacher?.id) {
+      fetchStudents();
+      fetchRequests(); // 👈 Add this line
+    }
+  }, [teacher]);
+
+  useEffect(() => {
     fetchTeacherProfile();
   }, []);
 
@@ -75,6 +82,88 @@ export default function TeacherPage() {
       alert(err.message || String(err));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchRequests() {
+    try {
+      // 1️⃣ Fetch accepted requests related to this teacher
+      const { data: requestData, error: requestError } = await supabase
+        .from("parent_request_teacher_child")
+        .select("id, parent_id, child_id, date_added, expiry_date, status")
+        .eq("teacher_id", teacher.id)
+        .eq("status", "accepted") // only accepted ones
+        .order("date_added", { ascending: false });
+  
+      if (requestError) throw requestError;
+  
+      if (!requestData || requestData.length === 0) {
+        setRequests([]);
+        return;
+      }
+  
+      // 2️⃣ Extract parent and child IDs
+      const parentIds = [...new Set(requestData.map(r => r.parent_id))].filter(Boolean);
+      const childIds = [...new Set(requestData.map(r => r.child_id))].filter(Boolean);
+  
+      // 3️⃣ Fetch parent info from users table
+      const { data: parentsData, error: parentsError } = await supabase
+        .from("users")
+        .select("id, full_name, phone, profile_image")
+        .in("id", parentIds);
+  
+      if (parentsError) throw parentsError;
+  
+      // 4️⃣ Fetch child info from parents_children table
+      const { data: childrenData, error: childrenError } = await supabase
+        .from("parents_children")
+        .select("id, full_name")
+        .in("id", childIds);
+  
+      if (childrenError) throw childrenError;
+  
+      // 5️⃣ Format all data neatly
+      const formatDate = (timestamp) => {
+        if (!timestamp) return "";
+        const date = new Date(timestamp);
+        return date.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      };
+  
+      const formattedRequests = requestData.map(req => {
+        const parent = parentsData?.find(p => p.id === req.parent_id) || {};
+        const child = childrenData?.find(c => c.id === req.child_id) || { full_name: "Unknown" };
+  
+        let imageUrl = parent.profile_image || "/placeholder.png";
+        if (imageUrl && !imageUrl.startsWith("http")) {
+          const { data: publicUrlData } = supabase.storage
+            .from("parent_images")
+            .getPublicUrl(imageUrl);
+          imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
+        }
+  
+        return {
+          id: req.id,
+          parent: {
+            ...parent,
+            image_url: imageUrl,
+          },
+          child,
+          date_added: formatDate(req.date_added),
+          expiry_date: formatDate(req.expiry_date),
+          status: req.status,
+        };
+      });
+  
+      // 6️⃣ Update state
+      setRequests(formattedRequests);
+  
+    } catch (err) {
+      console.error("Error fetching requests:", err.message);
+      alert(err.message || "Failed to load request students.");
     }
   }
 
@@ -606,6 +695,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
