@@ -654,7 +654,7 @@ export default function TeacherPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleEditRate(item)}
+                    onClick={() => startEditRate(item)}
                     className="bg-yellow-500 px-3 py-1 rounded text-white"
                   >
                     Edit
@@ -674,3 +674,4 @@ export default function TeacherPage() {
     </div>
   );
 }
+
