@@ -12,7 +12,6 @@ export default function TeacherPage() {
   const [students, setStudents] = useState([]);
   const [rates, setRates] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [requests, setRequests] = useState([]);
   const [parents, setParents] = useState([]);
 
   const [subject, setSubject] = useState("");
@@ -592,6 +591,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
