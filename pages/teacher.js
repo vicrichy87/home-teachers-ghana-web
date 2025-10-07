@@ -70,6 +70,8 @@ export default function TeacherPage() {
   // ✅ Updated: fetch students with subject, level, phone and image
   async function fetchStudents() {
     try {
+      if (!teacher) return;
+  
       // 1️⃣ Fetch teacher students
       const { data: studentData, error: studentError } = await supabase
         .from("teacher_students")
@@ -83,6 +85,7 @@ export default function TeacherPage() {
         `)
         .eq("teacher_id", teacher.id)
         .order("date_added", { ascending: false });
+  
       if (studentError) throw studentError;
   
       const studentsWithImages = (studentData || []).map(s => {
@@ -93,109 +96,86 @@ export default function TeacherPage() {
             .getPublicUrl(imageUrl);
           imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
         }
-        return { ...s, student: { ...s.student, image_url: imageUrl } };
+        return {
+          ...s,
+          student: { ...s.student, image_url: imageUrl },
+        };
       });
   
-      // 2️⃣ Fetch parent-child-teacher links
+      // 2️⃣ Fetch parents linked to this teacher from parent_child_teachers
       const { data: links, error: linksError } = await supabase
         .from("parent_child_teachers")
-        .select("id, parent_id, child_id, date_added")
+        .select("id, parent_id, child_id")
         .eq("teacher_id", teacher.id);
+  
       if (linksError) throw linksError;
   
-      // 3️⃣ Fetch parent details
+      // 3️⃣ Fetch parent details from users table
       const parentIds = [...new Set((links || []).map(l => l.parent_id))];
       const { data: parentsData } = await supabase
         .from("users")
-        .select("id, full_name, email, phone, profile_image")
+        .select("id, full_name, phone, profile_image")
         .in("id", parentIds)
         .eq("user_type", "parent");
   
-      // 4️⃣ Fetch child details
+      // 4️⃣ Fetch child details from correct table: parents_children
       const childIds = [...new Set((links || []).map(l => l.child_id))];
       const { data: childrenData } = await supabase
         .from("parents_children")
         .select("id, full_name")
         .in("id", childIds);
   
-      // 5️⃣ Merge parent + child info safely
-      const formattedParents = (links || []).map(link => {
-        const parent = (parentsData || []).find(p => p.id === link.parent_id);
-        const child = (childrenData || []).find(c => c.id === link.child_id);
+      // 5️⃣ Map parents to their children
+        const formattedParents = (links || []).map(link => {
+        const parent = parentsData.find(p => p.id === link.parent_id) || {};
+        const child = childrenData.find(c => c.id === link.child_id) || { full_name: "Unknown" };
         return {
           id: link.id,
           parent: {
             ...parent,
-            image_url: parent?.profile_image || "/placeholder.png",
+            image_url: parent.profile_image || "/placeholder.png",
           },
-          child: child || { full_name: "Unknown" },
-          date_added: link.date_added,
+          child,
         };
       });
   
       // 6️⃣ Fetch request students from parent_request_teacher_child
-      const { data: reqData1, error: reqError1 } = await supabase
-        .from("teacher_students")
-        .select(`
-          id,
-          subject,
-          level,
-          date_added,
-          expiry_date,
-          student:student_id (id, full_name, email, phone, profile_image)
-        `)
-        .eq("teacher_id", teacher.id)
-        .eq("level", "request");
-  
-      if (reqError1) throw reqError1;
-  
-      const { data: reqData2, error: reqError2 } = await supabase
+      const { data: requestData, error: requestError } = await supabase
         .from("parent_request_teacher_child")
         .select(`
           id,
           parent_id,
-          child:child_id (id, full_name),
-          parent:parent_id (id, full_name, email, phone, profile_image),
-          date_added
+          child_id,
+          student:child_id (id, full_name, email, phone, profile_image)
         `)
         .eq("teacher_id", teacher.id);
   
-      if (reqError2) throw reqError2;
+      if (requestError) throw requestError;
   
-      // Merge requests
-      const requestStudents = [
-        ...(reqData1 || []).map(s => {
-          let imageUrl = s.student?.profile_image || "/placeholder.png";
-          if (imageUrl && !imageUrl.startsWith("http")) {
-            const { data: publicUrlData } = supabase.storage
-              .from("student_images")
-              .getPublicUrl(imageUrl);
-            imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
-          }
-          return { ...s, student: { ...s.student, image_url: imageUrl } };
-        }),
-        ...(reqData2 || []).map(r => ({
-          id: r.id,
-          subject: "Request",
-          level: "request",
-          date_added: r.date_added,
-          student: r.child || { full_name: "Unknown" },
-          parent: {
-            ...r.parent,
-            image_url: r.parent?.profile_image || "/placeholder.png",
-          },
-        })),
-      ];
+      const requestsWithImages = (requestData || []).map(r => {
+        let imageUrl = r.student?.profile_image || "/placeholder.png";
+        if (imageUrl && !imageUrl.startsWith("http")) {
+          const { data: publicUrlData } = supabase.storage
+            .from("student_images")
+            .getPublicUrl(imageUrl);
+          imageUrl = publicUrlData?.publicUrl || "/placeholder.png";
+        }
+        return {
+          ...r,
+          student: { ...r.student, image_url: imageUrl },
+        };
+      });
   
       // 7️⃣ Update state
       setStudents(studentsWithImages);
       setParents(formattedParents);
-      setRequests(requestStudents);
+      setRequests(requestsWithImages);
+  
     } catch (err) {
       alert(err.message || String(err));
     }
   }
-
+  
   async function fetchRates() {
     try {
       const { data, error } = await supabase
@@ -591,6 +571,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
