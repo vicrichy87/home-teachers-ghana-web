@@ -1,3 +1,4 @@
+// pages/teacher-student/[teacher_student].js
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
@@ -5,17 +6,17 @@ import Banner from "../../components/Banner";
 
 export default function TeacherStudentPage() {
   const router = useRouter();
-  const { "teacher-student": teacher_student } = router.query;
+  const { teacher_student } = router.query;
 
-  const [teacherId, setTeacherId] = useState(null);
-  const [studentId, setStudentId] = useState(null);
-  const [relationships, setRelationships] = useState([]); // multiple rows
-  const [tab, setTab] = useState("overview");
+  const [teacherId, studentId] = teacher_student?.split("~") || [];
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [relationships, setRelationships] = useState([]);
+  const [selectedRelId, setSelectedRelId] = useState(null);
   const [timetable, setTimetable] = useState([]);
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
+  const [tab, setTab] = useState("overview");
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -27,66 +28,36 @@ export default function TeacherStudentPage() {
   };
 
   useEffect(() => {
-    if (!router.isReady || !teacher_student) return;
+    if (!router.isReady || !teacherId || !studentId) return;
 
-    const [tId, sId] = teacher_student.split("~"); // <-- split using ~
-    if (!tId || !sId) {
-      setError("Invalid route parameters.");
-      setLoading(false);
-      return;
-    }
-    setTeacherId(tId);
-    setStudentId(sId);
-
-    const fetchAll = async () => {
+    const fetchRelationships = async () => {
       try {
         setLoading(true);
 
-        // fetch all teacher-student relationships (array)
-        const { data: relData, error: relError } = await supabase
+        // fetch all teacher-student relationships for this student
+        const { data, error } = await supabase
           .from("teacher_students")
           .select(`
-            id, subject, level, date_added, expiry_date,
+            id,
+            subject,
+            level,
+            date_added,
+            expiry_date,
             teacher:teacher_id (id, full_name, profile_image, email, city),
             student:student_id (id, full_name, profile_image, email, city)
           `)
-          .eq("teacher_id", tId)
-          .eq("student_id", sId);
+          .eq("teacher_id", teacherId)
+          .eq("student_id", studentId);
 
-        if (relError) throw relError;
-
-        if (!relData || relData.length === 0) {
-          setError("No relationship found.");
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          setError("No teacher-student relationship found.");
           setLoading(false);
           return;
         }
 
-        setRelationships(relData);
-
-        // optionally fetch timetable, zoom, contracts for first relationship
-        const firstRel = relData[0];
-
-        const [{ data: timetableData }, { data: zoomData }, { data: contractsData }] = await Promise.all([
-          supabase
-            .from("teacher_student_timetable")
-            .select("*")
-            .eq("teacher_id", tId)
-            .eq("student_id", sId),
-          supabase
-            .from("zoom_meetings")
-            .select("*")
-            .eq("teacher_id", tId)
-            .eq("student_id", sId),
-          supabase
-            .from("contracts")
-            .select("*")
-            .eq("teacher_id", tId)
-            .eq("student_id", sId),
-        ]);
-
-        setTimetable(timetableData || []);
-        setZoomMeetings(zoomData || []);
-        setContracts(contractsData || []);
+        setRelationships(data);
+        setSelectedRelId(data[0].id); // select first subject by default
       } catch (err) {
         console.error(err);
         setError(err.message || "Failed to fetch data.");
@@ -95,11 +66,64 @@ export default function TeacherStudentPage() {
       }
     };
 
-    fetchAll();
-  }, [router.isReady, teacher_student]);
+    fetchRelationships();
+  }, [router.isReady, teacherId, studentId]);
+
+  useEffect(() => {
+    if (!selectedRelId) return;
+
+    const rel = relationships.find(r => r.id === selectedRelId);
+    if (!rel) return;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // timetable
+        const { data: ttData } = await supabase
+          .from("teacher_student_timetable")
+          .select("*")
+          .eq("teacher_id", teacherId)
+          .eq("student_id", studentId)
+          .eq("subject", rel.subject);
+
+        // zoom meetings
+        const { data: zoomData } = await supabase
+          .from("zoom_meetings")
+          .select("*")
+          .eq("teacher_id", teacherId)
+          .eq("student_id", studentId)
+          .eq("subject", rel.subject);
+
+        // contracts
+        const { data: contractsData } = await supabase
+          .from("contracts")
+          .select("*")
+          .eq("teacher_id", teacherId)
+          .eq("student_id", studentId)
+          .eq("subject", rel.subject);
+
+        setTimetable(ttData || []);
+        setZoomMeetings(zoomData || []);
+        setContracts(contractsData || []);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "Failed to fetch related data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [selectedRelId, relationships, teacherId, studentId]);
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
+
+  const selectedRel = relationships.find(r => r.id === selectedRelId);
+  if (!selectedRel) return <div className="p-8 text-center">No subject selected.</div>;
+
+  const { teacher, student, subject, level, date_added, expiry_date } = selectedRel;
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -109,53 +133,93 @@ export default function TeacherStudentPage() {
           Teacher–Student Relationship
         </h1>
 
-        {relationships.map((rel) => {
-          const { teacher, student, subject, level, date_added, expiry_date, id } = rel;
-          const isExpiringSoon = (() => {
-            const now = new Date();
-            const expiry = new Date(expiry_date);
-            return (expiry - now) / (1000 * 60 * 60 * 24) <= 7;
-          })();
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+          <ProfileCard user={teacher} role="Teacher" color="sky" />
+          <ProfileCard user={student} role="Student" color="emerald" />
+        </div>
 
-          return (
-            <div key={id} className="mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <ProfileCard user={teacher} role="Teacher" color="sky" />
-                <ProfileCard user={student} role="Student" color="emerald" />
-              </div>
+        <div className="bg-gray-100 p-4 rounded mb-4 text-center">
+          <p><strong>Subject:</strong> {subject}</p>
+          <p><strong>Level:</strong> {level}</p>
+          <p><strong>Date Added:</strong> {formatDate(date_added)}</p>
+          <p><strong>Expiry Date:</strong> {formatDate(expiry_date)}</p>
+        </div>
 
-              <div className="bg-gray-100 p-4 rounded mb-4 text-center">
-                <p><strong>Subject:</strong> {subject}</p>
-                <p><strong>Level:</strong> {level}</p>
-                <p><strong>Date Added:</strong> {formatDate(date_added)}</p>
-                <p><strong>Expiry Date:</strong> {formatDate(expiry_date)}</p>
-                {isExpiringSoon && <div className="bg-yellow-100 text-yellow-800 p-2 mt-2 rounded">⚠️ This relationship is expiring soon.</div>}
-              </div>
-            </div>
-          );
-        })}
+        {/* Dropdown to select subject */}
+        {relationships.length > 1 && (
+          <div className="mb-4">
+            <label className="font-semibold mr-2">Select Subject: </label>
+            <select
+              value={selectedRelId}
+              onChange={(e) => setSelectedRelId(e.target.value)}
+              className="border rounded p-2"
+            >
+              {relationships.map(r => (
+                <option key={r.id} value={r.id}>
+                  {r.subject} ({r.level})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
+        {/* Tabs */}
         <Tabs tab={tab} setTab={setTab} />
 
         {tab === "overview" && (
           <div className="text-center text-gray-700">
             <p>
-              This page connects <strong>{relationships[0]?.teacher?.full_name}</strong> and{" "}
-              <strong>{relationships[0]?.student?.full_name}</strong>.
+              This page connects <strong>{teacher?.full_name}</strong> and{" "}
+              <strong>{student?.full_name}</strong> for <strong>{subject}</strong> ({level}).
             </p>
           </div>
         )}
 
-        {tab === "timetable" && <Section title="Timetable" buttonText="+ Add Session" onClick={() => alert("Add Timetable coming soon!")} data={timetable} renderItem={item => <li key={item.id} className="border p-3 rounded bg-gray-50">{item.day} - {item.subject} ({item.start_time} to {item.end_time})</li>} />}
+        {tab === "timetable" && (
+          <Section
+            title="Timetable"
+            data={timetable}
+            renderItem={item => (
+              <li key={item.id} className="border p-3 rounded bg-gray-50">
+                {item.day} - {item.subject} ({item.start_time} to {item.end_time})
+              </li>
+            )}
+          />
+        )}
 
-        {tab === "zoom" && <Section title="Zoom Meetings" buttonText="+ Schedule Zoom Meeting" onClick={() => alert("Schedule Zoom meeting coming soon!")} data={zoomMeetings} renderItem={z => <li key={z.id} className="border p-3 rounded bg-gray-50"><a href={z.zoom_link} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">{z.topic || "Meeting Link"}</a> on {formatDate(z.start_time)}</li>} />}
+        {tab === "zoom" && (
+          <Section
+            title="Zoom Meetings"
+            data={zoomMeetings}
+            renderItem={z => (
+              <li key={z.id} className="border p-3 rounded bg-gray-50">
+                <a href={z.zoom_link} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">
+                  {z.topic || "Meeting Link"}
+                </a> on {formatDate(z.start_time)}
+              </li>
+            )}
+          />
+        )}
 
-        {tab === "contracts" && <Section title="Contracts" buttonText="+ Upload Contract" onClick={() => alert("Upload Contract coming soon!")} data={contracts} renderItem={c => <li key={c.id} className="border p-3 rounded bg-gray-50"><a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">View Contract</a> signed on {formatDate(c.date_signed)}</li>} />}
+        {tab === "contracts" && (
+          <Section
+            title="Contracts"
+            data={contracts}
+            renderItem={c => (
+              <li key={c.id} className="border p-3 rounded bg-gray-50">
+                <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">
+                  View Contract
+                </a> signed on {formatDate(c.date_signed)}
+              </li>
+            )}
+          />
+        )}
       </div>
     </div>
   );
 }
 
+// Components
 function ProfileCard({ user, role, color }) {
   if (!user) return null;
   return (
@@ -182,11 +246,10 @@ function Tabs({ tab, setTab }) {
   );
 }
 
-function Section({ title, buttonText, onClick, data, renderItem }) {
+function Section({ title, data, renderItem }) {
   return (
     <div>
       <h3 className="text-lg font-semibold mb-2 text-sky-700">{title}</h3>
-      <button onClick={onClick} className="bg-sky-600 text-white px-3 py-1 rounded mb-3">{buttonText}</button>
       {(!data || data.length===0)? <p>No {title.toLowerCase()} yet.</p> : <ul className="space-y-2">{data.map(renderItem)}</ul>}
     </div>
   );
