@@ -592,7 +592,7 @@ export default function TeacherPage() {
                         📘 {s.subject} ({s.level})
                       </div>
                       <div className="text-xs text-gray-500">
-                        Added: {s.formattedDateAdded} — Expiry: {s.formattedExpiryDate}
+                        Added: {s.date_added} — Expiry: {s.expiry_date}
                       </div>
                     </div>
                   </div>
@@ -625,7 +625,7 @@ export default function TeacherPage() {
                     <div className="font-semibold">{p.parent.full_name}</div>
                     <div className="text-sm text-gray-600">📞 {p.parent.phone}</div>
                     <div className="text-sm text-gray-600">Child: {p.child.full_name}</div>
-                    <div className="text-xs text-gray-500">Added: {p.formattedDateAdded} — Expiry: {p.formattedExpiryDate}</div>
+                    <div className="text-xs text-gray-500">Added: {p.date_added} — Expiry: {p.expiry_date}</div>
                   </div>
                 </div>
               ))}
@@ -665,7 +665,7 @@ export default function TeacherPage() {
                         📘 {s.subject} ({s.level})
                       </div>
                       <div className="text-xs text-gray-500">
-                        Added: {s.formattedDateAdded} — Expiry: {s.formattedExpiryDate}
+                        Added: {s.date_added} — Expiry: {s.expiry_date}
                       </div>
                     </div>
                   </div>
@@ -784,6 +784,7 @@ export default function TeacherPage() {
     </div>
   );
 }
+
 
 
 
