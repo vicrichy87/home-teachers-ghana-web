@@ -488,19 +488,13 @@ export default function TeacherPage() {
         .update({ profile_image: publicUrl })
         .eq("id", user.id);
 
-      if (updateError) throw updateError;
+  if (loading) return <div className="text-center py-20">Loading...</div>;
 
-      setTeacher(prev => ({ ...prev, profile_image: publicUrl }));
-      alert("Profile image updated");
-    } catch (err) {
-      alert(err.message || String(err));
-    } finally {
-      setUploading(false);
-    }
-  }
+ return (
+  <div className="max-w-4xl mx-auto bg-white p-6 rounded shadow">
+    <Banner />
 
-  )}
-          {/* Tab Buttons */}
+    {/* Tab Buttons */}
     <div className="mt-4 flex gap-3">
       {["profile", "students", "rates", "myRates"].map((t) => (
         <button
@@ -680,117 +674,91 @@ export default function TeacherPage() {
         )}
       </div>
     )}
-              
-            {/* Rates tabs remain unchanged */}
-            {tab === "rates" && (
-              <div className="mt-4">
-                <input
-                  placeholder="Subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full p-2 border rounded"
-                />
-                <div className="flex gap-2 mt-2">
-                  <select
-                    value={level}
-                    onChange={(e) => setLevel(e.target.value)}
-                    className="p-2 border rounded"
-                  >
-                    <option value="">Select level</option>
-                    <option value="Nursery">Nursery</option>  
-                    <option value="JHS">JHS</option>
-                    <option value="SHS">SHS</option>
-                    <option value="Remedial">Remedial</option>
-                  </select>
-                  <input
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    className="p-2 border rounded"
-                    placeholder="Rate GHC"
-                  />
-                  <button
-                    onClick={handleAddRate}
-                    className="bg-emerald-600 text-white px-4 py-2 rounded"
-                  >
-                    {savingRate ? "Saving..." : "Add Rate"}
-                  </button>
-                </div>
-              </div>
-            )}
 
-      {tab === "myRates" && (
-        <div className="mt-4 space-y-3">
-          {rates.length === 0 && <div>No rates</div>}
-          {rates.map(item =>
-            editingRate === item.id ? (
-              <div className="p-3 border rounded" key={item.id}>
-                <input
-                  value={editSubject}
-                  onChange={(e) => setEditSubject(e.target.value)}
-                  className="w-full p-2 border rounded"
-                />
-                <div className="flex gap-2 mt-2">
-                  <select
-                    value={editLevel}
-                    onChange={(e) => setEditLevel(e.target.value)}
-                    className="p-2 border rounded"
-                  >
-                    <option value="">Select</option>
-                    <option value="Nursery">Nursery</option>  
-                    <option value="JHS">JHS</option>
-                    <option value="SHS">SHS</option>
-                    <option value="Remedial">Remedial</option>
-                  </select>
-                  <input
-                    value={editRate}
-                    onChange={(e) => setEditRate(e.target.value)}
-                    className="p-2 border rounded"
-                  />
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={handleSaveEditRate}
-                    className="bg-sky-600 text-white px-3 py-1 rounded"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => setEditingRate(null)}
-                    className="bg-gray-300 px-3 py-1 rounded"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 border rounded" key={item.id}>
-                <div className="font-semibold">{item.subject}</div>
-                <div>
-                  {item.level} — GHC {item.rate}
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => startEditRate(item)}
-                    className="bg-sky-600 text-white px-3 py-1 rounded"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteRate(item.id)}
-                    className="bg-red-500 text-white px-3 py-1 rounded"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )
-          )}
+    {/* Add Rates Tab */}
+    {tab === "rates" && (
+      <div className="mt-4">
+        <input
+          placeholder="Subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          className="w-full p-2 border rounded"
+        />
+        <div className="flex gap-2 mt-2">
+          <select
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+            className="p-2 border rounded"
+          >
+            <option value="">Select level</option>
+            <option value="Nursery">Nursery</option>
+            <option value="JHS">JHS</option>
+            <option value="SHS">SHS</option>
+            <option value="Remedial">Remedial</option>
+          </select>
+          <input
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            className="p-2 border rounded"
+            placeholder="Rate GHC"
+          />
+          <button
+            onClick={handleAddRate}
+            className="bg-emerald-600 text-white px-4 py-2 rounded"
+          >
+            {savingRate ? "Saving..." : "Add Rate"}
+          </button>
         </div>
-      )}
-    </div>
-  );
-}
+      </div>
+    )}
 
-
-
-
+    {/* My Rates Tab */}
+    {tab === "myRates" && (
+      <div className="mt-4 space-y-3">
+        {rates.length === 0 && <div>No rates</div>}
+        {rates.map((item) =>
+          editingRate === item.id ? (
+            <div className="p-3 border rounded" key={item.id}>
+              <input
+                value={editSubject}
+                onChange={(e) => setEditSubject(e.target.value)}
+                className="w-full p-2 border rounded"
+              />
+              <div className="flex gap-2 mt-2">
+                <select
+                  value={editLevel}
+                  onChange={(e) => setEditLevel(e.target.value)}
+                  className="p-2 border rounded"
+                >
+                  <option value="">Select</option>
+                  <option value="Nursery">Nursery</option>
+                  <option value="JHS">JHS</option>
+                  <option value="SHS">SHS</option>
+                  <option value="Remedial">Remedial</option>
+                </select>
+                <input
+                  value={editRate}
+                  onChange={(e) => setEditRate(e.target.value)}
+                  className="p-2 border rounded"
+                />
+                <button onClick={handleSaveRate} className="bg-emerald-600 text-white px-4 py-2 rounded">
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 border rounded flex justify-between items-center" key={item.id}>
+              <div>
+                {item.subject} ({item.level}) — GHC {item.rate}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleEditRate(item)} className="bg-yellow-500 px-3 py-1 rounded text-white">Edit</button>
+                <button onClick={() => handleDeleteRate(item.id)} className="bg-red-600 px-3 py-1 rounded text-white">Delete</button>
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    )}
+  </div>
+);
