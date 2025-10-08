@@ -8,7 +8,11 @@ export default function TeacherStudentPage() {
   const router = useRouter();
   const { teacher_student } = router.query;
 
-  const [teacherId, studentId] = teacher_student?.split("~") || [];
+  // split safely
+  const [teacherId, studentId] = (teacher_student && typeof teacher_student === "string")
+    ? teacher_student.split("~")
+    : [];
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [relationships, setRelationships] = useState([]);
@@ -20,11 +24,15 @@ export default function TeacherStudentPage() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    return new Date(dateStr).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    try {
+      return new Date(dateStr).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   // Fetch teacher-student relationships
@@ -34,6 +42,7 @@ export default function TeacherStudentPage() {
     const fetchRelationships = async () => {
       try {
         setLoading(true);
+
         const { data, error } = await supabase
           .from("teacher_students")
           .select(`
@@ -71,6 +80,7 @@ export default function TeacherStudentPage() {
   // Fetch related data for selected subject
   useEffect(() => {
     if (!selectedRelId) return;
+
     const rel = relationships.find((r) => r.id === selectedRelId);
     if (!rel) return;
 
@@ -90,7 +100,8 @@ export default function TeacherStudentPage() {
           .select("*")
           .eq("teacher_id", teacherId)
           .eq("student_id", studentId)
-          .eq("subject", rel.subject);
+          .eq("subject", rel.subject)
+          .order("start_time", { ascending: false });
 
         const { data: contractsData } = await supabase
           .from("contracts")
@@ -143,18 +154,10 @@ export default function TeacherStudentPage() {
           </div>
 
           <div className="bg-gray-100 p-4 rounded mb-4 text-center">
-            <p>
-              <strong>Subject:</strong> {subject}
-            </p>
-            <p>
-              <strong>Level:</strong> {level}
-            </p>
-            <p>
-              <strong>Date Added:</strong> {formatDate(date_added)}
-            </p>
-            <p>
-              <strong>Expiry Date:</strong> {formatDate(expiry_date)}
-            </p>
+            <p><strong>Subject:</strong> {subject}</p>
+            <p><strong>Level:</strong> {level}</p>
+            <p><strong>Date Added:</strong> {formatDate(date_added)}</p>
+            <p><strong>Expiry Date:</strong> {formatDate(expiry_date)}</p>
           </div>
 
           {relationships.length > 1 && (
@@ -204,46 +207,31 @@ export default function TeacherStudentPage() {
           )}
 
           {tab === "zoom" && (
-            <div>
-              <button
-                onClick={handleAddZoom}
-                className="mb-4 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition"
-              >
-                Add Zoom Session
-              </button>
-          
-              <Section
-                title="Zoom Meetings"
-                data={zoomMeetings}
-                renderItem={(z) => (
-                  <li key={z.id} className="border p-3 rounded bg-gray-50">
-                    <a
-                      href={z.zoom_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sky-700 underline"
-                    >
-                      {z.topic || "Meeting Link"}
-                    </a>{" "}
-                    on {formatDate(z.start_time)}
-                  </li>
-                )}
-              />
-            </div>
+            <ZoomSection
+              zoomMeetings={zoomMeetings}
+              teacherId={teacher.id}
+              studentId={student.id}
+              subject={subject}
+              refreshZoomes={async () => {
+                const { data: zoomData } = await supabase
+                  .from("zoom_meetings")
+                  .select("*")
+                  .eq("teacher_id", teacher.id)
+                  .eq("student_id", student.id)
+                  .eq("subject", subject)
+                  .order("start_time", { ascending: false });
+                setZoomMeetings(zoomData || []);
+              }}
+            />
           )}
-          
+
           {tab === "contracts" && (
             <Section
               title="Contracts"
               data={contracts}
               renderItem={(c) => (
                 <li key={c.id} className="border p-3 rounded bg-gray-50">
-                  <a
-                    href={c.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sky-700 underline"
-                  >
+                  <a href={c.file_url} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">
                     View Contract
                   </a>{" "}
                   signed on {formatDate(c.date_signed)}
@@ -263,11 +251,7 @@ function ProfileCard({ user, role, color }) {
   return (
     <div className={`bg-${color}-50 p-4 rounded shadow`}>
       <h2 className={`text-lg font-semibold text-${color}-800 mb-2`}>{role}</h2>
-      <img
-        src={user.profile_image || "/default-avatar.png"}
-        alt={role}
-        className="w-24 h-24 rounded-full mx-auto mb-2"
-      />
+      <img src={user.profile_image || "/default-avatar.png"} alt={role} className="w-24 h-24 rounded-full mx-auto mb-2" />
       <p className="text-center font-semibold">{user.full_name}</p>
       <p className="text-center text-sm text-gray-600">{user.email}</p>
       <p className="text-center text-sm">{user.city}</p>
@@ -283,17 +267,9 @@ function Tabs({ tab, setTab }) {
         <button
           key={t}
           onClick={() => setTab(t)}
-          className={`px-4 py-2 rounded ${
-            tab === t ? "bg-sky-600 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-          }`}
+          className={`px-4 py-2 rounded ${tab === t ? "bg-sky-600 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"}`}
         >
-          {t === "overview"
-            ? "Overview"
-            : t === "timetable"
-            ? "Timetable"
-            : t === "zoom"
-            ? "Zoom Sessions"
-            : "Contracts"}
+          {t === "overview" ? "Overview" : t === "timetable" ? "Timetable" : t === "zoom" ? "Zoom Sessions" : "Contracts"}
         </button>
       ))}
     </div>
@@ -304,20 +280,17 @@ function Section({ title, data, renderItem }) {
   return (
     <div>
       <h3 className="text-lg font-semibold mb-2 text-sky-700">{title}</h3>
-      {(!data || data.length === 0) ? (
-        <p>No {title.toLowerCase()} yet.</p>
-      ) : (
-        <ul className="space-y-2">{data.map(renderItem)}</ul>
-      )}
+      {(!data || data.length === 0) ? <p>No {title.toLowerCase()} yet.</p> : <ul className="space-y-2">{data.map(renderItem)}</ul>}
     </div>
   );
 }
 
-// ---------------- Timetable Section ----------------
+/* ========== TimetableSection (unchanged from earlier) ========== */
 function TimetableSection({ timetable, teacherId, studentId, subject, refreshTimetable }) {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Generate times in 15-minute intervals
   const times = [];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
@@ -349,38 +322,25 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
   }, [timetable]);
 
   const handleChange = (day, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [day]: { ...prev[day], [field]: value },
-    }));
+    setFormData((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
   };
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      for (const [day, times] of Object.entries(formData)) {
+      for (const [day, timesObj] of Object.entries(formData)) {
         const existing = timetable.find((t) => t.day === day);
         if (existing) {
-          await supabase
-            .from("teacher_student_timetable")
-            .update({ start_time: times.start_time, end_time: times.end_time })
-            .eq("id", existing.id);
+          await supabase.from("teacher_student_timetable").update({ start_time: timesObj.start_time, end_time: timesObj.end_time }).eq("id", existing.id);
         } else {
-          await supabase.from("teacher_student_timetable").insert({
-            teacher_id: teacherId,
-            student_id: studentId,
-            subject,
-            day,
-            start_time: times.start_time,
-            end_time: times.end_time,
-          });
+          await supabase.from("teacher_student_timetable").insert({ teacher_id: teacherId, student_id: studentId, subject, day, start_time: timesObj.start_time, end_time: timesObj.end_time });
         }
       }
       setShowModal(false);
-      refreshTimetable();
+      await refreshTimetable();
     } catch (err) {
-      console.error(err.message);
-      alert("Failed to save timetable: " + err.message);
+      console.error(err);
+      alert("Failed to save timetable: " + (err.message || err));
     } finally {
       setLoading(false);
     }
@@ -390,17 +350,12 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
     if (!confirm("Are you sure you want to delete the timetable for this subject?")) return;
     setLoading(true);
     try {
-      await supabase
-        .from("teacher_student_timetable")
-        .delete()
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId)
-        .eq("subject", subject);
-      refreshTimetable();
+      await supabase.from("teacher_student_timetable").delete().eq("teacher_id", teacherId).eq("student_id", studentId).eq("subject", subject);
+      await refreshTimetable();
       alert("Timetable deleted successfully.");
     } catch (err) {
-      console.error(err.message);
-      alert("Failed to delete timetable: " + err.message);
+      console.error(err);
+      alert("Failed to delete timetable: " + (err.message || err));
     } finally {
       setLoading(false);
     }
@@ -414,8 +369,8 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
         </button>
 
         {timetable.length > 0 && (
-          <button onClick={handleDelete} className="text-red-600 underline" disabled={loading}>
-            {loading ? "Deleting..." : "Delete Timetable"}
+          <button onClick={handleDelete} className="text-red-600 underline">
+            Delete Timetable
           </button>
         )}
       </div>
@@ -433,47 +388,29 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded shadow max-w-xl w-full">
-            <h2 className="text-lg font-bold mb-4">
-              {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
-            </h2>
+            <h2 className="text-lg font-bold mb-4">{timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}</h2>
+
             {Object.keys(formData).map((day) => (
               <div key={day} className="flex items-center space-x-2 mb-2">
                 <span className="w-24 font-semibold">{day}</span>
-                <select
-                  value={formData[day].start_time}
-                  onChange={(e) => handleChange(day, "start_time", e.target.value)}
-                  className="border rounded p-1"
-                >
+
+                <select value={formData[day].start_time} onChange={(e) => handleChange(day, "start_time", e.target.value)} className="border rounded p-1">
                   <option value="">Start</option>
-                  {times.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
+                  {times.map((time) => <option key={time} value={time}>{time}</option>)}
                 </select>
+
                 <span>-</span>
-                <select
-                  value={formData[day].end_time}
-                  onChange={(e) => handleChange(day, "end_time", e.target.value)}
-                  className="border rounded p-1"
-                >
+
+                <select value={formData[day].end_time} onChange={(e) => handleChange(day, "end_time", e.target.value)} className="border rounded p-1">
                   <option value="">End</option>
-                  {times.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
+                  {times.map((time) => <option key={time} value={time}>{time}</option>)}
                 </select>
               </div>
             ))}
 
             <div className="flex justify-end space-x-2 mt-4">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-                Cancel
-              </button>
-              <button onClick={handleSave} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700" disabled={loading}>
-                {loading ? "Saving..." : "Save Timetable"}
-              </button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+              <button onClick={handleSave} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">{loading ? "Saving..." : "Save Timetable"}</button>
             </div>
           </div>
         </div>
@@ -482,51 +419,54 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
   );
 }
 
-// ---------------- Zoom Section ----------------
-function ZoomSection({ zoomMeetings, setZoomMeetings, teacherId, studentId, subject }) {
+/* ========== ZoomSection ========== */
+function ZoomSection({ zoomMeetings, teacherId, studentId, subject, refreshZoomes }) {
   const [showModal, setShowModal] = useState(false);
   const [topic, setTopic] = useState("");
   const [startTime, setStartTime] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleAddZoom = async () => {
-    try {
-      setLoading(true);
+  // Show Add modal
+  const openModal = () => {
+    setTopic(`${subject} session`);
+    // set default start time to now + 10 minutes in ISO-compatible local datetime string
+    const d = new Date(Date.now() + 10 * 60 * 1000);
+    // convert to local "YYYY-MM-DDTHH:MM"
+    const isoLocal = d.toISOString().slice(0, 16);
+    setStartTime(isoLocal);
+    setShowModal(true);
+  };
 
-      const res = await fetch("/api/create-zoom-meeting", {
+  const handleCreateMeeting = async () => {
+    if (!topic || !startTime) return alert("Provide topic and start time");
+    setLoading(true);
+    try {
+      // Convert local datetime to ISO (UTC)
+      const dt = new Date(startTime);
+      const iso = dt.toISOString();
+
+      const resp = await fetch("/api/zoom/create-meeting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, start_time: startTime }),
+        body: JSON.stringify({
+          teacher_id: teacherId,
+          student_id: studentId,
+          topic,
+          start_time: iso,
+          duration: 60,
+        }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create Zoom meeting");
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || JSON.stringify(json));
 
-      // Save in Supabase
-      await supabase.from("zoom_meetings").insert({
-        teacher_id: teacherId,
-        student_id: studentId,
-        subject,
-        topic,
-        zoom_link: data.meetingLink,
-        start_time: startTime,
-      });
-
-      // Refresh list
-      const { data: zoomData } = await supabase
-        .from("zoom_meetings")
-        .select("*")
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId)
-        .eq("subject", subject);
-
-      setZoomMeetings(zoomData || []);
+      // refresh the list
+      await refreshZoomes();
       setShowModal(false);
-      setTopic("");
-      setStartTime("");
+      alert("Meeting created");
     } catch (err) {
       console.error(err);
-      alert("Error creating Zoom meeting: " + err.message);
+      alert("Failed to create meeting: " + (err.message || err));
     } finally {
       setLoading(false);
     }
@@ -534,22 +474,26 @@ function ZoomSection({ zoomMeetings, setZoomMeetings, teacherId, studentId, subj
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
-        <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">
-          Add Zoom Session
-        </button>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-sky-700">Zoom Meetings</h3>
+        <div>
+          <button onClick={openModal} className="bg-sky-600 text-white px-3 py-1 rounded mr-2">Add Zoom Session</button>
+        </div>
       </div>
 
-      {zoomMeetings.length === 0 ? (
-        <p>No Zoom sessions yet.</p>
+      {(!zoomMeetings || zoomMeetings.length === 0) ? (
+        <p>No zoom meetings yet.</p>
       ) : (
         <ul className="space-y-2">
-          {zoomMeetings.map((z) => (
-            <li key={z.id} className="border p-3 rounded bg-gray-50">
-              <a href={z.zoom_link} target="_blank" rel="noopener noreferrer" className="text-sky-700 underline">
-                {z.topic || "Meeting Link"}
-              </a>{" "}
-              on {new Date(z.start_time).toLocaleString()}
+          {zoomMeetings.map(z => (
+            <li key={z.id} className="border p-3 rounded bg-gray-50 flex justify-between items-center">
+              <div>
+                <div className="font-semibold">{z.topic}</div>
+                <div className="text-sm">Starts: {new Date(z.start_time).toLocaleString()}</div>
+              </div>
+              <div>
+                <a href={z.zoom_link} target="_blank" rel="noreferrer" className="text-sky-700 underline">Join</a>
+              </div>
             </li>
           ))}
         </ul>
@@ -557,33 +501,22 @@ function ZoomSection({ zoomMeetings, setZoomMeetings, teacherId, studentId, subj
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow max-w-md w-full">
-            <h2 className="text-lg font-bold mb-4">Add Zoom Session</h2>
+          <div className="bg-white p-6 rounded shadow max-w-lg w-full">
+            <h2 className="text-lg font-bold mb-4">Create Zoom Session</h2>
+
             <div className="mb-2">
               <label className="block font-semibold mb-1">Topic</label>
-              <input
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="w-full border rounded p-2"
-              />
+              <input value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full border rounded p-2" />
             </div>
-            <div className="mb-2">
-              <label className="block font-semibold mb-1">Start Time</label>
-              <input
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full border rounded p-2"
-              />
+
+            <div className="mb-4">
+              <label className="block font-semibold mb-1">Start time (local)</label>
+              <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full border rounded p-2" />
             </div>
-            <div className="flex justify-end space-x-2 mt-4">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-                Cancel
-              </button>
-              <button onClick={handleAddZoom} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700" disabled={loading}>
-                {loading ? "Creating..." : "Create Zoom"}
-              </button>
+
+            <div className="flex justify-end space-x-2">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+              <button onClick={handleCreateMeeting} disabled={loading} className="px-4 py-2 bg-sky-600 text-white rounded">{loading ? "Creating..." : "Create"}</button>
             </div>
           </div>
         </div>
