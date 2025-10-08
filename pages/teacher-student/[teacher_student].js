@@ -843,20 +843,23 @@ function CreateContractModal({ teacherNamePlaceholder, studentNamePlaceholder, o
 
 /* ========== ViewContractModal component ========== */
 function ViewContractModal({ contract, onClose, onToggleAccept, currentUserId, teacherId, studentId, handlePrint }) {
-  // display read-only contract with checkboxes for teacher & student acceptance (clickable to toggle only if current user matches the role)
   const isTeacherUser = currentUserId && currentUserId === teacherId;
   const isStudentUser = currentUserId && currentUserId === studentId;
+
+  // Retrieve names safely (assuming they’re stored in the contract.content or nearby)
+  const teacherName = contract.teacher_name || "Teacher";
+  const studentName = contract.student_name || "Student";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
       <div className="bg-white p-6 rounded shadow max-w-3xl w-full max-h-[80vh] overflow-auto">
         <h2 className="text-lg font-bold mb-4">Contract</h2>
 
+        {/* Render formatted HTML instead of showing tags */}
         <div
-          className="prose max-w-none"
+          className="mb-4 prose max-w-none"
           dangerouslySetInnerHTML={{ __html: contract.content }}
-        ></div>
-
+        />
 
         <div className="flex items-center gap-6 mb-4">
           <label className="flex items-center gap-2">
@@ -866,7 +869,7 @@ function ViewContractModal({ contract, onClose, onToggleAccept, currentUserId, t
               onChange={() => onToggleAccept("teacher")}
               disabled={!isTeacherUser}
             />
-            <span>Teacher ({teacherId})</span>
+            <span>{teacherName} (Teacher)</span>
           </label>
 
           <label className="flex items-center gap-2">
@@ -876,15 +879,27 @@ function ViewContractModal({ contract, onClose, onToggleAccept, currentUserId, t
               onChange={() => onToggleAccept("student")}
               disabled={!isStudentUser}
             />
-            <span>Student ({studentId})</span>
+            <span>{studentName} (Student)</span>
           </label>
         </div>
 
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-600">Expires: {new Date(contract.expiry_date).toLocaleString()}</div>
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-sm text-gray-600">
+            Expires: {new Date(contract.expiry_date).toLocaleString()}
+          </div>
           <div className="flex gap-2">
-            <button onClick={() => handlePrint(contract)} className="px-3 py-1 bg-green-600 text-white rounded">Print</button>
-            <button onClick={onClose} className="px-3 py-1 bg-gray-200 rounded">Close</button>
+            <button
+              onClick={() => handlePrint(contract)}
+              className="px-3 py-1 bg-green-600 text-white rounded"
+            >
+              Print
+            </button>
+            <button
+              onClick={onClose}
+              className="px-3 py-1 bg-gray-200 rounded"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>
