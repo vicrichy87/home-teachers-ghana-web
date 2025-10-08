@@ -311,7 +311,15 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const times = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, "0")}:00`);
+  // Generate times in 15-minute intervals
+  const times = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hour = h.toString().padStart(2, "0");
+      const minute = m.toString().padStart(2, "0");
+      times.push(`${hour}:${minute}`);
+    }
+  }
 
   const defaultForm = {
     Monday: { start_time: "", end_time: "" },
