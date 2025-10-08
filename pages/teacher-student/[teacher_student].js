@@ -646,10 +646,6 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
       const content = `
         <h2 style="text-align:center; font-weight:bold; margin-bottom:10px;">TEACHING SERVICES AGREEMENT</h2>
         <p>This Teaching Agreement ("Agreement") is entered into on <strong>${today.toLocaleDateString()}</strong> between:</p>
-        <ul>
-          <li><strong>Teacher:</strong> ${teacherName}</li>
-          <li><strong>Student:</strong> ${studentName}</li>
-        </ul>
         <p>Both parties agree to the following terms:</p>
         <ol>
           <li>The Teacher agrees to provide academic tutoring in <strong>${subject}</strong>.</li>
