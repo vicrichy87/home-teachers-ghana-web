@@ -611,96 +611,74 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
   // determine if current user is the teacher (teacher-only create)
   const isTeacherUser = currentUserId && currentUserId === teacherId;
 
-  // Prepare default formal contract text
-  const buildContractText = ({ teacherName, studentName, subjectText, createdAt, expiryAt }) => {
-    // Formal legal-looking agreement
-    return `
-TEACHING SERVICES AGREEMENT
+    // Create contract (teacher only)
+  
+  const handleCreateContract = async () => {
+  if (!teacherId || !studentId || !subject) {
+    alert("Missing teacher, student, or subject information.");
+    return;
+  }
 
-This Teaching Services Agreement (the "Agreement") is entered into as of ${formatDate(createdAt)} (the "Effective Date"), by and between:
+  setLoading(true);
+  try {
+    // Compute dates
+    const today = new Date();
+    const expiryDate = new Date(today);
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
 
-Teacher: ${teacherName} ("Teacher")
-and
-Student: ${studentName} ("Student").
+    // Create contract HTML content
+    const content = `
+      <h2 style="text-align:center; font-weight:bold; margin-bottom:10px;">TEACHING AGREEMENT</h2>
 
-1. SERVICES
-Teacher agrees to provide instruction in ${subjectText} (the "Services") to Student, in accordance with the timetable agreed between the parties.
+      <p>This Teaching Agreement ("Agreement") is entered into on <strong>${today.toLocaleDateString()}</strong> between:</p>
 
-2. TERM
-This Agreement shall commence on the Effective Date and shall continue for a period of one (1) month, expiring on ${formatDate(expiryAt)}, unless earlier terminated in accordance with this Agreement.
+      <ul>
+        <li><strong>Teacher:</strong> ${teacher.full_name}</li>
+        <li><strong>Student:</strong> ${student.full_name}</li>
+      </ul>
 
-3. FEES AND PAYMENT
-The parties agree the fees and payment terms will be managed outside this Agreement or according to any rates previously agreed between the parties.
+      <p>Both parties agree to the following terms:</p>
+      <ol>
+        <li>The Teacher agrees to provide academic tutoring in <strong>${subject}</strong> at the <strong>${level}</strong> level.</li>
+        <li>The Student agrees to attend scheduled lessons as per the mutually agreed timetable.</li>
+        <li>Payment for services shall be handled directly between the Parent/Guardian and the Teacher in accordance with the platform’s guidelines.</li>
+        <li>This Agreement shall remain valid for one month, starting on <strong>${today.toLocaleDateString()}</strong> and expiring on <strong>${expiryDate.toLocaleDateString()}</strong>.</li>
+        <li>Either party may terminate the Agreement with prior notice under reasonable circumstances.</li>
+      </ol>
 
-4. OBLIGATIONS OF THE TEACHER
-Teacher will provide the Services in a professional manner, using reasonable skill, care and diligence.
+      <p>By checking the boxes below, both parties acknowledge that they have read and agree to the terms of this Agreement.</p>
 
-5. OBLIGATIONS OF THE STUDENT
-Student will attend scheduled sessions and notify Teacher of any cancellations in a timely manner.
+      <div style="margin-top:20px;">
+        <label><input type="checkbox" disabled checked> ${teacher.full_name} (Teacher)</label><br/>
+        <label><input type="checkbox" disabled> ${student.full_name} (Student)</label>
+      </div>
+    `;
 
-6. CONFIDENTIALITY
-Each party will keep confidential information disclosed by the other party in connection with the Services.
+    // Insert contract into Supabase
+    const { error } = await supabase.from("contracts").insert({
+      teacher_id: teacherId,
+      student_id: studentId,
+      subject,
+      content,
+      teacher_accept: true,
+      student_accept: false,
+      date_signed: today.toISOString(),
+      expiry_date: expiryDate.toISOString(),
+      file_url: "", // optional for now; can add PDF export later
+    });
 
-7. LIABILITY
-Teacher's liability is limited to direct damages arising from Teacher's negligence in the performance of the Services. In no event will either party be liable for indirect, incidental, special or consequential damages.
+    if (error) throw error;
 
-8. TERMINATION
-Either party may terminate this Agreement for material breach by the other party following written notice.
-
-9. ACCEPTANCE
-By checking the box below and clicking Accept, each party acknowledges they have read, understood and agreed to the terms of this Agreement.
-
-IN WITNESS WHEREOF, the parties have executed this Agreement.
-
-Teacher: ${teacherName}
-Student: ${studentName}
-    `.trim();
-  };
-
-  // Create contract (teacher only)
-  const handleCreateContract = async ({ teacherName, studentName }) => {
-    if (!isTeacherUser) return alert("Only the teacher can create the contract.");
-    setCreating(true);
-    try {
-      const now = new Date();
-      const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // +30 days
-
-      const content = buildContractText({
-        teacherName,
-        studentName,
-        subjectText: subject,
-        createdAt: now.toISOString(),
-        expiryAt: expiry.toISOString(),
-      });
-
-      const { data, error } = await supabase
-        .from("contracts")
-        .insert([{
-          teacher_id: teacherId,
-          student_id: studentId,
-          subject,
-          content,
-          teacher_accept: true,   // teacher auto-accepts upon creation
-          student_accept: false,
-          expiry_date: expiry.toISOString(),
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // refresh
-      await refreshContracts();
-      setShowCreateModal(false);
-      alert("Contract created successfully.");
-    } catch (err) {
-      console.error("create contract:", err);
-      alert("Failed to create contract: " + (err.message || err));
-    } finally {
-      setCreating(false);
-    }
-  };
-
+    alert("Contract created successfully.");
+    await refreshContracts(); // re-fetch updated list
+  } catch (err) {
+    console.error(err);
+    alert("Failed to create contract: " + (err.message || err));
+  } finally {
+    setLoading(false);
+  }
+};
+  
   // open view modal
   const openView = (contract) => {
     setActiveContract(contract);
