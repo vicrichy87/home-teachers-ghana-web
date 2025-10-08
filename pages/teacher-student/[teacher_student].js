@@ -852,9 +852,11 @@ function ViewContractModal({ contract, onClose, onToggleAccept, currentUserId, t
       <div className="bg-white p-6 rounded shadow max-w-3xl w-full max-h-[80vh] overflow-auto">
         <h2 className="text-lg font-bold mb-4">Contract</h2>
 
-        <div className="mb-4 whitespace-pre-wrap" style={{ whiteSpace: "pre-wrap" }}>
-          {contract.content}
-        </div>
+        <div
+          className="prose max-w-none"
+          dangerouslySetInnerHTML={{ __html: contract.content }}
+        ></div>
+
 
         <div className="flex items-center gap-6 mb-4">
           <label className="flex items-center gap-2">
