@@ -345,7 +345,6 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Upsert timetable
       for (const [day, times] of Object.entries(formData)) {
         const existing = timetable.find((t) => t.day === day);
         if (existing) {
@@ -364,7 +363,6 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
           });
         }
       }
-
       setShowModal(false);
       refreshTimetable();
     } catch (err) {
@@ -375,14 +373,46 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete the timetable for this subject?")) return;
+    setLoading(true);
+    try {
+      await supabase
+        .from("teacher_student_timetable")
+        .delete()
+        .eq("teacher_id", teacherId)
+        .eq("student_id", studentId)
+        .eq("subject", subject);
+      refreshTimetable();
+      alert("Timetable deleted successfully.");
+    } catch (err) {
+      console.error(err.message);
+      alert("Failed to delete timetable: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div>
-      <button
-        onClick={() => setShowModal(true)}
-        className="text-sky-700 underline mb-4"
-      >
-        {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
-      </button>
+      <div className="flex space-x-4 items-center mb-4">
+        <button
+          onClick={() => setShowModal(true)}
+          className="text-sky-700 underline"
+        >
+          {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
+        </button>
+
+        {timetable.length > 0 && (
+          <button
+            onClick={handleDelete}
+            className="text-red-600 underline"
+            disabled={loading}
+          >
+            {loading ? "Deleting..." : "Delete Timetable"}
+          </button>
+        )}
+      </div>
 
       {timetable.length > 0 && (
         <ul className="space-y-2">
@@ -452,3 +482,4 @@ function TimetableSection({ timetable, teacherId, studentId, subject, refreshTim
     </div>
   );
 }
+
