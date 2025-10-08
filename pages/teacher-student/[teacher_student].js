@@ -587,6 +587,20 @@ function ZoomSection({ zoomMeetings, teacherId, studentId, subject, refreshZoome
 }
 
 /* ========== ContractsSection ========== */
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
 function ContractsSection({ contracts, teacherId, studentId, subject, currentUserId, refreshContracts }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
