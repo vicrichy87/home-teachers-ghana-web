@@ -20,6 +20,35 @@ export default function TeacherStudentPage() {
   const [contracts, setContracts] = useState([]);
   const [tab, setTab] = useState("overview");
 
+  const [showZoomModal, setShowZoomModal] = useState(false);
+
+  const fetchZoomMeetings = async () => {
+    if (!teacherId || !studentId || !selectedRel) return;
+    try {
+      const { data: zoomData } = await supabase
+        .from("zoom_meetings")
+        .select("*")
+        .eq("teacher_id", teacherId)
+        .eq("student_id", studentId)
+        .eq("subject", selectedRel.subject);
+      setZoomMeetings(zoomData || []);
+    } catch (err) {
+      console.error(err.message);
+    }
+  };
+  
+  const handleDeleteZoom = async (id) => {
+    if (!confirm("Delete this Zoom session?")) return;
+    try {
+      await supabase.from("zoom_meetings").delete().eq("id", id);
+      fetchZoomMeetings();
+    } catch (err) {
+      console.error(err.message);
+      alert("Failed to delete Zoom session: " + err.message);
+    }
+  };
+  
+
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleDateString("en-GB", {
@@ -199,23 +228,52 @@ export default function TeacherStudentPage() {
           )}
 
           {tab === "zoom" && (
-            <Section
-              title="Zoom Meetings"
-              data={zoomMeetings}
-              renderItem={(z) => (
-                <li key={z.id} className="border p-3 rounded bg-gray-50">
-                  <a
-                    href={z.zoom_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sky-700 underline"
-                  >
-                    {z.topic || "Meeting Link"}
-                  </a>{" "}
-                  on {formatDate(z.start_time)}
-                </li>
+            <div>
+              <div className="flex space-x-4 items-center mb-4">
+                <button
+                  onClick={() => setShowZoomModal(true)}
+                  className="text-sky-700 underline"
+                >
+                  Add Zoom Session
+                </button>
+              </div>
+          
+              <Section
+                title="Zoom Meetings"
+                data={zoomMeetings}
+                renderItem={(z) => (
+                  <li key={z.id} className="border p-3 rounded bg-gray-50 flex justify-between items-center">
+                    <div>
+                      <a
+                        href={z.zoom_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-700 underline"
+                      >
+                        {z.topic || "Meeting Link"}
+                      </a>{" "}
+                      on {formatDate(z.start_time)}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteZoom(z.id)}
+                      className="text-red-600 underline"
+                    >
+                      Delete
+                    </button>
+                  </li>
+                )}
+              />
+          
+              {showZoomModal && (
+                <ZoomModal
+                  closeModal={() => setShowZoomModal(false)}
+                  teacherId={teacher.id}
+                  studentId={student.id}
+                  subject={subject}
+                  refreshZoom={fetchZoomMeetings}
+                />
               )}
-            />
+            </div>
           )}
 
           {tab === "contracts" && (
@@ -298,6 +356,95 @@ function Section({ title, data, renderItem }) {
     </div>
   );
 }
+
+//zoom component
+function ZoomModal({ closeModal, teacherId, studentId, subject, refreshZoom }) {
+  const [topic, setTopic] = useState("");
+  const [zoomLink, setZoomLink] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    if (!topic || !zoomLink || !startTime) {
+      alert("Please fill all fields.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await supabase.from("zoom_meetings").insert({
+        teacher_id: teacherId,
+        student_id: studentId,
+        subject,
+        topic,
+        zoom_link: zoomLink,
+        start_time: startTime,
+      });
+      refreshZoom();
+      closeModal();
+    } catch (err) {
+      console.error(err.message);
+      alert("Failed to add Zoom session: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded shadow max-w-md w-full">
+        <h2 className="text-lg font-bold mb-4">Add Zoom Session</h2>
+
+        <div className="mb-2">
+          <label className="block font-semibold mb-1">Topic</label>
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div className="mb-2">
+          <label className="block font-semibold mb-1">Zoom Link</label>
+          <input
+            type="url"
+            value={zoomLink}
+            onChange={(e) => setZoomLink(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div className="mb-2">
+          <label className="block font-semibold mb-1">Start Time</label>
+          <input
+            type="datetime-local"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
+
+        <div className="flex justify-end space-x-2 mt-4">
+          <button
+            onClick={closeModal}
+            className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
+            disabled={loading}
+          >
+            {loading ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // TimetableSection Component (Editable)
 function TimetableSection({ timetable, teacherId, studentId, subject, refreshTimetable }) {
