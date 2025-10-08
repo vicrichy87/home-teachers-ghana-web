@@ -207,22 +207,76 @@ export default function TeacherStudentPage() {
           )}
 
           {tab === "zoom" && (
-            <ZoomSection
-              zoomMeetings={zoomMeetings}
-              teacherId={teacher.id}
-              studentId={student.id}
-              subject={subject}
-              refreshZoomes={async () => {
-                const { data: zoomData } = await supabase
-                  .from("zoom_meetings")
-                  .select("*")
-                  .eq("teacher_id", teacher.id)
-                  .eq("student_id", student.id)
-                  .eq("subject", subject)
-                  .order("start_time", { ascending: false });
-                setZoomMeetings(zoomData || []);
-              }}
-            />
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-sky-700">Zoom Meetings</h3>
+          
+              {(!zoomMeetings || zoomMeetings.length === 0) ? (
+                <p>No zoom meetings yet.</p>
+              ) : (
+                <ul className="space-y-2 mb-4">
+                  {zoomMeetings.map((z) => (
+                    <li key={z.id} className="border p-3 rounded bg-gray-50">
+                      <a
+                        href={z.zoom_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sky-700 underline"
+                      >
+                        {z.topic || "Meeting Link"}
+                      </a>{" "}
+                      on {formatDate(z.start_time)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+          
+              {/* Create Meeting Button */}
+              <button
+                onClick={async () => {
+                  const topic = prompt("Enter meeting topic:");
+                  if (!topic) return alert("Meeting topic is required.");
+          
+                  try {
+                    const res = await fetch("/api/zoom/create-meeting", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        topic,
+                        start_time: new Date().toISOString(),
+                      }),
+                    });
+          
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Zoom meeting failed");
+          
+                    // Save meeting to Supabase
+                    await supabase.from("zoom_meetings").insert({
+                      teacher_id: teacher.id,
+                      student_id: student.id,
+                      topic,
+                      zoom_link: data.join_url,
+                      start_time: data.start_time,
+                      meeting_id: data.id,
+                    });
+          
+                    alert("Zoom meeting created successfully!");
+                    const { data: zoomData } = await supabase
+                      .from("zoom_meetings")
+                      .select("*")
+                      .eq("teacher_id", teacher.id)
+                      .eq("student_id", student.id)
+                      .eq("subject", subject);
+                    setZoomMeetings(zoomData || []);
+                  } catch (err) {
+                    console.error(err);
+                    alert("Failed to create Zoom meeting: " + err.message);
+                  }
+                }}
+                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
+              >
+                + Create Zoom Meeting
+              </button>
+            </div>
           )}
 
           {tab === "contracts" && (
