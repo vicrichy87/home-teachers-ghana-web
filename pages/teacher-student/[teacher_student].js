@@ -798,8 +798,8 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
           onClose={() => { setShowViewModal(false); setActiveContract(null); }}
           onToggleAccept={(who) => toggleAccept(activeContract, who)}
           currentUserId={currentUserId}
-          teacherId={teacherId}
-          studentId={studentId}
+          //teacherId={teacherId}
+          //studentId={studentId}
           handlePrint={() => handlePrint(activeContract)}
         />
       )}
