@@ -126,6 +126,16 @@ export default function TeacherStudentPage() {
   const { teacher, student, subject, level, date_added, expiry_date } = selectedRel;
 
   return (
+
+     <div className="max-w-4xl mx-auto p-6">
+      {/* Back Button */}
+      <button
+        onClick={() => router.push("/teacher")} // Go back to teacher page
+        className="mb-4 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition"
+      >
+        ← Back to Teacher Page
+      </button>
+    
     <div className="bg-gray-50 min-h-screen">
       <Banner />
       <div className="max-w-5xl mx-auto bg-white rounded shadow p-6 mt-6">
