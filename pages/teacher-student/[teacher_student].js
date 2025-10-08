@@ -27,6 +27,7 @@ export default function TeacherStudentPage() {
     });
   };
 
+  // Fetch teacher-student relationships
   useEffect(() => {
     if (!router.isReady || !teacherId || !studentId) return;
 
@@ -68,6 +69,7 @@ export default function TeacherStudentPage() {
     fetchRelationships();
   }, [router.isReady, teacherId, studentId]);
 
+  // Fetch related data for selected subject
   useEffect(() => {
     if (!selectedRelId) return;
 
@@ -117,8 +119,7 @@ export default function TeacherStudentPage() {
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
   const selectedRel = relationships.find((r) => r.id === selectedRelId);
-  if (!selectedRel)
-    return <div className="p-8 text-center">No subject selected.</div>;
+  if (!selectedRel) return <div className="p-8 text-center">No subject selected.</div>;
 
   const { teacher, student, subject, level, date_added, expiry_date } = selectedRel;
 
@@ -126,7 +127,6 @@ export default function TeacherStudentPage() {
     <div className="bg-gray-50 min-h-screen">
       <Banner />
       <div className="max-w-4xl mx-auto p-6">
-        {/* Back Button */}
         <button
           onClick={() => router.push("/teacher")}
           className="mb-4 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition"
@@ -176,29 +176,32 @@ export default function TeacherStudentPage() {
             </div>
           )}
 
-          {/* Tabs */}
           <Tabs tab={tab} setTab={setTab} />
 
           {tab === "overview" && (
             <div className="text-center text-gray-700">
               <p>
                 This page connects <strong>{teacher?.full_name}</strong> and{" "}
-                <strong>{student?.full_name}</strong> for{" "}
-                <strong>{subject}</strong> ({level}).
+                <strong>{student?.full_name}</strong> for <strong>{subject}</strong> ({level}).
               </p>
             </div>
           )}
 
           {tab === "timetable" && (
-            <Section
-              title="Timetable"
-              data={timetable}
-              renderItem={(item) => (
-                <li key={item.id} className="border p-3 rounded bg-gray-50">
-                  {item.day} - {item.subject} ({item.start_time} to{" "}
-                  {item.end_time})
-                </li>
-              )}
+            <TimetableSection
+              timetable={timetable}
+              teacherId={teacher.id}
+              studentId={student.id}
+              subject={subject}
+              refreshTimetable={async () => {
+                const { data: ttData } = await supabase
+                  .from("teacher_student_timetable")
+                  .select("*")
+                  .eq("teacher_id", teacher.id)
+                  .eq("student_id", student.id)
+                  .eq("subject", subject);
+                setTimetable(ttData || []);
+              }}
             />
           )}
 
@@ -247,24 +250,12 @@ export default function TeacherStudentPage() {
   );
 }
 
-// Tailwind-safe color mappings
-const bgColors = {
-  sky: "bg-sky-50",
-  emerald: "bg-emerald-50",
-};
-
-const textColors = {
-  sky: "text-sky-800",
-  emerald: "text-emerald-800",
-};
-
+// Components
 function ProfileCard({ user, role, color }) {
   if (!user) return null;
   return (
-    <div className={`${bgColors[color]} p-4 rounded shadow`}>
-      <h2 className={`text-lg font-semibold ${textColors[color]} mb-2`}>
-        {role}
-      </h2>
+    <div className={`bg-${color}-50 p-4 rounded shadow`}>
+      <h2 className={`text-lg font-semibold text-${color}-800 mb-2`}>{role}</h2>
       <img
         src={user.profile_image || "/default-avatar.png"}
         alt={role}
@@ -286,9 +277,7 @@ function Tabs({ tab, setTab }) {
           key={t}
           onClick={() => setTab(t)}
           className={`px-4 py-2 rounded ${
-            tab === t
-              ? "bg-sky-600 text-white"
-              : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+            tab === t ? "bg-sky-600 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"
           }`}
         >
           {t === "overview"
@@ -308,10 +297,157 @@ function Section({ title, data, renderItem }) {
   return (
     <div>
       <h3 className="text-lg font-semibold mb-2 text-sky-700">{title}</h3>
-      {!data || data.length === 0 ? (
+      {(!data || data.length === 0) ? (
         <p>No {title.toLowerCase()} yet.</p>
       ) : (
         <ul className="space-y-2">{data.map(renderItem)}</ul>
+      )}
+    </div>
+  );
+}
+
+// TimetableSection Component (Editable)
+function TimetableSection({ timetable, teacherId, studentId, subject, refreshTimetable }) {
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const times = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, "0")}:00`);
+
+  const defaultForm = {
+    Monday: { start_time: "", end_time: "" },
+    Tuesday: { start_time: "", end_time: "" },
+    Wednesday: { start_time: "", end_time: "" },
+    Thursday: { start_time: "", end_time: "" },
+    Friday: { start_time: "", end_time: "" },
+    Saturday: { start_time: "", end_time: "" },
+    Sunday: { start_time: "", end_time: "" },
+  };
+
+  const [formData, setFormData] = useState(defaultForm);
+
+  // Pre-fill form if timetable exists
+  useEffect(() => {
+    if (timetable.length === 0) return;
+    const filledForm = { ...defaultForm };
+    timetable.forEach((t) => {
+      filledForm[t.day] = { start_time: t.start_time, end_time: t.end_time };
+    });
+    setFormData(filledForm);
+  }, [timetable]);
+
+  const handleChange = (day, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [day]: { ...prev[day], [field]: value },
+    }));
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      // Upsert timetable
+      for (const [day, times] of Object.entries(formData)) {
+        const existing = timetable.find((t) => t.day === day);
+        if (existing) {
+          await supabase
+            .from("teacher_student_timetable")
+            .update({ start_time: times.start_time, end_time: times.end_time })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("teacher_student_timetable").insert({
+            teacher_id: teacherId,
+            student_id: studentId,
+            subject,
+            day,
+            start_time: times.start_time,
+            end_time: times.end_time,
+          });
+        }
+      }
+
+      setShowModal(false);
+      refreshTimetable();
+    } catch (err) {
+      console.error(err.message);
+      alert("Failed to save timetable: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        onClick={() => setShowModal(true)}
+        className="text-sky-700 underline mb-4"
+      >
+        {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
+      </button>
+
+      {timetable.length > 0 && (
+        <ul className="space-y-2">
+          {timetable.map((t) => (
+            <li key={t.id} className="border p-3 rounded bg-gray-50">
+              {t.day}: {t.start_time} - {t.end_time}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow max-w-xl w-full">
+            <h2 className="text-lg font-bold mb-4">
+              {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
+            </h2>
+            {Object.keys(formData).map((day) => (
+              <div key={day} className="flex items-center space-x-2 mb-2">
+                <span className="w-24 font-semibold">{day}</span>
+                <select
+                  value={formData[day].start_time}
+                  onChange={(e) => handleChange(day, "start_time", e.target.value)}
+                  className="border rounded p-1"
+                >
+                  <option value="">Start</option>
+                  {times.map((time) => (
+                    <option key={time} value={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
+                <span>-</span>
+                <select
+                  value={formData[day].end_time}
+                  onChange={(e) => handleChange(day, "end_time", e.target.value)}
+                  className="border rounded p-1"
+                >
+                  <option value="">End</option>
+                  {times.map((time) => (
+                    <option key={time} value={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+
+            <div className="flex justify-end space-x-2 mt-4">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
+                disabled={loading}
+              >
+                {loading ? "Saving..." : "Save Timetable"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
