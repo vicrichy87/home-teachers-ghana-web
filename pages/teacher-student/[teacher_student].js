@@ -204,15 +204,34 @@ export default function TeacherStudentPage() {
           )}
 
           {tab === "zoom" && (
-            <ZoomSection
-              zoomMeetings={zoomMeetings}
-              setZoomMeetings={setZoomMeetings}
-              teacherId={teacher.id}
-              studentId={student.id}
-              subject={subject}
-            />
+            <div>
+              <button
+                onClick={handleAddZoom}
+                className="mb-4 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition"
+              >
+                Add Zoom Session
+              </button>
+          
+              <Section
+                title="Zoom Meetings"
+                data={zoomMeetings}
+                renderItem={(z) => (
+                  <li key={z.id} className="border p-3 rounded bg-gray-50">
+                    <a
+                      href={z.zoom_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sky-700 underline"
+                    >
+                      {z.topic || "Meeting Link"}
+                    </a>{" "}
+                    on {formatDate(z.start_time)}
+                  </li>
+                )}
+              />
+            </div>
           )}
-
+          
           {tab === "contracts" && (
             <Section
               title="Contracts"
