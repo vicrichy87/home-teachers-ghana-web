@@ -134,7 +134,7 @@ export default function TeacherStudentPage() {
         className="mb-4 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition"
       >
         ← Back to Teacher Page
-      </button>
+      </button></div>
     
     <div className="bg-gray-50 min-h-screen">
       <Banner />
