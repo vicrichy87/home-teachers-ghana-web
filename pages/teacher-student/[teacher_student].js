@@ -7,8 +7,8 @@ import Banner from "../../components/Banner";
 export default function TeacherStudentPage() {
   const router = useRouter();
   const { teacher_student } = router.query;
-
   const [teacherId, studentId] = teacher_student?.split("~") || [];
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [relationships, setRelationships] = useState([]);
@@ -17,6 +17,28 @@ export default function TeacherStudentPage() {
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [tab, setTab] = useState("overview");
+
+  // Timetable modal state
+  const [showTimetableModal, setShowTimetableModal] = useState(false);
+  const [timetableForm, setTimetableForm] = useState({
+    Monday: { start_time: "", end_time: "" },
+    Tuesday: { start_time: "", end_time: "" },
+    Wednesday: { start_time: "", end_time: "" },
+    Thursday: { start_time: "", end_time: "" },
+    Friday: { start_time: "", end_time: "" },
+    Saturday: { start_time: "", end_time: "" },
+    Sunday: { start_time: "", end_time: "" },
+  });
+  const times = Array.from({ length: 24 * 4 }, (_, i) => {
+    const h = Math.floor(i / 4);
+    const m = (i % 4) * 15;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+  });
+
+  // Zoom modal state
+  const [showZoomModal, setShowZoomModal] = useState(false);
+  const [zoomForm, setZoomForm] = useState({ topic: "", start_time: "", duration: 60 });
+  const [zoomLoading, setZoomLoading] = useState(false);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -27,14 +49,13 @@ export default function TeacherStudentPage() {
     });
   };
 
-  // Fetch teacher-student relationships
+  // Fetch relationships
   useEffect(() => {
     if (!router.isReady || !teacherId || !studentId) return;
 
     const fetchRelationships = async () => {
       try {
         setLoading(true);
-
         const { data, error } = await supabase
           .from("teacher_students")
           .select(`
@@ -69,7 +90,7 @@ export default function TeacherStudentPage() {
     fetchRelationships();
   }, [router.isReady, teacherId, studentId]);
 
-  // Fetch related data for selected subject
+  // Fetch timetable, zoom, contracts for selected subject
   useEffect(() => {
     if (!selectedRelId) return;
 
@@ -123,6 +144,88 @@ export default function TeacherStudentPage() {
 
   const { teacher, student, subject, level, date_added, expiry_date } = selectedRel;
 
+  // --- Timetable handlers ---
+  const handleTimetableChange = (day, field, value) => {
+    setTimetableForm({
+      ...timetableForm,
+      [day]: { ...timetableForm[day], [field]: value },
+    });
+  };
+
+  const handleSaveTimetable = async () => {
+    try {
+      setLoading(true);
+      const timetableData = Object.entries(timetableForm)
+        .filter(([day, times]) => times.start_time && times.end_time)
+        .map(([day, times]) => ({
+          teacher_id: teacher.id,
+          student_id: student.id,
+          subject,
+          day,
+          start_time: times.start_time,
+          end_time: times.end_time,
+        }));
+
+      await supabase.from("teacher_student_timetable").insert(timetableData);
+      setTimetable(timetableData);
+      setShowTimetableModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save timetable");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteTimetable = async () => {
+    if (!confirm("Are you sure you want to delete this timetable?")) return;
+    try {
+      setLoading(true);
+      await supabase
+        .from("teacher_student_timetable")
+        .delete()
+        .eq("teacher_id", teacher.id)
+        .eq("student_id", student.id)
+        .eq("subject", subject);
+      setTimetable([]);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete timetable");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Zoom handlers ---
+  const handleCreateZoom = async () => {
+    try {
+      setZoomLoading(true);
+      const res = await fetch("/api/zoom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...zoomForm,
+          teacher_id: teacher.id,
+          student_id: student.id,
+          subject,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setZoomMeetings([...zoomMeetings, { ...zoomForm, zoom_link: data.zoom_link }]);
+        setShowZoomModal(false);
+        setZoomForm({ topic: "", start_time: "", duration: 60 });
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create Zoom session");
+    } finally {
+      setZoomLoading(false);
+    }
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
       <Banner />
@@ -145,18 +248,10 @@ export default function TeacherStudentPage() {
           </div>
 
           <div className="bg-gray-100 p-4 rounded mb-4 text-center">
-            <p>
-              <strong>Subject:</strong> {subject}
-            </p>
-            <p>
-              <strong>Level:</strong> {level}
-            </p>
-            <p>
-              <strong>Date Added:</strong> {formatDate(date_added)}
-            </p>
-            <p>
-              <strong>Expiry Date:</strong> {formatDate(expiry_date)}
-            </p>
+            <p><strong>Subject:</strong> {subject}</p>
+            <p><strong>Level:</strong> {level}</p>
+            <p><strong>Date Added:</strong> {formatDate(date_added)}</p>
+            <p><strong>Expiry Date:</strong> {formatDate(expiry_date)}</p>
           </div>
 
           {relationships.length > 1 && (
@@ -188,41 +283,159 @@ export default function TeacherStudentPage() {
           )}
 
           {tab === "timetable" && (
-            <TimetableSection
-              timetable={timetable}
-              teacherId={teacher.id}
-              studentId={student.id}
-              subject={subject}
-              refreshTimetable={async () => {
-                const { data: ttData } = await supabase
-                  .from("teacher_student_timetable")
-                  .select("*")
-                  .eq("teacher_id", teacher.id)
-                  .eq("student_id", student.id)
-                  .eq("subject", subject);
-                setTimetable(ttData || []);
-              }}
-            />
+            <div>
+              {timetable.length === 0 && (
+                <button
+                  onClick={() => setShowTimetableModal(true)}
+                  className="text-sky-700 underline mb-4"
+                >
+                  Create Timetable
+                </button>
+              )}
+
+              {timetable.length > 0 && (
+                <>
+                  <ul className="space-y-2">
+                    {timetable.map((t) => (
+                      <li key={t.id} className="border p-3 rounded bg-gray-50">
+                        {t.day}: {t.start_time} - {t.end_time}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={handleDeleteTimetable}
+                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    Delete Timetable
+                  </button>
+                </>
+              )}
+
+              {showTimetableModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+                  <div className="bg-white p-6 rounded shadow max-w-xl w-full">
+                    <h2 className="text-lg font-bold mb-4">Create Timetable</h2>
+                    {Object.keys(timetableForm).map((day) => (
+                      <div key={day} className="flex items-center space-x-2 mb-2">
+                        <span className="w-24 font-semibold">{day}</span>
+                        <select
+                          value={timetableForm[day].start_time}
+                          onChange={(e) => handleTimetableChange(day, "start_time", e.target.value)}
+                          className="border rounded p-1"
+                        >
+                          <option value="">Start</option>
+                          {times.map((time) => (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          ))}
+                        </select>
+                        <span>-</span>
+                        <select
+                          value={timetableForm[day].end_time}
+                          onChange={(e) => handleTimetableChange(day, "end_time", e.target.value)}
+                          className="border rounded p-1"
+                        >
+                          <option value="">End</option>
+                          {times.map((time) => (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                    <div className="flex justify-end space-x-2 mt-4">
+                      <button
+                        onClick={() => setShowTimetableModal(false)}
+                        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveTimetable}
+                        className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
+                      >
+                        Save Timetable
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {tab === "zoom" && (
-            <Section
-              title="Zoom Meetings"
-              data={zoomMeetings}
-              renderItem={(z) => (
-                <li key={z.id} className="border p-3 rounded bg-gray-50">
-                  <a
-                    href={z.zoom_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sky-700 underline"
-                  >
-                    {z.topic || "Meeting Link"}
-                  </a>{" "}
-                  on {formatDate(z.start_time)}
-                </li>
+            <div>
+              <Section
+                title="Zoom Meetings"
+                data={zoomMeetings}
+                renderItem={(z) => (
+                  <li key={z.id} className="border p-3 rounded bg-gray-50">
+                    <a
+                      href={z.zoom_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sky-700 underline"
+                    >
+                      {z.topic || "Meeting Link"}
+                    </a>{" "}
+                    on {formatDate(z.start_time)}
+                  </li>
+                )}
+              />
+              <button
+                onClick={() => setShowZoomModal(true)}
+                className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Create Zoom Session
+              </button>
+
+              {showZoomModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+                  <div className="bg-white p-6 rounded shadow max-w-md w-full">
+                    <h2 className="text-lg font-bold mb-4">Create Zoom Session</h2>
+
+                    <input
+                      type="text"
+                      placeholder="Session Topic"
+                      value={zoomForm.topic}
+                      onChange={(e) => setZoomForm({ ...zoomForm, topic: e.target.value })}
+                      className="border rounded p-2 mb-2 w-full"
+                    />
+                    <input
+                      type="datetime-local"
+                      value={zoomForm.start_time}
+                      onChange={(e) => setZoomForm({ ...zoomForm, start_time: e.target.value })}
+                      className="border rounded p-2 mb-2 w-full"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Duration (minutes)"
+                      value={zoomForm.duration}
+                      onChange={(e) => setZoomForm({ ...zoomForm, duration: e.target.value })}
+                      className="border rounded p-2 mb-2 w-full"
+                    />
+
+                    <div className="flex justify-end space-x-2 mt-4">
+                      <button
+                        onClick={() => setShowZoomModal(false)}
+                        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleCreateZoom}
+                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                        disabled={zoomLoading}
+                      >
+                        {zoomLoading ? "Creating..." : "Create Session"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
-            />
+            </div>
           )}
 
           {tab === "contracts" && (
@@ -250,7 +463,7 @@ export default function TeacherStudentPage() {
   );
 }
 
-// Components
+// --- Components ---
 function ProfileCard({ user, role, color }) {
   if (!user) return null;
   return (
@@ -305,189 +518,3 @@ function Section({ title, data, renderItem }) {
     </div>
   );
 }
-
-// TimetableSection Component (Editable)
-function TimetableSection({ timetable, teacherId, studentId, subject, refreshTimetable }) {
-  const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  // Generate times in 15-minute intervals
-  const times = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      const hour = h.toString().padStart(2, "0");
-      const minute = m.toString().padStart(2, "0");
-      times.push(`${hour}:${minute}`);
-    }
-  }
-
-  const defaultForm = {
-    Monday: { start_time: "", end_time: "" },
-    Tuesday: { start_time: "", end_time: "" },
-    Wednesday: { start_time: "", end_time: "" },
-    Thursday: { start_time: "", end_time: "" },
-    Friday: { start_time: "", end_time: "" },
-    Saturday: { start_time: "", end_time: "" },
-    Sunday: { start_time: "", end_time: "" },
-  };
-
-  const [formData, setFormData] = useState(defaultForm);
-
-  // Pre-fill form if timetable exists
-  useEffect(() => {
-    if (timetable.length === 0) return;
-    const filledForm = { ...defaultForm };
-    timetable.forEach((t) => {
-      filledForm[t.day] = { start_time: t.start_time, end_time: t.end_time };
-    });
-    setFormData(filledForm);
-  }, [timetable]);
-
-  const handleChange = (day, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [day]: { ...prev[day], [field]: value },
-    }));
-  };
-
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      for (const [day, times] of Object.entries(formData)) {
-        const existing = timetable.find((t) => t.day === day);
-        if (existing) {
-          await supabase
-            .from("teacher_student_timetable")
-            .update({ start_time: times.start_time, end_time: times.end_time })
-            .eq("id", existing.id);
-        } else {
-          await supabase.from("teacher_student_timetable").insert({
-            teacher_id: teacherId,
-            student_id: studentId,
-            subject,
-            day,
-            start_time: times.start_time,
-            end_time: times.end_time,
-          });
-        }
-      }
-      setShowModal(false);
-      refreshTimetable();
-    } catch (err) {
-      console.error(err.message);
-      alert("Failed to save timetable: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete the timetable for this subject?")) return;
-    setLoading(true);
-    try {
-      await supabase
-        .from("teacher_student_timetable")
-        .delete()
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId)
-        .eq("subject", subject);
-      refreshTimetable();
-      alert("Timetable deleted successfully.");
-    } catch (err) {
-      console.error(err.message);
-      alert("Failed to delete timetable: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div>
-      <div className="flex space-x-4 items-center mb-4">
-        <button
-          onClick={() => setShowModal(true)}
-          className="text-sky-700 underline"
-        >
-          {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
-        </button>
-
-        {timetable.length > 0 && (
-          <button
-            onClick={handleDelete}
-            className="text-red-600 underline"
-            disabled={loading}
-          >
-            {loading ? "Deleting..." : "Delete Timetable"}
-          </button>
-        )}
-      </div>
-
-      {timetable.length > 0 && (
-        <ul className="space-y-2">
-          {timetable.map((t) => (
-            <li key={t.id} className="border p-3 rounded bg-gray-50">
-              {t.day}: {t.start_time} - {t.end_time}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded shadow max-w-xl w-full">
-            <h2 className="text-lg font-bold mb-4">
-              {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
-            </h2>
-            {Object.keys(formData).map((day) => (
-              <div key={day} className="flex items-center space-x-2 mb-2">
-                <span className="w-24 font-semibold">{day}</span>
-                <select
-                  value={formData[day].start_time}
-                  onChange={(e) => handleChange(day, "start_time", e.target.value)}
-                  className="border rounded p-1"
-                >
-                  <option value="">Start</option>
-                  {times.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
-                <span>-</span>
-                <select
-                  value={formData[day].end_time}
-                  onChange={(e) => handleChange(day, "end_time", e.target.value)}
-                  className="border rounded p-1"
-                >
-                  <option value="">End</option>
-                  {times.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
-                disabled={loading}
-              >
-                {loading ? "Saving..." : "Save Timetable"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
