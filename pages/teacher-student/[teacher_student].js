@@ -8,29 +8,14 @@ export default function TeacherStudentPage() {
   const router = useRouter();
   const { teacher_student } = router.query;
 
-  const [teacherId, studentId] = teacher_student?.split("~") || [];
+  // Ensure teacherId and studentId are numbers
+  const [teacherId, studentId] = (teacher_student?.split("~") || []).map(Number);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [relationships, setRelationships] = useState([]);
   const [selectedRelId, setSelectedRelId] = useState(null);
-
-  // Timetable state
   const [timetable, setTimetable] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    Monday: { start_time: "", end_time: "" },
-    Tuesday: { start_time: "", end_time: "" },
-    Wednesday: { start_time: "", end_time: "" },
-    Thursday: { start_time: "", end_time: "" },
-    Friday: { start_time: "", end_time: "" },
-    Saturday: { start_time: "", end_time: "" },
-    Sunday: { start_time: "", end_time: "" },
-  });
-
-  const times = Array.from({ length: 24 }, (_, i) =>
-    `${i.toString().padStart(2, "0")}:00`
-  );
-
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [tab, setTab] = useState("overview");
@@ -85,7 +70,7 @@ export default function TeacherStudentPage() {
     fetchRelationships();
   }, [router.isReady, teacherId, studentId]);
 
-  // Fetch related data: timetable, zoom, contracts
+  // Fetch timetable, zoom meetings, contracts for selected subject
   useEffect(() => {
     if (!selectedRelId) return;
 
@@ -131,84 +116,6 @@ export default function TeacherStudentPage() {
     fetchData();
   }, [selectedRelId, relationships, teacherId, studentId]);
 
-  // Handle form changes for timetable modal
-  const handleChange = (day, field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [day]: { ...prev[day], [field]: value },
-    }));
-  };
-
-  // Save timetable to Supabase
-  const handleSaveTimetable = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.from("teacher_student_timetable").insert(
-        Object.keys(formData).map((day) => ({
-          teacher_id: teacherId,
-          student_id: studentId,
-          subject: relationships.find((r) => r.id === selectedRelId).subject,
-          day,
-          start_time: formData[day].start_time,
-          end_time: formData[day].end_time,
-        }))
-      );
-
-      if (error) throw error;
-      setTimetable(data);
-      setShowModal(false);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save timetable: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Delete timetable
-  const handleDeleteTimetable = async () => {
-    if (!confirm("Are you sure you want to delete this timetable?")) return;
-    try {
-      setLoading(true);
-      const { error } = await supabase
-        .from("teacher_student_timetable")
-        .delete()
-        .eq("teacher_id", teacherId)
-        .eq("student_id", studentId)
-        .eq("subject", relationships.find((r) => r.id === selectedRelId).subject);
-
-      if (error) throw error;
-      setTimetable([]);
-      alert("Timetable deleted");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete timetable: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Create Zoom meeting
-  const handleCreateZoom = async () => {
-    try {
-      const res = await fetch("/api/zoom/create-meeting", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic: `Lesson with ${relationships.find(r => r.id === selectedRelId).student.full_name}`,
-          start_time: new Date().toISOString(),
-          duration: 60,
-        }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      alert(`Zoom meeting created! Link: ${data.join_url}`);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to create Zoom meeting: " + err.message);
-    }
-  };
-
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (error) return <div className="p-8 text-center text-red-600">{error}</div>;
 
@@ -221,7 +128,6 @@ export default function TeacherStudentPage() {
     <div className="bg-gray-50 min-h-screen">
       <Banner />
       <div className="max-w-4xl mx-auto p-6">
-        {/* Back Button */}
         <button
           onClick={() => router.push("/teacher")}
           className="mb-4 px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition"
@@ -246,13 +152,12 @@ export default function TeacherStudentPage() {
             <p><strong>Expiry Date:</strong> {formatDate(expiry_date)}</p>
           </div>
 
-          {/* Dropdown to select subject */}
           {relationships.length > 1 && (
             <div className="mb-4">
               <label className="font-semibold mr-2">Select Subject: </label>
               <select
                 value={selectedRelId}
-                onChange={(e) => setSelectedRelId(e.target.value)}
+                onChange={(e) => setSelectedRelId(Number(e.target.value))}
                 className="border rounded p-2"
               >
                 {relationships.map((r) => (
@@ -264,101 +169,33 @@ export default function TeacherStudentPage() {
             </div>
           )}
 
-          {/* Tabs */}
           <Tabs tab={tab} setTab={setTab} />
 
-          {/* Tab Content */}
           {tab === "overview" && (
             <div className="text-center text-gray-700">
-              This page connects <strong>{teacher?.full_name}</strong> and <strong>{student?.full_name}</strong> for <strong>{subject}</strong> ({level}).
+              <p>
+                This page connects <strong>{teacher?.full_name}</strong> and{" "}
+                <strong>{student?.full_name}</strong> for <strong>{subject}</strong> ({level}).
+              </p>
             </div>
           )}
 
           {tab === "timetable" && (
-            <div>
-              {timetable.length === 0 && (
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="text-sky-700 underline mb-4"
-                >
-                  Create Timetable
-                </button>
-              )}
-
-              {timetable.length > 0 && (
-                <>
-                  <ul className="space-y-2 mb-2">
-                    {timetable.map((t) => (
-                      <li key={t.id} className="border p-3 rounded bg-gray-50">
-                        {t.day}: {t.start_time} - {t.end_time}
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={handleDeleteTimetable}
-                    className="text-red-600 underline mb-4"
-                  >
-                    Delete Timetable
-                  </button>
-                  <button
-                    onClick={handleCreateZoom}
-                    className="ml-2 px-3 py-1 bg-sky-600 text-white rounded hover:bg-sky-700"
-                  >
-                    Create Zoom Meeting
-                  </button>
-                </>
-              )}
-
-              {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-                  <div className="bg-white p-6 rounded shadow max-w-xl w-full">
-                    <h2 className="text-lg font-bold mb-4">Create Timetable</h2>
-                    {Object.keys(formData).map((day) => (
-                      <div key={day} className="flex items-center space-x-2 mb-2">
-                        <span className="w-24 font-semibold">{day}</span>
-                        <select
-                          value={formData[day].start_time}
-                          onChange={(e) => handleChange(day, "start_time", e.target.value)}
-                          className="border rounded p-1"
-                        >
-                          <option value="">Start</option>
-                          {times.map((time) => (
-                            <option key={time} value={time}>{time}</option>
-                          ))}
-                        </select>
-                        <span>-</span>
-                        <select
-                          value={formData[day].end_time}
-                          onChange={(e) => handleChange(day, "end_time", e.target.value)}
-                          className="border rounded p-1"
-                        >
-                          <option value="">End</option>
-                          {times.map((time) => (
-                            <option key={time} value={time}>{time}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-
-                    <div className="flex justify-end space-x-2 mt-4">
-                      <button
-                        onClick={() => setShowModal(false)}
-                        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveTimetable}
-                        className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
-                        disabled={loading}
-                      >
-                        {loading ? "Saving..." : "Save Timetable"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <TimetableSection
+              timetable={timetable}
+              teacherId={teacher.id}
+              studentId={student.id}
+              subject={subject}
+              refreshTimetable={async () => {
+                const { data: ttData } = await supabase
+                  .from("teacher_student_timetable")
+                  .select("*")
+                  .eq("teacher_id", teacher.id)
+                  .eq("student_id", student.id)
+                  .eq("subject", subject);
+                setTimetable(ttData || []);
+              }}
+            />
           )}
 
           {tab === "zoom" && (
@@ -457,6 +294,170 @@ function Section({ title, data, renderItem }) {
         <p>No {title.toLowerCase()} yet.</p>
       ) : (
         <ul className="space-y-2">{data.map(renderItem)}</ul>
+      )}
+    </div>
+  );
+}
+
+// TimetableSection Component (Editable)
+function TimetableSection({ timetable, teacherId, studentId, subject, refreshTimetable }) {
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const times = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hour = h.toString().padStart(2, "0");
+      const minute = m.toString().padStart(2, "0");
+      times.push(`${hour}:${minute}`);
+    }
+  }
+
+  const defaultForm = {
+    Monday: { start_time: "", end_time: "" },
+    Tuesday: { start_time: "", end_time: "" },
+    Wednesday: { start_time: "", end_time: "" },
+    Thursday: { start_time: "", end_time: "" },
+    Friday: { start_time: "", end_time: "" },
+    Saturday: { start_time: "", end_time: "" },
+    Sunday: { start_time: "", end_time: "" },
+  };
+
+  const [formData, setFormData] = useState(defaultForm);
+
+  useEffect(() => {
+    if (timetable.length === 0) return;
+    const filledForm = { ...defaultForm };
+    timetable.forEach((t) => {
+      filledForm[t.day] = { start_time: t.start_time, end_time: t.end_time };
+    });
+    setFormData(filledForm);
+  }, [timetable]);
+
+  const handleChange = (day, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [day]: { ...prev[day], [field]: value },
+    }));
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      for (const [day, times] of Object.entries(formData)) {
+        const existing = timetable.find((t) => t.day === day);
+        if (existing) {
+          await supabase
+            .from("teacher_student_timetable")
+            .update({ start_time: times.start_time, end_time: times.end_time })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("teacher_student_timetable").insert({
+            teacher_id: teacherId,
+            student_id: studentId,
+            subject,
+            day,
+            start_time: times.start_time,
+            end_time: times.end_time,
+          });
+        }
+      }
+      setShowModal(false);
+      refreshTimetable();
+    } catch (err) {
+      console.error(err.message);
+      alert("Failed to save timetable: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete the timetable for this subject?")) return;
+    setLoading(true);
+    try {
+      await supabase
+        .from("teacher_student_timetable")
+        .delete()
+        .eq("teacher_id", teacherId)
+        .eq("student_id", studentId)
+        .eq("subject", subject);
+      refreshTimetable();
+      alert("Timetable deleted successfully.");
+    } catch (err) {
+      console.error(err.message);
+      alert("Failed to delete timetable: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex space-x-4 items-center mb-4">
+        <button onClick={() => setShowModal(true)} className="text-sky-700 underline">
+          {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
+        </button>
+        {timetable.length > 0 && (
+          <button onClick={handleDelete} className="text-red-600 underline" disabled={loading}>
+            {loading ? "Deleting..." : "Delete Timetable"}
+          </button>
+        )}
+      </div>
+
+      {timetable.length > 0 && (
+        <ul className="space-y-2">
+          {timetable.map((t) => (
+            <li key={t.id} className="border p-3 rounded bg-gray-50">
+              {t.day}: {t.start_time} - {t.end_time}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded shadow max-w-xl w-full">
+            <h2 className="text-lg font-bold mb-4">
+              {timetable.length === 0 ? "Create Timetable" : "Edit Timetable"}
+            </h2>
+            {Object.keys(formData).map((day) => (
+              <div key={day} className="flex items-center space-x-2 mb-2">
+                <span className="w-24 font-semibold">{day}</span>
+                <select
+                  value={formData[day].start_time}
+                  onChange={(e) => handleChange(day, "start_time", e.target.value)}
+                  className="border rounded p-1"
+                >
+                  <option value="">Start</option>
+                  {times.map((time) => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+                <span>-</span>
+                <select
+                  value={formData[day].end_time}
+                  onChange={(e) => handleChange(day, "end_time", e.target.value)}
+                  className="border rounded p-1"
+                >
+                  <option value="">End</option>
+                  {times.map((time) => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+
+            <div className="flex justify-end space-x-2 mt-4">
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
+                Cancel
+              </button>
+              <button onClick={handleSave} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700" disabled={loading}>
+                {loading ? "Saving..." : "Save Timetable"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
