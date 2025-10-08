@@ -614,70 +614,82 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
     // Create contract (teacher only)
   
   const handleCreateContract = async () => {
-  if (!teacherId || !studentId || !subject) {
-    alert("Missing teacher, student, or subject information.");
-    return;
-  }
-
-  setLoading(true);
-  try {
-    // Compute dates
-    const today = new Date();
-    const expiryDate = new Date(today);
-    expiryDate.setMonth(expiryDate.getMonth() + 1);
-
-    // Create contract HTML content
-    const content = `
-      <h2 style="text-align:center; font-weight:bold; margin-bottom:10px;">TEACHING AGREEMENT</h2>
-
-      <p>This Teaching Agreement ("Agreement") is entered into on <strong>${today.toLocaleDateString()}</strong> between:</p>
-
-      <ul>
-        <li><strong>Teacher:</strong> ${teacher.full_name}</li>
-        <li><strong>Student:</strong> ${student.full_name}</li>
-      </ul>
-
-      <p>Both parties agree to the following terms:</p>
-      <ol>
-        <li>The Teacher agrees to provide academic tutoring in <strong>${subject}</strong> at the <strong>${level}</strong> level.</li>
-        <li>The Student agrees to attend scheduled lessons as per the mutually agreed timetable.</li>
-        <li>Payment for services shall be handled directly between the Parent/Guardian and the Teacher in accordance with the platform’s guidelines.</li>
-        <li>This Agreement shall remain valid for one month, starting on <strong>${today.toLocaleDateString()}</strong> and expiring on <strong>${expiryDate.toLocaleDateString()}</strong>.</li>
-        <li>Either party may terminate the Agreement with prior notice under reasonable circumstances.</li>
-      </ol>
-
-      <p>By checking the boxes below, both parties acknowledge that they have read and agree to the terms of this Agreement.</p>
-
-      <div style="margin-top:20px;">
-        <label><input type="checkbox" disabled checked> ${teacher.full_name} (Teacher)</label><br/>
-        <label><input type="checkbox" disabled> ${student.full_name} (Student)</label>
-      </div>
-    `;
-
-    // Insert contract into Supabase
-    const { error } = await supabase.from("contracts").insert({
-      teacher_id: teacherId,
-      student_id: studentId,
-      subject,
-      content,
-      teacher_accept: true,
-      student_accept: false,
-      date_signed: today.toISOString(),
-      expiry_date: expiryDate.toISOString(),
-      file_url: "", // optional for now; can add PDF export later
-    });
-
-    if (error) throw error;
-
-    alert("Contract created successfully.");
-    await refreshContracts(); // re-fetch updated list
-  } catch (err) {
-    console.error(err);
-    alert("Failed to create contract: " + (err.message || err));
-  } finally {
-    setLoading(false);
-  }
-};
+    if (!teacherId || !studentId || !subject) {
+      alert("Missing teacher, student, or subject information.");
+      return;
+    }
+  
+    setCreating(true);
+    try {
+      // Fetch teacher and student names from Supabase
+      const { data: teacherData } = await supabase
+        .from("users")
+        .select("full_name")
+        .eq("id", teacherId)
+        .single();
+  
+      const { data: studentData } = await supabase
+        .from("users")
+        .select("full_name")
+        .eq("id", studentId)
+        .single();
+  
+      const teacherName = teacherData?.full_name || "Teacher";
+      const studentName = studentData?.full_name || "Student";
+  
+      // Compute dates
+      const today = new Date();
+      const expiryDate = new Date(today);
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+  
+      // Build contract content
+      const content = `
+        <h2 style="text-align:center; font-weight:bold; margin-bottom:10px;">TEACHING SERVICES AGREEMENT</h2>
+        <p>This Teaching Agreement ("Agreement") is entered into on <strong>${today.toLocaleDateString()}</strong> between:</p>
+        <ul>
+          <li><strong>Teacher:</strong> ${teacherName}</li>
+          <li><strong>Student:</strong> ${studentName}</li>
+        </ul>
+        <p>Both parties agree to the following terms:</p>
+        <ol>
+          <li>The Teacher agrees to provide academic tutoring in <strong>${subject}</strong>.</li>
+          <li>The Student agrees to attend scheduled lessons as per the mutually agreed timetable.</li>
+          <li>Payment for services shall be handled directly between the Parent/Guardian and the Teacher.</li>
+          <li>This Agreement remains valid for one month, starting <strong>${today.toLocaleDateString()}</strong> and expiring <strong>${expiryDate.toLocaleDateString()}</strong>.</li>
+          <li>Either party may terminate the Agreement with reasonable notice.</li>
+        </ol>
+        <p>By checking below, both parties acknowledge acceptance.</p>
+        <div style="margin-top:20px;">
+          <label><input type="checkbox" disabled checked> ${teacherName} (Teacher)</label><br/>
+          <label><input type="checkbox" disabled> ${studentName} (Student)</label>
+        </div>
+      `;
+  
+      // Insert into Supabase
+      const { error } = await supabase.from("contracts").insert({
+        teacher_id: teacherId,
+        student_id: studentId,
+        subject,
+        content,
+        teacher_accept: true,
+        student_accept: false,
+        date_signed: today.toISOString(),
+        expiry_date: expiryDate.toISOString(),
+        file_url: "", // optional
+      });
+  
+      if (error) throw error;
+  
+      alert("Contract created successfully.");
+      setShowCreateModal(false);
+      await refreshContracts();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create contract: " + (err.message || err));
+    } finally {
+      setCreating(false);
+    }
+  };
   
   // open view modal
   const openView = (contract) => {
