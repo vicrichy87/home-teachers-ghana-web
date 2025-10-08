@@ -861,26 +861,35 @@ function ViewContractModal({ contract, onClose, onToggleAccept, currentUserId, t
           dangerouslySetInnerHTML={{ __html: contract.content }}
         />
 
-        <div className="flex items-center gap-6 mb-4">
-          <label className="flex items-center gap-2">
+       {/* Acceptance section */}
+        <div className="grid grid-cols-2 gap-8 mb-6 border-t border-gray-200 pt-4">
+          {/* Teacher side */}
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={!!contract.teacher_accept}
               onChange={() => onToggleAccept("teacher")}
               disabled={!isTeacherUser}
+              className="w-5 h-5 accent-sky-600"
             />
-            <span>{teacherName} (Teacher)</span>
-          </label>
-
-          <label className="flex items-center gap-2">
+            <span className="text-sm font-medium">
+              {teacherName} (Teacher)
+            </span>
+          </div>
+        
+          {/* Student side */}
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-sm font-medium">
+              {studentName} (Student)
+            </span>
             <input
               type="checkbox"
               checked={!!contract.student_accept}
               onChange={() => onToggleAccept("student")}
               disabled={!isStudentUser}
+              className="w-5 h-5 accent-sky-600"
             />
-            <span>{studentName} (Student)</span>
-          </label>
+          </div>
         </div>
 
         <div className="flex justify-between items-center mt-4">
