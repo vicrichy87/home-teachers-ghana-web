@@ -736,67 +736,98 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
   };
 
   // Print contract: open new window with content and call print
-  const handlePrint = (contract) => {
-    const w = window.open("", "_blank", "width=800,height=1000");
-    if (!w) {
-      alert("Popup blocked! Please allow popups for this site.");
-      return;
+  // helper: try to extract "Teacher" or "Student" name from HTML contract.content
+function extractNameFromContent(content, label) {
+  if (!content) return null;
+  try {
+    const div = document.createElement("div");
+    div.innerHTML = content;
+    // search list items first: <li><strong>Teacher:</strong> Name</li>
+    const lis = div.querySelectorAll("li");
+    for (const li of lis) {
+      const strong = li.querySelector("strong");
+      if (strong && strong.textContent.trim().toLowerCase().startsWith(label.toLowerCase())) {
+        // remove the strong text and return the rest
+        const txt = li.textContent.replace(strong.textContent, "").trim();
+        if (txt) return txt;
+      }
     }
-  
-    // Use globally available teacherName / studentName if present,
-    // or fall back to values in the contract
-    const teacherDisplayName = teacherName || contract.teacher_name || "Teacher";
-    const studentDisplayName = studentName || contract.student_name || "Student";
-  
-    // Build the HTML content safely
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Teaching Contract</title>
-          <style>
-            body { font-family: 'Times New Roman', serif; padding: 40px; color: #222; }
-            h1 { text-align: center; margin-bottom: 30px; text-transform: uppercase; }
-            .meta { margin-bottom: 25px; }
-            .meta strong { display: inline-block; width: 110px; }
-            .content { margin-top: 20px; line-height: 1.6; white-space: pre-wrap; }
-            footer { margin-top: 60px; text-align: center; font-size: 14px; color: #555; }
-          </style>
-        </head>
-        <body>
-          <h1>Teaching Services Agreement</h1>
-  
-          <div class="meta">
-            <p><strong>Teacher:</strong> ${teacherDisplayName}</p>
-            <p><strong>Student:</strong> ${studentDisplayName}</p>
-            <p><strong>Subject:</strong> ${contract.subject || ""}</p>
-            <p><strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()}</p>
-            <p><strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()}</p>
-          </div>
-  
-          <div class="content">
-            ${contract.content}
-          </div>
-  
-          <footer>
-            <p>This document is a legally binding teaching agreement between ${teacherDisplayName} and ${studentDisplayName}.</p>
-          </footer>
-  
-          <script>
-            window.onload = function() {
-              setTimeout(() => window.print(), 500);
-            };
-          </script>
-        </body>
-      </html>
-    `;
-  
-    // Properly write to the new document
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-  };
+    // fallback: search any text nodes for "Teacher: NAME" pattern
+    const text = div.textContent || "";
+    const re = new RegExp(`${label}:\\s*([^\\n]+)`, "i");
+    const m = text.match(re);
+    if (m && m[1]) return m[1].trim();
+  } catch (e) {
+    // ignore parse errors
+  }
+  return null;
+}
+
+const handlePrint = (contract) => {
+  const w = window.open("", "_blank", "width=900,height=1000");
+  if (!w) {
+    alert("Unable to open print window (popup blocked?)");
+    return;
+  }
+
+  // Prefer explicit columns (contract.teacher_name), fallback to extracting from content
+  const teacherDisplayName =
+    contract.teacher_name ||
+    contract.teacher_full_name ||
+    extractNameFromContent(contract.content, "Teacher") ||
+    "Teacher";
+  const studentDisplayName =
+    contract.student_name ||
+    contract.student_full_name ||
+    extractNameFromContent(contract.content, "Student") ||
+    "Student";
+
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8"/>
+        <title>Contract</title>
+        <style>
+          body { font-family: "Times New Roman", serif; padding: 40px; color: #111; }
+          h1 { text-align:center; margin-bottom: 18px; }
+          .meta p { margin: 6px 0; }
+          .content { margin-top: 20px; line-height: 1.6; white-space: pre-wrap; }
+          footer { margin-top: 40px; font-size: 12px; color: #555; }
+        </style>
+      </head>
+      <body>
+        <h1>Teaching Services Agreement</h1>
+        <div class="meta">
+          <p><strong>Teacher:</strong> ${teacherDisplayName}</p>
+          <p><strong>Student:</strong> ${studentDisplayName}</p>
+          <p><strong>Subject:</strong> ${contract.subject || ""}</p>
+          <p><strong>Created:</strong> ${contract.created_at ? new Date(contract.created_at).toLocaleString() : ""}</p>
+          <p><strong>Expiry:</strong> ${contract.expiry_date ? new Date(contract.expiry_date).toLocaleString() : ""}</p>
+        </div>
+        <div class="content">
+          ${contract.content || ""}
+        </div>
+        <footer>
+          <p>This document is a formal agreement between ${teacherDisplayName} and ${studentDisplayName}.</p>
+        </footer>
+
+        <script>
+          window.onload = function() {
+            // give the popup a short moment to render then print
+            setTimeout(() => { try { window.print(); } catch(e){} }, 400);
+          };
+        </script>
+      </body>
+    </html>
+  `;
+
+  // write the html safely
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+};
+
 
 
 
