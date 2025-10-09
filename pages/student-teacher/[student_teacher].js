@@ -14,10 +14,12 @@ export default function StudentTeacherPage() {
   const [contracts, setContracts] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [zoomSessions, setZoomSessions] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("contracts");
+  const [tab, setTab] = useState("overview");
+  const [selectedSubject, setSelectedSubject] = useState("");
 
-  // 🧩 Split params into studentId and teacherId
+  // 🧩 Split student_teacher param into studentId and teacherId
   useEffect(() => {
     if (!student_teacher) return;
     const [student_id, teacher_id] = student_teacher.split("_");
@@ -34,28 +36,41 @@ export default function StudentTeacherPage() {
         .select("id, full_name, email, phone, city, profile_image")
         .eq("id", teacherId)
         .single();
-
       if (!error) setTeacher(data);
     };
     fetchTeacher();
   }, [teacherId]);
 
+  // 🧩 Fetch subjects for dropdown
+  useEffect(() => {
+    if (!teacherId || !studentId) return;
+    const fetchSubjects = async () => {
+      const { data, error } = await supabase
+        .from("teacher_students")
+        .select("subject, level")
+        .eq("teacher_id", teacherId)
+        .eq("student_id", studentId);
+
+      if (!error && data) {
+        setSubjects(data);
+        if (data.length > 0) setSelectedSubject(data[0].subject);
+      }
+    };
+    fetchSubjects();
+  }, [teacherId, studentId]);
+
   // 🧩 Fetch Contracts
   useEffect(() => {
     if (!teacherId || !studentId) return;
     const fetchContracts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("contracts")
-          .select("*")
-          .eq("teacher_id", teacherId)
-          .eq("student_id", studentId)
-          .order("created_at", { ascending: false });
-        if (error) throw error;
-        setContracts(data || []);
-      } catch (err) {
-        console.error("Error fetching contracts:", err.message);
-      }
+      const { data, error } = await supabase
+        .from("contracts")
+        .select("*")
+        .eq("teacher_id", teacherId)
+        .eq("student_id", studentId)
+        .order("created_at", { ascending: false });
+
+      if (!error) setContracts(data || []);
     };
     fetchContracts();
   }, [teacherId, studentId]);
@@ -64,18 +79,14 @@ export default function StudentTeacherPage() {
   useEffect(() => {
     if (!teacherId || !studentId) return;
     const fetchTimetable = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("timetable")
-          .select("*")
-          .eq("teacher_id", teacherId)
-          .eq("student_id", studentId)
-          .order("day_of_week", { ascending: true });
-        if (error) throw error;
-        setTimetable(data || []);
-      } catch (err) {
-        console.error("Error fetching timetable:", err.message);
-      }
+      const { data, error } = await supabase
+        .from("timetable")
+        .select("*")
+        .eq("teacher_id", teacherId)
+        .eq("student_id", studentId)
+        .order("day_of_week", { ascending: true });
+
+      if (!error) setTimetable(data || []);
     };
     fetchTimetable();
   }, [teacherId, studentId]);
@@ -83,31 +94,29 @@ export default function StudentTeacherPage() {
   // 🧩 Fetch Zoom Sessions
   useEffect(() => {
     if (!teacherId || !studentId) return;
-    const fetchZoomSessions = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("zoom_sessions")
-          .select("*")
-          .eq("teacher_id", teacherId)
-          .eq("student_id", studentId)
-          .order("date", { ascending: false });
-        if (error) throw error;
-        setZoomSessions(data || []);
-      } catch (err) {
-        console.error("Error fetching Zoom sessions:", err.message);
-      } finally {
-        setLoading(false);
-      }
+    const fetchZoom = async () => {
+      const { data, error } = await supabase
+        .from("zoom_sessions")
+        .select("*")
+        .eq("teacher_id", teacherId)
+        .eq("student_id", studentId)
+        .order("date", { ascending: false });
+
+      if (!error) setZoomSessions(data || []);
+      setLoading(false);
     };
-    fetchZoomSessions();
+    fetchZoom();
   }, [teacherId, studentId]);
 
-  if (loading)
+  if (loading) {
     return <div className="text-center py-20">Loading teacher data...</div>;
+  }
 
   return (
-    <div className="max-w-4xl mx-auto bg-white p-6 rounded shadow">
+    <div className="max-w-5xl mx-auto bg-white p-6 rounded shadow">
       <Banner />
+
+      {/* Header Info */}
       {teacher && (
         <div className="mt-4 flex gap-4 items-center">
           <img
@@ -125,47 +134,65 @@ export default function StudentTeacherPage() {
         </div>
       )}
 
+      {/* Subject Dropdown */}
+      {subjects.length > 0 && (
+        <div className="mt-4">
+          <label className="font-medium text-sm text-gray-700 mr-2">
+            Select Subject:
+          </label>
+          <select
+            value={selectedSubject}
+            onChange={(e) => setSelectedSubject(e.target.value)}
+            className="border rounded px-2 py-1"
+          >
+            {subjects.map((s, idx) => (
+              <option key={idx} value={s.subject}>
+                {s.subject} ({s.level})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex gap-3 mt-6">
-        {["contracts", "timetable", "zoom"].map((t) => (
+      <div className="flex flex-wrap gap-3 mt-6">
+        {["overview", "timetable", "zoom", "contracts"].map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-3 py-1 rounded ${
-              tab === t ? "bg-sky-600 text-white" : "bg-sky-50"
+            className={`px-4 py-2 rounded font-medium transition ${
+              tab === t ? "bg-sky-600 text-white" : "bg-sky-50 text-sky-800"
             }`}
           >
-            {t === "contracts"
-              ? "Contracts"
+            {t === "overview"
+              ? "Overview"
               : t === "timetable"
               ? "Timetable"
-              : "Zoom Sessions"}
+              : t === "zoom"
+              ? "Zoom Sessions"
+              : "Contracts"}
           </button>
         ))}
       </div>
 
-      {/* Contracts */}
-      {tab === "contracts" && (
+      {/* Overview Tab */}
+      {tab === "overview" && (
         <div className="mt-6">
-          <h3 className="font-semibold text-lg mb-3">Contracts</h3>
-          {contracts.length === 0 ? (
-            <p className="text-gray-600">No contracts yet.</p>
+          <h3 className="font-semibold text-lg mb-3">Overview</h3>
+          {subjects.length === 0 ? (
+            <p className="text-gray-600">No subjects registered yet.</p>
           ) : (
             <ul className="space-y-3">
-              {contracts.map((c) => (
+              {subjects.map((s, idx) => (
                 <li
-                  key={c.id}
-                  className="p-4 bg-gray-50 rounded border shadow-sm"
+                  key={idx}
+                  className="p-4 border rounded bg-gray-50 flex justify-between"
                 >
-                  <div className="font-medium">{c.subject}</div>
-                  <div className="text-sm text-gray-500">
-                    Rate: GHC {c.rate} | Duration: {c.duration}
-                  </div>
-                  {c.notes && (
-                    <div className="text-sm text-gray-600 mt-1">{c.notes}</div>
-                  )}
-                  <div className="text-xs text-gray-400 mt-2">
-                    Created: {new Date(c.created_at).toLocaleString()}
+                  <div>
+                    <div className="font-medium">{s.subject}</div>
+                    <div className="text-sm text-gray-500">
+                      Level: {s.level}
+                    </div>
                   </div>
                 </li>
               ))}
@@ -174,7 +201,7 @@ export default function StudentTeacherPage() {
         </div>
       )}
 
-      {/* Timetable */}
+      {/* Timetable Tab */}
       {tab === "timetable" && (
         <div className="mt-6">
           <h3 className="font-semibold text-lg mb-3">Timetable</h3>
@@ -205,7 +232,7 @@ export default function StudentTeacherPage() {
         </div>
       )}
 
-      {/* Zoom Sessions */}
+      {/* Zoom Sessions Tab */}
       {tab === "zoom" && (
         <div className="mt-6">
           <h3 className="font-semibold text-lg mb-3">Zoom Sessions</h3>
@@ -216,7 +243,7 @@ export default function StudentTeacherPage() {
               {zoomSessions.map((z) => (
                 <li
                   key={z.id}
-                  className="flex items-center justify-between bg-gray-50 p-3 rounded shadow-sm"
+                  className="flex items-center justify-between bg-gray-50 p-3 rounded border"
                 >
                   <div>
                     <div className="font-medium text-gray-900">
@@ -233,6 +260,36 @@ export default function StudentTeacherPage() {
                     >
                       Join Zoom
                     </a>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Contracts Tab */}
+      {tab === "contracts" && (
+        <div className="mt-6">
+          <h3 className="font-semibold text-lg mb-3">Contracts</h3>
+          {contracts.length === 0 ? (
+            <p className="text-gray-600">No contracts yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {contracts.map((c) => (
+                <li
+                  key={c.id}
+                  className="p-4 bg-gray-50 rounded border shadow-sm"
+                >
+                  <div className="font-medium">{c.subject}</div>
+                  <div className="text-sm text-gray-500">
+                    Rate: GHC {c.rate} | Duration: {c.duration}
+                  </div>
+                  {c.notes && (
+                    <div className="text-sm text-gray-600 mt-1">{c.notes}</div>
+                  )}
+                  <div className="text-xs text-gray-400 mt-2">
+                    Created: {new Date(c.created_at).toLocaleString()}
                   </div>
                 </li>
               ))}
