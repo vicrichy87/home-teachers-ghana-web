@@ -467,6 +467,26 @@ function ZoomSection({ zoomMeetings, teacherId, studentId, subject, refreshZoome
   const [startTime, setStartTime] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Delete a Zoom session (teachers only)
+  const handleDeleteZoomSession = async (sessionId) => {
+    const confirmDelete = confirm("Are you sure you want to delete this Zoom session?");
+    if (!confirmDelete) return;
+  
+    const { error } = await supabase
+      .from("zoom_sessions")
+      .delete()
+      .eq("id", sessionId);
+  
+    if (error) {
+      console.error("Failed to delete session:", error.message);
+      alert("Failed to delete session. Please try again.");
+    } else {
+      alert("Session deleted successfully!");
+      // Refresh the list after deletion
+      fetchZoomSessions();
+    }
+  };
+
   // Show Add modal
   const openModal = () => {
     setTopic(`${subject} session`);
@@ -535,30 +555,50 @@ function ZoomSection({ zoomMeetings, teacherId, studentId, subject, refreshZoome
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-sky-700">Zoom Meetings</h3>
-        <div>
-          <button onClick={openModal} className="bg-sky-600 text-white px-3 py-1 rounded mr-2">Add Zoom Session</button>
-        </div>
+      <div className="mt-6 border-t border-gray-200 pt-4">
+        <h3 className="text-lg font-semibold mb-3">Zoom Meetings</h3>
+      
+        {/* Zoom Meeting List */}
+        {zoomMeetings && zoomMeetings.length > 0 ? (
+          <ul className="space-y-3">
+            {zoomMeetings.map((meeting) => (
+              <li
+                key={meeting.id}
+                className="flex items-center justify-between bg-gray-50 p-3 rounded shadow-sm"
+              >
+                <div>
+                  <div className="font-medium text-gray-900">
+                    {meeting.topic || "Untitled Session"} – Class on{" "}
+                    {meeting.start_time
+                      ? new Date(meeting.start_time).toLocaleDateString()
+                      : "Unknown Date"}
+                  </div>
+                  <a
+                    href={meeting.zoom_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-600 underline text-sm"
+                  >
+                    Join Zoom Session
+                  </a>
+                </div>
+      
+                {/* Delete Button (Teachers Only) */}
+                {currentUserId === teacherId && (
+                  <button
+                    onClick={() => handleDeleteZoomMeeting(meeting.id)}
+                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                  >
+                    Delete
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-600">No zoom meetings yet.</p>
+        )}
       </div>
-
-      {(!zoomMeetings || zoomMeetings.length === 0) ? (
-        <p>No zoom meetings yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {zoomMeetings.map(z => (
-            <li key={z.id} className="border p-3 rounded bg-gray-50 flex justify-between items-center">
-              <div>
-                <div className="font-semibold">{z.topic}</div>
-                <div className="text-sm">Starts: {new Date(z.start_time).toLocaleString()}</div>
-              </div>
-              <div>
-                <a href={z.zoom_link} target="_blank" rel="noreferrer" className="text-sky-700 underline">Join</a>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
