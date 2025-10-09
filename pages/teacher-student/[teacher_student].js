@@ -743,9 +743,17 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
       return;
     }
   
+    // Use globally available teacherName / studentName if present,
+    // or fall back to values in the contract
+    const teacherDisplayName = teacherName || contract.teacher_name || "Teacher";
+    const studentDisplayName = studentName || contract.student_name || "Student";
+  
+    // Build the HTML content safely
     const html = `
+      <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="utf-8" />
           <title>Teaching Contract</title>
           <style>
             body { font-family: 'Times New Roman', serif; padding: 40px; color: #222; }
@@ -760,8 +768,8 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
           <h1>Teaching Services Agreement</h1>
   
           <div class="meta">
-            <p><strong>Teacher:</strong> ${teacherName || "—"}</p>
-            <p><strong>Student:</strong> ${studentName || "—"}</p>
+            <p><strong>Teacher:</strong> ${teacherDisplayName}</p>
+            <p><strong>Student:</strong> ${studentDisplayName}</p>
             <p><strong>Subject:</strong> ${contract.subject || ""}</p>
             <p><strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()}</p>
             <p><strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()}</p>
@@ -772,18 +780,20 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
           </div>
   
           <footer>
-            <p>This document is a legally binding teaching agreement between ${teacherName} and ${studentName}.</p>
+            <p>This document is a legally binding teaching agreement between ${teacherDisplayName} and ${studentDisplayName}.</p>
           </footer>
   
           <script>
             window.onload = function() {
-              setTimeout(() => { window.print(); }, 300);
+              setTimeout(() => window.print(), 500);
             };
           </script>
         </body>
       </html>
     `;
   
+    // Properly write to the new document
+    w.document.open();
     w.document.write(html);
     w.document.close();
   };
