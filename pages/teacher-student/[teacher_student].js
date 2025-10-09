@@ -735,59 +735,59 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
     setShowViewModal(true);
   };
 
-  // print contract: open new window with content and call print
+  // Print contract: open new window with content and call print
   const handlePrint = (contract) => {
-    try {
-      // Open window synchronously to avoid popup blockers
-      const w = window.open("", "_blank", "width=800,height=1000");
-      if (!w) {
-        alert("Popup blocked! Please allow popups for this site to print the contract.");
-        return;
-      }
-  
-      const teacherName = contract.teacher_name || "Teacher";
-      const studentName = contract.student_name || "Student";
-  
-      const html = `
-        <html>
-          <head>
-            <title>Contract</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 40px; color: #222; }
-              h1 { text-align: center; }
-              .meta { margin-bottom: 20px; }
-              .meta strong { display: inline-block; width: 100px; }
-              .content { margin-top: 20px; line-height: 1.6; }
-            </style>
-          </head>
-          <body>
-            <h1>Teaching Services Agreement</h1>
-            <div class="meta">
-              <p><strong>Teacher:</strong> ${teacherName}</p>
-              <p><strong>Student:</strong> ${studentName}</p>
-              <p><strong>Subject:</strong> ${contract.subject || ""}</p>
-              <p><strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()}</p>
-              <p><strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()}</p>
-            </div>
-            <div class="content">
-              ${contract.content}
-            </div>
-            <script>
-              window.onload = function() {
-                setTimeout(() => { window.print(); }, 300);
-              };
-            </script>
-          </body>
-        </html>
-      `;
-  
-      w.document.write(html);
-      w.document.close();
-    } catch (err) {
-      console.error("Print error:", err);
-      alert("Failed to open print view. Please check your browser popup settings.");
+    const w = window.open("", "_blank", "width=800,height=1000");
+    if (!w) {
+      alert("Popup blocked! Please allow popups for this site.");
+      return;
     }
+  
+    const html = `
+      <html>
+        <head>
+          <title>Teaching Contract</title>
+          <style>
+            body { font-family: 'Times New Roman', serif; padding: 40px; color: #222; }
+            h1 { text-align: center; margin-bottom: 30px; text-transform: uppercase; }
+            .meta { margin-bottom: 25px; }
+            .meta strong { display: inline-block; width: 110px; }
+            .content { margin-top: 20px; line-height: 1.6; white-space: pre-wrap; }
+            footer { margin-top: 60px; text-align: center; font-size: 14px; color: #555; }
+          </style>
+        </head>
+        <body>
+          <h1>Teaching Services Agreement</h1>
+  
+          <div class="meta">
+            <p><strong>Teacher:</strong> ${teacherName || "—"}</p>
+            <p><strong>Student:</strong> ${studentName || "—"}</p>
+            <p><strong>Subject:</strong> ${contract.subject || ""}</p>
+            <p><strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()}</p>
+            <p><strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()}</p>
+          </div>
+  
+          <div class="content">
+            ${contract.content}
+          </div>
+  
+          <footer>
+            <p>This document is a legally binding teaching agreement between ${teacherName} and ${studentName}.</p>
+          </footer>
+  
+          <script>
+            window.onload = function() {
+              setTimeout(() => { window.print(); }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+  
+    w.document.write(html);
+    w.document.close();
   };
+
 
 
   // Student accept flow (even though student acceptance handled later on student side, include endpoint here in case teacher views)
