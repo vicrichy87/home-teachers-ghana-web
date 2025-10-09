@@ -9,12 +9,12 @@ export default function StudentPage() {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("profile");
-  
+
   // Teacher search + management
   const [teachers, setTeachers] = useState([]);
   const [myTeachers, setMyTeachers] = useState([]);
 
-   // Search fields
+  // Search fields
   const [searchLocation, setSearchLocation] = useState("");
   const [searchSubject, setSearchSubject] = useState("");
   const [searchLevel, setSearchLevel] = useState("");
@@ -29,7 +29,6 @@ export default function StudentPage() {
   const [selectedRequestApplications, setSelectedRequestApplications] = useState([]);
   const [showApplicationsModal, setShowApplicationsModal] = useState(false);
 
-
   useEffect(() => {
     fetchStudentProfile();
   }, []);
@@ -42,7 +41,7 @@ export default function StudentPage() {
     if (student && tab === "requests") fetchRequests();
   }, [student, tab]);
 
-    // 🌍 Auto-detect location from IP
+  // Auto-detect location from IP (best-effort)
   useEffect(() => {
     async function detectLocation() {
       try {
@@ -58,7 +57,7 @@ export default function StudentPage() {
     detectLocation();
   }, []);
 
-  // 🔹 Fetch student profile
+  // Fetch student profile
   async function fetchStudentProfile() {
     setLoading(true);
     try {
@@ -81,7 +80,7 @@ export default function StudentPage() {
     }
   }
 
-  // 🔹 Fetch My Teachers
+  // Fetch My Teachers
   async function fetchMyTeachers() {
     try {
       const { data, error } = await supabase
@@ -92,6 +91,7 @@ export default function StudentPage() {
           expiry_date,
           subject,
           level,
+          student_id,
           teacher:teacher_id (
             id, full_name, email, phone, city, profile_image
           )
@@ -104,8 +104,9 @@ export default function StudentPage() {
     }
   }
 
-  // 🔹 Requests functions
+  // Requests functions
   async function fetchRequests() {
+    setLoadingRequests(true);
     try {
       const { data, error } = await supabase
         .from("requests")
@@ -119,6 +120,8 @@ export default function StudentPage() {
     } catch (err) {
       console.error("Error fetching requests:", err);
       alert(err.message || String(err));
+    } finally {
+      setLoadingRequests(false);
     }
   }
 
@@ -145,121 +148,102 @@ export default function StudentPage() {
       alert(err.message || String(err));
     }
   }
-  
-    async function handleAcceptApplication(application) {
-      try {
-        console.log("🧩 Checking application object:", application);
-    
-        // ✅ Step 1: Get request_id safely
-        let requestId = application?.request_id;
-        if (!requestId) {
-          console.warn("⚠️ request_id missing — fetching from Supabase...");
-          const { data: reqLookup, error: reqLookupError } = await supabase
-            .from("request_applications")
-            .select("request_id")
-            .eq("id", application.id)
-            .maybeSingle();
-    
-          if (reqLookupError) throw reqLookupError;
-          requestId = reqLookup?.request_id;
-    
-          if (!requestId) throw new Error("❌ Request ID could not be determined.");
-        }
-    
-        // ✅ Step 2: Fetch the request details safely
-        const { data: reqData, error: reqError } = await supabase
-          .from("requests")
-          .select("id, request_text, user_id")
-          .eq("id", requestId)
+
+  async function handleAcceptApplication(application) {
+    try {
+      // 1. Determine request id
+      let requestId = application?.request_id;
+      if (!requestId) {
+        const { data: reqLookup, error: reqLookupError } = await supabase
+          .from("request_applications")
+          .select("request_id")
+          .eq("id", application.id)
           .maybeSingle();
-    
-        if (reqError) throw reqError;
-        if (!reqData) throw new Error("❌ No matching request found for this ID.");
-    
-        // ✅ Step 3: Update the accepted application
-        const { error: acceptError } = await supabase
-          .from("request_applications")
-          .update({ status: "accepted" })
-          .eq("id", application.id);
-    
-        if (acceptError) throw acceptError;
-    
-        // 🚫 Step 4: Reject all other applications for this request
-        const { error: rejectError } = await supabase
-          .from("request_applications")
-          .update({ status: "rejected" })
-          .eq("request_id", requestId)
-          .neq("id", application.id);
-    
-        if (rejectError) throw rejectError;
-    
-        // 👩‍🏫 Step 5: Create link in teacher_students
-        const teacherId = application?.teacher?.id || application?.teacher_id;
-        if (!teacherId) throw new Error("❌ Teacher ID could not be determined.");
-    
-        const dateAdded = new Date();
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
-    
-        console.log("✅ Linking teacher and student:", {
+        if (reqLookupError) throw reqLookupError;
+        requestId = reqLookup?.request_id;
+      }
+      if (!requestId) throw new Error("Request ID could not be determined.");
+
+      // 2. Fetch request
+      const { data: reqData, error: reqError } = await supabase
+        .from("requests")
+        .select("id, request_text, user_id")
+        .eq("id", requestId)
+        .maybeSingle();
+      if (reqError) throw reqError;
+      if (!reqData) throw new Error("No matching request found for this ID.");
+
+      // 3. Accept application
+      const { error: acceptError } = await supabase
+        .from("request_applications")
+        .update({ status: "accepted" })
+        .eq("id", application.id);
+      if (acceptError) throw acceptError;
+
+      // 4. Reject other applications
+      const { error: rejectError } = await supabase
+        .from("request_applications")
+        .update({ status: "rejected" })
+        .eq("request_id", requestId)
+        .neq("id", application.id);
+      if (rejectError) throw rejectError;
+
+      // 5. Link teacher and student
+      const teacherId = application?.teacher?.id || application?.teacher_id;
+      if (!teacherId) throw new Error("Teacher ID could not be determined.");
+
+      const dateAdded = new Date();
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+      const { error: linkError } = await supabase.from("teacher_students").insert([
+        {
           teacher_id: teacherId,
           student_id: reqData.user_id,
           subject: reqData.request_text,
-        });
-    
-        const { error: linkError } = await supabase.from("teacher_students").insert([
-          {
-            teacher_id: teacherId,
-            student_id: reqData.user_id,
-            subject: reqData.request_text,
-            level: "request",
-            date_added: dateAdded.toISOString().split("T")[0],
-            expiry_date: expiryDate.toISOString().split("T")[0],
-          },
-        ]);
-    
-        if (linkError) throw linkError;
-    
-        // ✅ Step 6: Update the request to "fulfilled"
-        const { error: fulfillError } = await supabase
-          .from("requests")
-          .update({ status: "fulfilled" })
-          .eq("id", requestId);
-    
-        if (fulfillError) throw fulfillError;
-    
-        // 🎉 Step 7: Success feedback and refresh UI
-        alert("✅ Application accepted successfully!");
-        setShowApplicationsModal(false);
-        await fetchRequests();
-        await fetchMyTeachers();
-        setTab("myTeachers");
-    
-      } catch (err) {
-        console.error("❌ Error in handleAcceptApplication:", err);
-        alert(err.message || "An error occurred while accepting the application.");
-      }
-    }
+          level: "request",
+          date_added: dateAdded.toISOString().split("T")[0],
+          expiry_date: expiryDate.toISOString().split("T")[0],
+        },
+      ]);
+      if (linkError) throw linkError;
 
-      // Reject teacher application
-    async function handleRejectApplication(app) {
-      try {
-        const { error } = await supabase
-          .from("request_applications")
-          .update({ status: "rejected" })
-          .eq("id", app.id);
-        if (error) throw error;
-    
-        alert("Application rejected successfully.");
-        // Optionally refresh the list to show updated status
-        handleViewApplications(app.request_id);
-      } catch (err) {
-        console.error("Error rejecting application:", err);
-        alert(err.message || "Failed to reject application.");
-      }
-    }
+      // 6. Mark request fulfilled
+      const { error: fulfillError } = await supabase
+        .from("requests")
+        .update({ status: "fulfilled" })
+        .eq("id", requestId);
+      if (fulfillError) throw fulfillError;
 
-    // 🔍 Teacher searches
+      alert("Application accepted successfully!");
+      setShowApplicationsModal(false);
+      await fetchRequests();
+      await fetchMyTeachers();
+      setTab("myTeachers");
+    } catch (err) {
+      console.error("Error in handleAcceptApplication:", err);
+      alert(err.message || "An error occurred while accepting the application.");
+    }
+  }
+
+  // Reject teacher application
+  async function handleRejectApplication(app) {
+    try {
+      const { error } = await supabase
+        .from("request_applications")
+        .update({ status: "rejected" })
+        .eq("id", app.id);
+      if (error) throw error;
+
+      alert("Application rejected successfully.");
+      handleViewApplications(app.request_id);
+    } catch (err) {
+      console.error("Error rejecting application:", err);
+      alert(err.message || "Failed to reject application.");
+    }
+  }
+
+  // Teacher searches
   async function handleSearchByLocation() {
     try {
       const { data, error } = await supabase
@@ -307,7 +291,7 @@ export default function StudentPage() {
     }
   }
 
-  // 🔹 Pay to register with teacher
+  // Pay to register with teacher
   async function handlePayToRegister(teacherId, subject, level) {
     try {
       if (!student) return alert("Student not found");
@@ -334,80 +318,75 @@ export default function StudentPage() {
     }
   }
 
-      // Edit request
-    async function handleEditRequest(requestId, newText) {
-      try {
-        const { error } = await supabase
-          .from("requests")
-          .update({ request_text: newText })
-          .eq("id", requestId);
-        if (error) throw error;
-        fetchRequests();
-        alert("Request updated successfully!");
-      } catch (err) {
-        alert(err.message || String(err));
-      }
+  // Edit request
+  async function handleEditRequest(requestId, newText) {
+    try {
+      const { error } = await supabase
+        .from("requests")
+        .update({ request_text: newText })
+        .eq("id", requestId);
+      if (error) throw error;
+      fetchRequests();
+      alert("Request updated successfully!");
+    } catch (err) {
+      alert(err.message || String(err));
     }
-    
-    // Delete request
-    async function handleDeleteRequest(requestId) {
-      if (!confirm("Are you sure you want to delete this request?")) return;
-      try {
-        // Instantly update UI
-        setRequests(prev => prev.filter(r => r.id !== requestId));
-        setFilteredRequests(prev => prev.filter(r => r.id !== requestId));
-  
-        // Then delete from backend
-        const { error } = await supabase
-          .from("requests")
-          .delete()
-          .eq("id", requestId);
-  
-        if (error) throw error;
-  
-        // Re-fetch to confirm
-        await fetchRequests();
-        alert("Request deleted successfully!");
-      } catch (err) {
-        console.error("Error deleting request:", err);
-        alert(err.message || String(err));
-      }
-    }
+  }
 
-    // View applications in modal  
-  async function handleViewApplications(requestId) {
-     console.log("🪄 handleViewApplications called with requestId:", requestId);
-      try {
-        const { data, error } = await supabase
-          .from("request_applications")
-          .select(`
-            id,
-            request_id,
-            teacher_id,
-            monthly_rate,
-            status,
-            date_applied,
-            teacher:teacher_id (
-              id,
-              full_name,
-              profile_image,
-              city
-            )
-          `)
-          .eq("request_id", requestId);
-    
-        if (error) throw error;
-    
-        console.log("✅ Applications fetched:", data);
-        setSelectedRequestApplications(data || []);
-        setShowApplicationsModal(true);
-      } catch (err) {
-        console.error("Error fetching applications:", err);
-        alert(err.message || String(err));
-      }
+  // Delete request
+  async function handleDeleteRequest(requestId) {
+    if (!confirm("Are you sure you want to delete this request?")) return;
+    try {
+      setRequests(prev => prev.filter(r => r.id !== requestId));
+      setFilteredRequests(prev => prev.filter(r => r.id !== requestId));
+
+      const { error } = await supabase
+        .from("requests")
+        .delete()
+        .eq("id", requestId);
+
+      if (error) throw error;
+
+      await fetchRequests();
+      alert("Request deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting request:", err);
+      alert(err.message || String(err));
     }
-    
-  // ✅ Upload profile image
+  }
+
+  // View applications in modal
+  async function handleViewApplications(requestId) {
+    try {
+      const { data, error } = await supabase
+        .from("request_applications")
+        .select(`
+          id,
+          request_id,
+          teacher_id,
+          monthly_rate,
+          status,
+          date_applied,
+          teacher:teacher_id (
+            id,
+            full_name,
+            profile_image,
+            city
+          )
+        `)
+        .eq("request_id", requestId);
+
+      if (error) throw error;
+
+      setSelectedRequestApplications(data || []);
+      setShowApplicationsModal(true);
+    } catch (err) {
+      console.error("Error fetching applications:", err);
+      alert(err.message || String(err));
+    }
+  }
+
+  // Upload profile image
   async function uploadProfileImage(file) {
     try {
       setUploading(true);
@@ -452,19 +431,19 @@ export default function StudentPage() {
         <Banner />
         <div className="mt-4">
           <div className="flex gap-3">
-            {["profile", "searchTeacher", "myTeachers", "requests"].map(t => (
+            {["profile", "searchTeacher", "myTeachers", "requests"].map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`px-3 py-1 rounded ${tab===t? "bg-sky-600 text-white":"bg-sky-50"}`}
+                className={`px-3 py-1 rounded ${tab === t ? "bg-sky-600 text-white" : "bg-sky-50"}`}
               >
-                {t==="profile" ? "Profile" : t==="searchTeacher"? "Search Teacher" : t==="myTeachers"? "My Teachers":"Requests"}
+                {t === "profile" ? "Profile" : t === "searchTeacher" ? "Search Teacher" : t === "myTeachers" ? "My Teachers" : "Requests"}
               </button>
             ))}
           </div>
 
           {/* Profile Tab */}
-          {tab==="profile" && (
+          {tab === "profile" && (
             <div className="mt-4 flex gap-4">
               <div>
                 <img
@@ -479,7 +458,7 @@ export default function StudentPage() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e)=> uploadProfileImage(e.target.files[0])}
+                      onChange={(e) => uploadProfileImage(e.target.files[0])}
                     />
                   </label>
                 </div>
@@ -494,13 +473,12 @@ export default function StudentPage() {
           )}
 
           {/* Search Teacher Tab */}
-          {tab==="searchTeacher" && (
+          {tab === "searchTeacher" && (
             <div className="mt-4 space-y-4">
-              {/* Location and Subject Filters */}
               <div>
                 <input
                   value={searchLocation}
-                  onChange={(e)=>setSearchLocation(e.target.value)}
+                  onChange={(e) => setSearchLocation(e.target.value)}
                   placeholder="Location (city)"
                   className="w-full p-2 border rounded"
                 />
@@ -513,17 +491,18 @@ export default function StudentPage() {
                   </button>
                 </div>
               </div>
+
               <div>
                 <input
                   value={searchSubject}
-                  onChange={(e)=>setSearchSubject(e.target.value)}
+                  onChange={(e) => setSearchSubject(e.target.value)}
                   placeholder="Subject"
                   className="w-full p-2 border rounded"
                 />
                 <div className="flex gap-2 mt-2">
                   <select
                     value={searchLevel}
-                    onChange={(e)=>setSearchLevel(e.target.value)}
+                    onChange={(e) => setSearchLevel(e.target.value)}
                     className="p-2 border rounded"
                   >
                     <option value="">Select level</option>
@@ -592,16 +571,14 @@ export default function StudentPage() {
             </div>
           )}
 
-         {/* My Teachers Tab */}
+          {/* My Teachers Tab */}
           {tab === "myTeachers" && (
             <div className="mt-4 space-y-6">
               <div>
                 <h4 className="font-semibold mb-3">My Teachers</h4>
                 <div className="space-y-3">
                   {myTeachers.filter((m) => m.level !== "request").length === 0 ? (
-                    <div className="text-slate-600">
-                      You have no registered teachers.
-                    </div>
+                    <div className="text-slate-600">You have no registered teachers.</div>
                   ) : (
                     Object.values(
                       myTeachers
@@ -614,9 +591,7 @@ export default function StudentPage() {
                       <div
                         key={m.teacher.id}
                         className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50 transition"
-                        onClick={() =>
-                          router.push(`/student-teacher/${m.student_id}_${m.teacher.id}`)
-                        }
+                        onClick={() => router.push(`/student-teacher/${m.student_id}_${m.teacher.id}`)}
                       >
                         <img
                           src={m.teacher?.profile_image || "/placeholder.png"}
@@ -624,35 +599,25 @@ export default function StudentPage() {
                           className="w-16 h-16 rounded-full border object-cover"
                         />
                         <div className="flex-1">
-                          <div className="font-semibold text-lg">
-                            {m.teacher.full_name}
-                          </div>
-                          <div className="text-sm text-slate-600">
-                            {m.teacher.email} | {m.teacher.phone}
-                          </div>
+                          <div className="font-semibold text-lg">{m.teacher.full_name}</div>
+                          <div className="text-sm text-slate-600">{m.teacher.email} | {m.teacher.phone}</div>
                           <div className="text-sm">
-                            Subject:{" "}
-                            <span className="font-medium">{m.subject}</span> ({m.level})
+                            Subject: <span className="font-medium">{m.subject}</span> ({m.level})
                           </div>
                           <div className="text-xs text-slate-500 mb-1">
                             Date added: {m.date_added} — Expires: {m.expiry_date}
                           </div>
-          
-                          {/* 👇 New label */}
                           <div className="text-xs italic text-sky-600 mt-1">
                             Tap to view all subjects and sessions with this teacher
                           </div>
                         </div>
                       </div>
-                    )) 
-                  )}   
+                    ))
+                  )}
                 </div>
               </div>
-            </div>
-          )}         
-          
 
-              {/* Request Teachers */}
+              {/* Request Teachers (below normal My Teachers) */}
               <div>
                 <h4 className="font-semibold mb-3">Request Teachers</h4>
                 <div className="space-y-3">
@@ -677,15 +642,11 @@ export default function StudentPage() {
                               <span className="font-semibold text-lg">{m.teacher.full_name}</span>
                               <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Request</span>
                             </div>
-                            <div className="text-sm text-slate-600">
-                              {m.teacher.email} | {m.teacher.phone}
-                            </div>
+                            <div className="text-sm text-slate-600">{m.teacher.email} | {m.teacher.phone}</div>
                             <div className="text-sm">
                               Subject: <span className="font-medium">{m.subject}</span> ({m.level})
                             </div>
-                            <div className="text-xs text-slate-500">
-                              Date added: {m.date_added} — Expires: {m.expiry_date}
-                            </div>
+                            <div className="text-xs text-slate-500">Date added: {m.date_added} — Expires: {m.expiry_date}</div>
                           </div>
                         </div>
                       ))
@@ -695,161 +656,125 @@ export default function StudentPage() {
             </div>
           )}
 
-                  {/* Requests Tab */}
-                  {tab === "requests" && (
-                    <div className="mt-4">
-                      <h4 className="font-semibold mb-2">My Requests</h4>
-                  
-                      {/* Create Request */}
-                      <div className="mb-4">
-                        <textarea
-                          value={requestForm.request_text}
-                          onChange={(e) => setRequestForm({ request_text: e.target.value })}
-                          placeholder="Enter your request here..."
-                          className="w-full p-2 border rounded"
-                        />
+          {/* Requests Tab */}
+          {tab === "requests" && (
+            <div className="mt-4">
+              <h4 className="font-semibold mb-2">My Requests</h4>
+
+              {/* Create Request */}
+              <div className="mb-4">
+                <textarea
+                  value={requestForm.request_text}
+                  onChange={(e) => setRequestForm({ request_text: e.target.value })}
+                  placeholder="Enter your request here..."
+                  className="w-full p-2 border rounded"
+                />
+                <button
+                  onClick={handleCreateRequest}
+                  className="mt-2 bg-green-600 text-white px-4 py-2 rounded"
+                >
+                  Create Request
+                </button>
+              </div>
+
+              {/* List Requests */}
+              {loadingRequests ? (
+                <p>Loading requests...</p>
+              ) : filteredRequests.length === 0 ? (
+                <p className="text-slate-600">No requests found.</p>
+              ) : (
+                <div className="space-y-3">
+                  {filteredRequests.map((r) => (
+                    <div
+                      key={r.id}
+                      className={`border p-4 rounded shadow-sm transition ${r.status === "fulfilled" ? "bg-gray-100 opacity-70 cursor-not-allowed" : "bg-white"}`}
+                    >
+                      <div className="mb-2">{r.request_text}</div>
+                      <p className={`text-sm font-medium mt-1 ${r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"}`}>
+                        Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
+                      </p>
+
+                      {/* Buttons */}
+                      <div className="flex gap-2 mt-2">
+                        {r.status !== "fulfilled" && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const newText = prompt("Edit your request:", r.request_text);
+                                if (newText !== null) handleEditRequest(r.id, newText);
+                              }}
+                              className="px-3 py-1 bg-yellow-400 text-white rounded"
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteRequest(r.id)}
+                              className="px-3 py-1 bg-red-600 text-white rounded"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+
                         <button
-                          onClick={handleCreateRequest}
-                          className="mt-2 bg-green-600 text-white px-4 py-2 rounded"
+                          onClick={() => handleViewApplications(r.id)}
+                          disabled={r.status === "fulfilled"}
+                          className={`px-3 py-1 rounded text-white ${r.status === "fulfilled" ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
                         >
-                          Create Request
+                          View Applications
                         </button>
                       </div>
-                  
-                      {/* List Requests */}
-                      {loadingRequests ? (
-                        <p>Loading requests...</p>
-                      ) : filteredRequests.length === 0 ? (
-                        <p className="text-slate-600">No requests found.</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {filteredRequests.map((r) => (
-                            <div
-                              key={r.id}
-                              className={`border p-4 rounded shadow-sm transition ${
-                                r.status === "fulfilled"
-                                  ? "bg-gray-100 opacity-70 cursor-not-allowed"
-                                  : "bg-white"
-                              }`}
-                            >
-                              <div className="mb-2">{r.request_text}</div>
-                              <p
-                                className={`text-sm font-medium mt-1 ${
-                                  r.status === "fulfilled" ? "text-green-600" : "text-yellow-600"
-                                }`}
-                              >
-                                Status: {r.status} | Created at: {new Date(r.created_at).toLocaleString()}
-                              </p>
-                      
-                              {/* Buttons */}
-                              <div className="flex gap-2 mt-2">
-                                {r.status !== "fulfilled" && (
-                                  <>
-                                    <button
-                                      onClick={() => {
-                                        const newText = prompt("Edit your request:", r.request_text);
-                                        if (newText !== null) handleEditRequest(r.id, newText);
-                                      }}
-                                      className="px-3 py-1 bg-yellow-400 text-white rounded"
-                                    >
-                                      Edit
-                                    </button>
-                      
-                                    <button
-                                      onClick={() => handleDeleteRequest(r.id)}
-                                      className="px-3 py-1 bg-red-600 text-white rounded"
-                                    >
-                                      Delete
-                                    </button>
-                                  </>
-                                )}
-                      
-                                <button
-                                  onClick={() => handleViewApplications(r.id)}
-                                  disabled={r.status === "fulfilled"}
-                                  className={`px-3 py-1 rounded text-white ${
-                                    r.status === "fulfilled"
-                                      ? "bg-gray-400 cursor-not-allowed"
-                                      : "bg-blue-600 hover:bg-blue-700"
-                                  }`}
-                                >
-                                  View Applications
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                  
                     </div>
-                  )}
-                  
-                  {/* Applications Modal */}
-                  {showApplicationsModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-                      <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
-                        <h2 className="text-lg font-bold mb-4">Teacher Applications</h2>
-                  
-                        {selectedRequestApplications.length === 0 ? (
-                          <p className="text-gray-500">No applications yet.</p>
-                        ) : (
-                          <div className="space-y-3 max-h-96 overflow-y-auto">
-                            {selectedRequestApplications.map((app) => (
-                              <div
-                                key={app.id}
-                                className="p-3 border rounded bg-gray-50 flex gap-4 items-center"
-                              >
-                                <img
-                                  src={app.teacher?.profile_image || "/placeholder.png"}
-                                  alt={app.teacher?.full_name}
-                                  className="w-12 h-12 rounded-full border object-cover"
-                                />
-                                <div className="flex-1">
-                                  <div className="font-semibold">{app.teacher?.full_name}</div>
-                                  <div className="text-sm text-gray-500">{app.teacher?.city}</div>
-                                  <div className="text-sm">
-                                    Monthly Rate: GHC {app.monthly_rate} — Status: {app.status}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    Applied on: {new Date(app.date_applied).toLocaleString()}
-                                  </div>
-                                  {app.status === "pending" && (
-                                    <div className="flex gap-2 mt-2">
-                                      <button
-                                        className="bg-green-600 text-white px-3 py-1 rounded"
-                                        onClick={() => handleAcceptApplication(app)}
-                                      >
-                                        Accept
-                                      </button>
-                                      <button
-                                        className="bg-red-600 text-white px-3 py-1 rounded"
-                                        onClick={() => handleRejectApplication(app)}
-                                      >
-                                        Reject
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                  
-                        <div className="flex justify-end mt-4">
-                          <button
-                            className="bg-gray-400 px-4 py-2 rounded text-white"
-                            onClick={() => setShowApplicationsModal(false)}
-                          >
-                            Close
-                          </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Applications Modal */}
+          {showApplicationsModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full">
+                <h2 className="text-lg font-bold mb-4">Teacher Applications</h2>
+
+                {selectedRequestApplications.length === 0 ? (
+                  <p className="text-gray-500">No applications yet.</p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {selectedRequestApplications.map((app) => (
+                      <div key={app.id} className="p-3 border rounded bg-gray-50 flex gap-4 items-center">
+                        <img
+                          src={app.teacher?.profile_image || "/placeholder.png"}
+                          alt={app.teacher?.full_name}
+                          className="w-12 h-12 rounded-full border object-cover"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold">{app.teacher?.full_name}</div>
+                          <div className="text-sm text-gray-500">{app.teacher?.city}</div>
+                          <div className="text-sm">Monthly Rate: GHC {app.monthly_rate} — Status: {app.status}</div>
+                          <div className="text-xs text-gray-400">Applied on: {new Date(app.date_applied).toLocaleString()}</div>
+                          {app.status === "pending" && (
+                            <div className="flex gap-2 mt-2">
+                              <button className="bg-green-600 text-white px-3 py-1 rounded" onClick={() => handleAcceptApplication(app)}>Accept</button>
+                              <button className="bg-red-600 text-white px-3 py-1 rounded" onClick={() => handleRejectApplication(app)}>Reject</button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  )}
-                  
-      
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex justify-end mt-4">
+                  <button className="bg-gray-400 px-4 py-2 rounded text-white" onClick={() => setShowApplicationsModal(false)}>Close</button>
+                </div>
               </div>
             </div>
-          </div>
-        );
-      }         
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
