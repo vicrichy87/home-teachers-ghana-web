@@ -614,97 +614,80 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
     // Create contract (teacher only)
   
   const handleCreateContract = async () => {
-    if (!teacher || !student) return alert("Teacher or student not found.");
+    if (!teacherId || !studentId || !subject) {
+      alert("Missing teacher, student, or subject information.");
+      return;
+    }
   
-    setCreatingContract(true);
+    setCreating(true);
     try {
-      const createdAt = new Date();
-      const expiryAt = new Date();
-      expiryAt.setMonth(expiryAt.getMonth() + 1); // expires in 1 month
+      // Fetch teacher and student names from Supabase
+      const { data: teacherData } = await supabase
+        .from("users")
+        .select("full_name")
+        .eq("id", teacherId)
+        .single();
   
-      // Formal contract content with names at the top
+      const { data: studentData } = await supabase
+        .from("users")
+        .select("full_name")
+        .eq("id", studentId)
+        .single();
+  
+      const teacherName = teacherData?.full_name || "Teacher";
+      const studentName = studentData?.full_name || "Student";
+  
+      // Compute dates
+      const today = new Date();
+      const expiryDate = new Date(today);
+      expiryDate.setMonth(expiryDate.getMonth() + 1);
+  
+      // Build contract content
       const content = `
-        <div style="font-family: 'Times New Roman', serif; line-height: 1.6;">
-          <h2 style="text-align: center; text-decoration: underline;">TEACHING SERVICES AGREEMENT</h2>
-  
-          <p>
-            This <strong>Teaching Services Agreement</strong> (“Agreement”) is entered into on 
-            <strong>${createdAt.toDateString()}</strong> between:
-          </p>
-  
-          <p>
-            <strong>${teacher.full_name}</strong>, hereinafter referred to as the <strong>“Teacher”</strong>, and
-            <strong>${student.full_name}</strong>, hereinafter referred to as the <strong>“Student.”</strong>
-          </p>
-  
-          <h3 style="margin-top: 20px;">1. PURPOSE OF AGREEMENT</h3>
-          <p>
-            The purpose of this Agreement is to outline the terms and conditions under which the Teacher shall
-            provide private academic instruction to the Student in the agreed subject area.
-          </p>
-  
-          <h3 style="margin-top: 20px;">2. DURATION</h3>
-          <p>
-            This Agreement shall commence on <strong>${createdAt.toDateString()}</strong> and shall automatically expire on 
-            <strong>${expiryAt.toDateString()}</strong>, unless extended by mutual written agreement between both parties.
-          </p>
-  
-          <h3 style="margin-top: 20px;">3. RESPONSIBILITIES OF THE TEACHER</h3>
-          <ul>
-            <li>Deliver lessons punctually and in accordance with the agreed timetable.</li>
-            <li>Provide a professional, respectful, and supportive learning environment.</li>
-            <li>Communicate progress and challenges clearly to the Student (or the Parent/Guardian, where applicable).</li>
-          </ul>
-  
-          <h3 style="margin-top: 20px;">4. RESPONSIBILITIES OF THE STUDENT</h3>
-          <ul>
-            <li>Attend lessons punctually and be prepared for class activities.</li>
-            <li>Complete assigned work and maintain good communication with the Teacher.</li>
-            <li>Respect the Teacher and adhere to academic guidelines.</li>
-          </ul>
-  
-          <h3 style="margin-top: 20px;">5. FEES AND PAYMENT</h3>
-          <p>
-            Lesson rates and payment schedules shall be agreed upon separately and are payable in accordance 
-            with Home Teachers Ghana policies or mutual arrangement between the Teacher and Student.
-          </p>
-  
-          <h3 style="margin-top: 20px;">6. TERMINATION</h3>
-          <p>
-            Either party may terminate this Agreement before its expiry date by providing reasonable notice.
-            In the event of termination, both parties shall settle any outstanding payments or obligations.
-          </p>
-  
-          <h3 style="margin-top: 20px;">7. ACCEPTANCE</h3>
-          <p>
-            By checking the boxes below, both parties acknowledge that they have read, understood, and agreed
-            to the terms of this Agreement.
-          </p>
+        <h2 style="text-align:center; font-weight:bold; margin-bottom:10px;">TEACHING SERVICES AGREEMENT</h2>
+        <p>This Teaching Agreement ("Agreement") is entered into on <strong>${today.toLocaleDateString()}</strong> between:</p>
+        <ul>
+          <li><strong>Teacher:</strong> ${teacherName}</li>
+          <li><strong>Student:</strong> ${studentName}</li>
+        </ul>
+        <p>Both parties agree to the following terms:</p>
+        <ol>
+          <li>The Teacher agrees to provide academic tutoring in <strong>${subject}</strong>.</li>
+          <li>The Student agrees to attend scheduled lessons as per the mutually agreed timetable.</li>
+          <li>Payment for services shall be handled directly between the Parent/Guardian and the Teacher.</li>
+          <li>This Agreement remains valid for one month, starting <strong>${today.toLocaleDateString()}</strong> and expiring <strong>${expiryDate.toLocaleDateString()}</strong>.</li>
+          <li>Either party may terminate the Agreement with reasonable notice.</li>
+        </ol>
+        <p>By checking below, both parties acknowledge acceptance.</p>
+        <div style="margin-top:20px;">
+          <label><input type="checkbox" disabled checked> ${teacherName} (Teacher)</label><br/>
+          <label><input type="checkbox" disabled> ${studentName} (Student)</label>
         </div>
       `;
   
-      const { data, error } = await supabase.from("contracts").insert([
-        {
-          teacher_id: teacher.id,
-          student_id: student.id,
-          content,
-          created_at: createdAt.toISOString(),
-          expiry_date: expiryAt.toISOString(),
-          teacher_accept: false,
-          student_accept: false,
-          file_url: "N/A",
-        },
-      ]);
+      // Insert into Supabase
+      const { error } = await supabase.from("contracts").insert({
+        teacher_id: teacherId,
+        student_id: studentId,
+        subject,
+        content,
+        teacher_accept: true,
+        student_accept: false,
+        date_signed: today.toISOString(),
+        expiry_date: expiryDate.toISOString(),
+        file_url: "", // optional
+      });
   
       if (error) throw error;
   
-      alert("Contract created successfully!");
-      fetchContract(); // reload contract display
+      alert("Contract created successfully.");
+      setShowCreateModal(false);
+      await refreshContracts();
     } catch (err) {
-      console.error("Failed to create contract:", err.message);
-      alert("Failed to create contract: " + err.message);
+      console.error(err);
+      alert("Failed to create contract: " + (err.message || err));
     } finally {
-      setCreatingContract(false);
+      setCreating(false);
     }
   };
   
@@ -810,7 +793,7 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
           teacherNamePlaceholder="Teacher"
           studentNamePlaceholder="Student"
           onCancel={() => setShowCreateModal(false)}
-          onCreate={handleCreateContract}
+          onCreate={() => handleCreateContract({ teacherName: teacherNameFromRelations(), studentName: studentNameFromRelations() })}
           creating={creating}
         />
       )}
