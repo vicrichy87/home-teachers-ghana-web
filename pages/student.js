@@ -644,13 +644,13 @@ export default function StudentPage() {
                           </div>
                         </div>
                       </div>
-                    ))
-                  )}
+                    )) // ✅ closes map()
+                  )}   {/* ✅ closes the ternary */}
                 </div>
               </div>
             </div>
-          )}
-
+          )}         {/* ✅ closes the tab === "myTeachers" block */}
+          
 
               {/* Request Teachers */}
               <div>
@@ -854,6 +854,7 @@ export default function StudentPage() {
         );
       }         
  
+
 
 
 
