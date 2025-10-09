@@ -598,13 +598,14 @@ export default function StudentPage() {
               <div>
                 <h4 className="font-semibold mb-3">My Teachers</h4>
                 <div className="space-y-3">
-                  {myTeachers.filter(m => m.level !== "request").length === 0 ? (
-                    <div className="text-slate-600">You have no registered teachers.</div>
+                  {myTeachers.filter((m) => m.level !== "request").length === 0 ? (
+                    <div className="text-slate-600">
+                      You have no registered teachers.
+                    </div>
                   ) : (
-                    // ✅ Only one record per teacher
                     Object.values(
                       myTeachers
-                        .filter(m => m.level !== "request")
+                        .filter((m) => m.level !== "request")
                         .reduce((acc, m) => {
                           if (!acc[m.teacher.id]) acc[m.teacher.id] = m;
                           return acc;
@@ -623,12 +624,15 @@ export default function StudentPage() {
                           className="w-16 h-16 rounded-full border object-cover"
                         />
                         <div className="flex-1">
-                          <div className="font-semibold text-lg">{m.teacher.full_name}</div>
+                          <div className="font-semibold text-lg">
+                            {m.teacher.full_name}
+                          </div>
                           <div className="text-sm text-slate-600">
                             {m.teacher.email} | {m.teacher.phone}
                           </div>
                           <div className="text-sm">
-                            Subject: <span className="font-medium">{m.subject}</span> ({m.level})
+                            Subject:{" "}
+                            <span className="font-medium">{m.subject}</span> ({m.level})
                           </div>
                           <div className="text-xs text-slate-500 mb-1">
                             Date added: {m.date_added} — Expires: {m.expiry_date}
@@ -646,6 +650,7 @@ export default function StudentPage() {
               </div>
             </div>
           )}
+
 
               {/* Request Teachers */}
               <div>
@@ -849,5 +854,6 @@ export default function StudentPage() {
         );
       }         
  
+
 
 
