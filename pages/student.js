@@ -614,7 +614,7 @@ export default function StudentPage() {
                         key={m.teacher.id}
                         className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50 transition"
                         onClick={() =>
-                          router.push(`/teacher-student/${m.student_id}_${m.teacher.id}`)
+                          router.push(`/student-teacher/${m.student_id}_${m.teacher.id}`)
                         }
                       >
                         <img
@@ -849,4 +849,5 @@ export default function StudentPage() {
         );
       }         
  
+
 
