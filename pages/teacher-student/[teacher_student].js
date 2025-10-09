@@ -737,37 +737,58 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
 
   // print contract: open new window with content and call print
   const handlePrint = (contract) => {
-    const w = window.open("", "_blank");
-    if (!w) return alert("Unable to open print window (popup blocked?)");
-    const html = `
-      <html>
-        <head>
-          <title>Contract</title>
-          <style>
-            body { font-family: sans-serif; padding: 24px; }
-            pre { white-space: pre-wrap; font-family: inherit; }
-            .meta { margin-bottom: 16px; }
-          </style>
-        </head>
-        <body>
-          <div class="meta">
-            <strong>Teacher:</strong> ${teacherName || ""} <br/>
-            <strong>Student:</strong> ${studentName || ""} <br/>
-            <strong>Subject:</strong> ${contract.subject || ""} <br/>
-            <strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()} <br/>
-            <strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()} <br/>
-          </div>
-          <pre>${contract.content}</pre>
-          <script>
-            window.onload = function(){ setTimeout(()=>{ window.print(); }, 250); };
-          </script>
-        </body>
-      </html>
-    `;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    try {
+      // Open window synchronously to avoid popup blockers
+      const w = window.open("", "_blank", "width=800,height=1000");
+      if (!w) {
+        alert("Popup blocked! Please allow popups for this site to print the contract.");
+        return;
+      }
+  
+      const teacherName = contract.teacher_name || "Teacher";
+      const studentName = contract.student_name || "Student";
+  
+      const html = `
+        <html>
+          <head>
+            <title>Contract</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 40px; color: #222; }
+              h1 { text-align: center; }
+              .meta { margin-bottom: 20px; }
+              .meta strong { display: inline-block; width: 100px; }
+              .content { margin-top: 20px; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <h1>Teaching Services Agreement</h1>
+            <div class="meta">
+              <p><strong>Teacher:</strong> ${teacherName}</p>
+              <p><strong>Student:</strong> ${studentName}</p>
+              <p><strong>Subject:</strong> ${contract.subject || ""}</p>
+              <p><strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()}</p>
+              <p><strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()}</p>
+            </div>
+            <div class="content">
+              ${contract.content}
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(() => { window.print(); }, 300);
+              };
+            </script>
+          </body>
+        </html>
+      `;
+  
+      w.document.write(html);
+      w.document.close();
+    } catch (err) {
+      console.error("Print error:", err);
+      alert("Failed to open print view. Please check your browser popup settings.");
+    }
   };
+
 
   // Student accept flow (even though student acceptance handled later on student side, include endpoint here in case teacher views)
   const toggleAccept = async (contract, who) => {
