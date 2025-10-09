@@ -810,7 +810,7 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
           teacherNamePlaceholder="Teacher"
           studentNamePlaceholder="Student"
           onCancel={() => setShowCreateModal(false)}
-          onCreate={() => {handleCreateContract}
+          onCreate={handleCreateContract}
           creating={creating}
         />
       )}
