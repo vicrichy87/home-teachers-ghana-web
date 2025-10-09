@@ -592,47 +592,61 @@ export default function StudentPage() {
             </div>
           )}
 
-          {/* My Teachers Tab */}
+         {/* My Teachers Tab */}
           {tab === "myTeachers" && (
             <div className="mt-4 space-y-6">
-              {/* Normal Teachers */}
               <div>
                 <h4 className="font-semibold mb-3">My Teachers</h4>
                 <div className="space-y-3">
                   {myTeachers.filter(m => m.level !== "request").length === 0 ? (
                     <div className="text-slate-600">You have no registered teachers.</div>
                   ) : (
-                    myTeachers
-                      .filter(m => m.level !== "request")
-                      .map((m) => (
-                        <div
-                          key={m.id}
-                          className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50"
-                          onClick={() => router.push(`/teacher/${m.teacher.id}`)}
-                        >
-                          <img
-                            src={m.teacher?.profile_image || "/placeholder.png"}
-                            alt={m.teacher?.full_name}
-                            className="w-16 h-16 rounded-full border object-cover"
-                          />
-                          <div>
-                            <div className="font-semibold text-lg">{m.teacher.full_name}</div>
-                            <div className="text-sm text-slate-600">
-                              {m.teacher.email} | {m.teacher.phone}
-                            </div>
-                            <div className="text-sm">
-                              Subject: <span className="font-medium">{m.subject}</span> ({m.level})
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              Date added: {m.date_added} — Expires: {m.expiry_date}
-                            </div>
+                    // ✅ Only one record per teacher
+                    Object.values(
+                      myTeachers
+                        .filter(m => m.level !== "request")
+                        .reduce((acc, m) => {
+                          if (!acc[m.teacher.id]) acc[m.teacher.id] = m;
+                          return acc;
+                        }, {})
+                    ).map((m) => (
+                      <div
+                        key={m.teacher.id}
+                        className="p-4 border rounded bg-gray-50 flex gap-4 items-center cursor-pointer hover:bg-slate-50 transition"
+                        onClick={() =>
+                          router.push(`/teacher-student/${m.student_id}_${m.teacher.id}`)
+                        }
+                      >
+                        <img
+                          src={m.teacher?.profile_image || "/placeholder.png"}
+                          alt={m.teacher?.full_name}
+                          className="w-16 h-16 rounded-full border object-cover"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold text-lg">{m.teacher.full_name}</div>
+                          <div className="text-sm text-slate-600">
+                            {m.teacher.email} | {m.teacher.phone}
+                          </div>
+                          <div className="text-sm">
+                            Subject: <span className="font-medium">{m.subject}</span> ({m.level})
+                          </div>
+                          <div className="text-xs text-slate-500 mb-1">
+                            Date added: {m.date_added} — Expires: {m.expiry_date}
+                          </div>
+          
+                          {/* 👇 New label */}
+                          <div className="text-xs italic text-sky-600 mt-1">
+                            Tap to view all subjects and sessions with this teacher
                           </div>
                         </div>
-                      ))
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
-          
+            </div>
+          )}
+
               {/* Request Teachers */}
               <div>
                 <h4 className="font-semibold mb-3">Request Teachers</h4>
@@ -835,3 +849,4 @@ export default function StudentPage() {
         );
       }         
  
+
