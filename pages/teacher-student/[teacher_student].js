@@ -101,7 +101,7 @@ export default function TeacherStudentPage() {
     fetchUser();
   }, []);
 
-  const currentUserId = currentUser?.id;
+  
 
 
   // Helper: refresh Zoom meetings (queried by subject)
