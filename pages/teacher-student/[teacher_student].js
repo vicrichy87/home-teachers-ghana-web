@@ -649,7 +649,7 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
 
         <p>
           This <strong>Teaching Services Agreement</strong> (“Agreement”) is entered into on 
-          <strong>${createdAt.toDateString()}</strong> between:
+          <strong>${today.toLocaleDateString()}</strong> between:
         </p>
 
         <p>
@@ -665,8 +665,8 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
 
         <h3 style="margin-top: 20px;">2. DURATION</h3>
         <p>
-          This Agreement shall commence on <strong>${createdAt.toDateString()}</strong> and shall automatically expire on 
-          <strong>${expiryAt.toDateString()}</strong>, unless extended by mutual written agreement between both parties.
+          This Agreement shall commence on <strong>${today.toLocaleDateString()}</strong> and shall automatically expire on 
+          <strong>${expiryDate.toDateString()}</strong>, unless extended by mutual written agreement between both parties.
         </p>
 
         <h3 style="margin-top: 20px;">3. RESPONSIBILITIES OF THE TEACHER</h3>
