@@ -20,6 +20,7 @@ export default function TeacherStudentPage() {
   const [timetable, setTimetable] = useState([]);
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
+  const [zoomSessions, setZoomSessions] = useState([]);
   const [tab, setTab] = useState("overview");
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -59,7 +60,30 @@ export default function TeacherStudentPage() {
       try {
         setLoading(true);
 
-        const { data, error } = await supabase
+    // Fetch Zoom sessions for this teacher-student pair
+    useEffect(() => {
+      if (!teacherId || !studentId) return;
+    
+      const fetchZoomSessions = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("zoom_sessions")
+            .select("*")
+            .eq("teacher_id", teacherId)
+            .eq("student_id", studentId)
+            .order("date", { ascending: false });
+    
+          if (error) throw error;
+          setZoomSessions(data || []);
+        } catch (err) {
+          console.error("Error fetching Zoom sessions:", err.message);
+        }
+      };
+    
+      fetchZoomSessions();
+    }, [teacherId, studentId]);
+    
+         const { data, error } = await supabase
           .from("teacher_students")
           .select(`
             id,
