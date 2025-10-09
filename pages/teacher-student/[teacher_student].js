@@ -659,11 +659,7 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
           <li>Either party may terminate the Agreement with reasonable notice.</li>
         </ol>
         <p>By checking below, both parties acknowledge acceptance.</p>
-        <div style="margin-top:20px;">
-          <label><input type="checkbox" disabled checked> ${teacherName} (Teacher)</label><br/>
-          <label><input type="checkbox" disabled> ${studentName} (Student)</label>
-        </div>
-      `;
+        `;
   
       // Insert into Supabase
       const { error } = await supabase.from("contracts").insert({
