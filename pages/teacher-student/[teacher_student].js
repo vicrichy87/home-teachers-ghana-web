@@ -736,96 +736,55 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
   };
 
   // Print contract: open new window with content and call print
-  // helper: try to extract "Teacher" or "Student" name from HTML contract.content
-function extractNameFromContent(content, label) {
-  if (!content) return null;
+  const handlePrint = (contract) => {
   try {
-    const div = document.createElement("div");
-    div.innerHTML = content;
-    // search list items first: <li><strong>Teacher:</strong> Name</li>
-    const lis = div.querySelectorAll("li");
-    for (const li of lis) {
-      const strong = li.querySelector("strong");
-      if (strong && strong.textContent.trim().toLowerCase().startsWith(label.toLowerCase())) {
-        // remove the strong text and return the rest
-        const txt = li.textContent.replace(strong.textContent, "").trim();
-        if (txt) return txt;
-      }
+    // Open window synchronously to avoid popup blockers
+    const w = window.open("", "_blank", "width=800,height=1000");
+    if (!w) {
+      alert("Popup blocked! Please allow popups for this site to print the contract.");
+      return;
     }
-    // fallback: search any text nodes for "Teacher: NAME" pattern
-    const text = div.textContent || "";
-    const re = new RegExp(`${label}:\\s*([^\\n]+)`, "i");
-    const m = text.match(re);
-    if (m && m[1]) return m[1].trim();
-  } catch (e) {
-    // ignore parse errors
+
+    const teacherName = contract.teacher_name || "Teacher";
+    const studentName = contract.student_name || "Student";
+
+    const html = `
+      <html>
+        <head>
+          <title>Contract</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; color: #222; }
+            h1 { text-align: center; }
+            .meta { margin-bottom: 20px; }
+            .meta strong { display: inline-block; width: 100px; }
+            .content { margin-top: 20px; line-height: 1.6; }
+          </style>
+        </head>
+        <body>
+          <h1>Teaching Services Agreement</h1>
+          <div class="meta">
+            <p><strong>Subject:</strong> ${contract.subject || ""}</p>
+            <p><strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()}</p>
+            <p><strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()}</p>
+          </div>
+          <div class="content">
+            ${contract.content}
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(() => { window.print(); }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    w.document.write(html);
+    w.document.close();
+  } catch (err) {
+    console.error("Print error:", err);
+    alert("Failed to open print view. Please check your browser popup settings.");
   }
-  return null;
-}
-
-const handlePrint = (contract) => {
-  const w = window.open("", "_blank", "width=900,height=1000");
-  if (!w) {
-    alert("Unable to open print window (popup blocked?)");
-    return;
-  }
-
-  // Prefer explicit columns (contract.teacher_name), fallback to extracting from content
-  const teacherDisplayName =
-    contract.teacher_name ||
-    contract.teacher_full_name ||
-    extractNameFromContent(contract.content, "Teacher") ||
-    "Teacher";
-  const studentDisplayName =
-    contract.student_name ||
-    contract.student_full_name ||
-    extractNameFromContent(contract.content, "Student") ||
-    "Student";
-
-  const html = `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8"/>
-        <title>Contract</title>
-        <style>
-          body { font-family: "Times New Roman", serif; padding: 40px; color: #111; }
-          h1 { text-align:center; margin-bottom: 18px; }
-          .meta p { margin: 6px 0; }
-          .content { margin-top: 20px; line-height: 1.6; white-space: pre-wrap; }
-          footer { margin-top: 40px; font-size: 12px; color: #555; }
-        </style>
-      </head>
-      <body>
-        <h1>Teaching Services Agreement</h1>
-        <div class="meta">
-          <p><strong>Teacher:</strong> ${teacherDisplayName}</p>
-          <p><strong>Student:</strong> ${studentDisplayName}</p>
-          <p><strong>Subject:</strong> ${contract.subject || ""}</p>
-          <p><strong>Created:</strong> ${contract.created_at ? new Date(contract.created_at).toLocaleString() : ""}</p>
-          <p><strong>Expiry:</strong> ${contract.expiry_date ? new Date(contract.expiry_date).toLocaleString() : ""}</p>
-        </div>
-        <div class="content">
-          ${contract.content || ""}
-        </div>
-        <footer>
-          <p>This document is a formal agreement between ${teacherDisplayName} and ${studentDisplayName}.</p>
-        </footer>
-
-        <script>
-          window.onload = function() {
-            // give the popup a short moment to render then print
-            setTimeout(() => { try { window.print(); } catch(e){} }, 400);
-          };
-        </script>
-      </body>
-    </html>
-  `;
-
-  // write the html safely
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
 };
 
 
