@@ -567,25 +567,24 @@ function ZoomSection({ zoomMeetings, teacherId, studentId, subject, refreshZoome
   return (
     <div>
       <div className="mt-6 border-t border-gray-200 pt-4">
-        <h3 className="text-lg font-semibold mb-3">Zoom Meetings</h3>
+        <h3 className="text-lg font-semibold mb-3">Zoom Sessions</h3>
       
-        {/* Zoom Meeting List */}
-        {zoomMeetings && zoomMeetings.length > 0 ? (
+        {zoomSessions && zoomSessions.length > 0 ? (
           <ul className="space-y-3">
-            {zoomMeetings.map((meeting) => (
+            {zoomSessions.map((session) => (
               <li
-                key={meeting.id}
+                key={session.id}
                 className="flex items-center justify-between bg-gray-50 p-3 rounded shadow-sm"
               >
                 <div>
                   <div className="font-medium text-gray-900">
-                    {meeting.topic || "Untitled Session"} – Class on{" "}
-                    {meeting.start_time
-                      ? new Date(meeting.start_time).toLocaleDateString()
+                    {session.topic || "Untitled Session"} – Class on{" "}
+                    {session.date
+                      ? new Date(session.date).toLocaleDateString()
                       : "Unknown Date"}
                   </div>
                   <a
-                    href={meeting.zoom_link}
+                    href={session.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sky-600 underline text-sm"
@@ -595,9 +594,9 @@ function ZoomSection({ zoomMeetings, teacherId, studentId, subject, refreshZoome
                 </div>
       
                 {/* Delete Button (Teachers Only) */}
-                {currentUserId === teacherId && (
+                {currentUserId && currentUserId === teacherId && (
                   <button
-                    onClick={() => handleDeleteZoomMeeting(meeting.id)}
+                    onClick={() => handleDeleteZoomSession(session.id)}
                     className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
                   >
                     Delete
@@ -607,7 +606,7 @@ function ZoomSection({ zoomMeetings, teacherId, studentId, subject, refreshZoome
             ))}
           </ul>
         ) : (
-          <p className="text-gray-600">No zoom meetings yet.</p>
+          <p className="text-gray-600">No Zoom sessions yet.</p>
         )}
       </div>
 
