@@ -653,8 +653,8 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
         </p>
 
         <p>
-          <strong>${teacher.full_name}</strong>, hereinafter referred to as the <strong>“Teacher”</strong>, and
-          <strong>${student.full_name}</strong>, hereinafter referred to as the <strong>“Student.”</strong>
+          <strong>${teacherName}</strong>, hereinafter referred to as the <strong>“Teacher”</strong>, and
+          <strong>${studentName}</strong>, hereinafter referred to as the <strong>“Student.”</strong>
         </p>
 
         <h3 style="margin-top: 20px;">1. PURPOSE OF AGREEMENT</h3>
