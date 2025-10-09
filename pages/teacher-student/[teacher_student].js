@@ -644,22 +644,64 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
   
       // Build contract content
       const content = `
-        <h2 style="text-align:center; font-weight:bold; margin-bottom:10px;">TEACHING SERVICES AGREEMENT</h2>
-        <p>This Teaching Agreement ("Agreement") is entered into on <strong>${today.toLocaleDateString()}</strong> between:</p>
+      <div style="font-family: 'Times New Roman', serif; line-height: 1.6;">
+        <h2 style="text-align: center; text-decoration: underline;">TEACHING SERVICES AGREEMENT</h2>
+
+        <p>
+          This <strong>Teaching Services Agreement</strong> (“Agreement”) is entered into on 
+          <strong>${createdAt.toDateString()}</strong> between:
+        </p>
+
+        <p>
+          <strong>${teacher.full_name}</strong>, hereinafter referred to as the <strong>“Teacher”</strong>, and
+          <strong>${student.full_name}</strong>, hereinafter referred to as the <strong>“Student.”</strong>
+        </p>
+
+        <h3 style="margin-top: 20px;">1. PURPOSE OF AGREEMENT</h3>
+        <p>
+          The purpose of this Agreement is to outline the terms and conditions under which the Teacher shall
+          provide private academic instruction to the Student in the agreed subject area.
+        </p>
+
+        <h3 style="margin-top: 20px;">2. DURATION</h3>
+        <p>
+          This Agreement shall commence on <strong>${createdAt.toDateString()}</strong> and shall automatically expire on 
+          <strong>${expiryAt.toDateString()}</strong>, unless extended by mutual written agreement between both parties.
+        </p>
+
+        <h3 style="margin-top: 20px;">3. RESPONSIBILITIES OF THE TEACHER</h3>
         <ul>
-          <li><strong>Teacher:</strong> ${teacherName}</li>
-          <li><strong>Student:</strong> ${studentName}</li>
+          <li>Deliver lessons punctually and in accordance with the agreed timetable.</li>
+          <li>Provide a professional, respectful, and supportive learning environment.</li>
+          <li>Communicate progress and challenges clearly to the Student (or the Parent/Guardian, where applicable).</li>
         </ul>
-        <p>Both parties agree to the following terms:</p>
-        <ol>
-          <li>The Teacher agrees to provide academic tutoring in <strong>${subject}</strong>.</li>
-          <li>The Student agrees to attend scheduled lessons as per the mutually agreed timetable.</li>
-          <li>Payment for services shall be handled directly between the Parent/Guardian and the Teacher.</li>
-          <li>This Agreement remains valid for one month, starting <strong>${today.toLocaleDateString()}</strong> and expiring <strong>${expiryDate.toLocaleDateString()}</strong>.</li>
-          <li>Either party may terminate the Agreement with reasonable notice.</li>
-        </ol>
-        <p>By checking below, both parties acknowledge acceptance.</p>
-        `;
+
+        <h3 style="margin-top: 20px;">4. RESPONSIBILITIES OF THE STUDENT</h3>
+        <ul>
+          <li>Attend lessons punctually and be prepared for class activities.</li>
+          <li>Complete assigned work and maintain good communication with the Teacher.</li>
+          <li>Respect the Teacher and adhere to academic guidelines.</li>
+        </ul>
+
+        <h3 style="margin-top: 20px;">5. FEES AND PAYMENT</h3>
+        <p>
+          Lesson rates and payment schedules shall be agreed upon separately and are payable in accordance 
+          with Home Teachers Ghana policies or mutual arrangement between the Teacher and Student.
+        </p>
+
+        <h3 style="margin-top: 20px;">6. TERMINATION</h3>
+        <p>
+          Either party may terminate this Agreement before its expiry date by providing reasonable notice.
+          In the event of termination, both parties shall settle any outstanding payments or obligations.
+        </p>
+
+        <h3 style="margin-top: 20px;">7. ACCEPTANCE</h3>
+        <p>
+          By checking the boxes below, both parties acknowledge that they have read, understood, and agreed
+          to the terms of this Agreement.
+        </p>
+      </div>
+    `;
   
       // Insert into Supabase
       const { error } = await supabase.from("contracts").insert({
