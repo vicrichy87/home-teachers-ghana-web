@@ -21,7 +21,7 @@ export default function TeacherStudentPage() {
   const [zoomMeetings, setZoomMeetings] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [tab, setTab] = useState("overview");
-
+  const [currentUser, setCurrentUser] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
 
   const formatDate = (dateStr) => {
@@ -92,6 +92,17 @@ export default function TeacherStudentPage() {
 
     fetchRelationships();
   }, [router.isReady, teacherId, studentId]);
+
+    useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    fetchUser();
+  }, []);
+
+  const currentUserId = currentUser?.id;
+
 
   // Helper: refresh Zoom meetings (queried by subject)
   const refreshZoomes = async (teacherIdArg, studentIdArg, subjectArg) => {
