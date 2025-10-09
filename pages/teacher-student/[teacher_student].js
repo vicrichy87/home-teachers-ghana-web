@@ -751,8 +751,8 @@ function ContractsSection({ contracts, teacherId, studentId, subject, currentUse
         </head>
         <body>
           <div class="meta">
-            <strong>Teacher:</strong> ${contract.teacher_id || ""} <br/>
-            <strong>Student:</strong> ${contract.student_id || ""} <br/>
+            <strong>Teacher:</strong> ${teacherName || ""} <br/>
+            <strong>Student:</strong> ${studentName || ""} <br/>
             <strong>Subject:</strong> ${contract.subject || ""} <br/>
             <strong>Created:</strong> ${new Date(contract.created_at).toLocaleString()} <br/>
             <strong>Expiry:</strong> ${new Date(contract.expiry_date).toLocaleString()} <br/>
