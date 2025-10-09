@@ -195,7 +195,7 @@ export default function TeacherStudentPage() {
 
         <div className="max-w-5xl mx-auto bg-white rounded shadow p-6 mt-6">
           <h1 className="text-2xl font-bold text-sky-700 mb-4 text-center">
-            Teacher–Student Relationship
+            Teacher–Student Page
           </h1>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
